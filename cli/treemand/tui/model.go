@@ -23,6 +23,16 @@ SchemeVim
 SchemeWASD
 )
 
+// pane identifies which pane currently has focus.
+type pane int
+
+const (
+paneTree    pane = 0
+panePreview pane = 1
+paneHelp    pane = 2
+paneCount        = 3
+)
+
 // Model is the root Bubble Tea model.
 type Model struct {
 root        *models.Node
@@ -31,10 +41,10 @@ scheme      NavScheme
 tree        *TreeModel
 preview     *PreviewModel
 helpPane    *HelpPaneModel
-showHelp    bool
 showHelpPane bool
 filter      textinput.Model
 filtering   bool
+focusedPane pane
 width       int
 height      int
 statusMsg   string
@@ -44,20 +54,23 @@ quitting    bool
 // NewModel creates a new root TUI model.
 func NewModel(root *models.Node, cfg *config.Config) *Model {
 filter := textinput.New()
-filter.Placeholder = "filter..."
+filter.Placeholder = "filter…"
 filter.CharLimit = 64
 
-tm := &Model{
-root:     root,
-cfg:      cfg,
-tree:     NewTreeModel(root, cfg),
-preview:  NewPreviewModel(cfg),
-helpPane: NewHelpPaneModel(cfg),
-filter:   filter,
+m := &Model{
+root:         root,
+cfg:          cfg,
+tree:         NewTreeModel(root, cfg),
+preview:      NewPreviewModel(cfg),
+helpPane:     NewHelpPaneModel(cfg),
+filter:       filter,
+showHelpPane: true,
+focusedPane:  paneTree,
 }
-tm.preview.SetNode(root)
-tm.helpPane.SetNode(root)
-return tm
+m.tree.SetFocused(true)
+m.preview.SetNode(root)
+m.helpPane.SetNode(root)
+return m
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -65,56 +78,56 @@ return tea.EnableMouseAllMotion
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-var cmds []tea.Cmd
-
 switch msg := msg.(type) {
 case tea.WindowSizeMsg:
 m.width = msg.Width
 m.height = msg.Height
-m.tree.SetSize(m.treeWidth(), m.contentHeight())
-m.helpPane.SetSize(m.helpWidth(), m.contentHeight())
+m.applyLayout()
 return m, nil
 
 case tea.KeyMsg:
 if m.filtering {
 return m.updateFilter(msg)
 }
+// Preview pane is focused: forward all typing to the textinput.
+if m.focusedPane == panePreview {
+return m.updatePreviewInput(msg)
+}
 return m.updateKeys(msg)
 
 case tea.MouseMsg:
 return m.updateMouse(msg)
 }
-
-// Propagate to sub-models
-newTree, cmd := m.tree.Update(msg)
-m.tree = newTree.(*TreeModel)
-cmds = append(cmds, cmd)
-
-return m, tea.Batch(cmds...)
+return m, nil
 }
 
+// ---------- key routing ----------
+
 func (m *Model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-switch msg.String() {
+key := msg.String()
+
+// Global keys work in all non-preview panes.
+switch key {
 case "ctrl+c", "q", "esc":
 m.quitting = true
 return m, tea.Quit
 
+case "tab":
+m.cycleFocus(1)
+return m, nil
+
+case "shift+tab":
+m.cycleFocus(-1)
+return m, nil
+
 case "ctrl+s":
 m.scheme = (m.scheme + 1) % 3
-m.statusMsg = fmt.Sprintf("nav: %s", schemeName(m.scheme))
+m.statusMsg = "nav: " + schemeName(m.scheme)
 return m, nil
 
-case "?":
-m.showHelp = !m.showHelp
-return m, nil
-
-case "h", "H":
-if m.scheme == SchemeVim && msg.String() == "h" {
-// vim: h = left (collapse)
-m.tree.Collapse()
-} else {
+case "H", "ctrl+p":
 m.showHelpPane = !m.showHelpPane
-}
+m.applyLayout()
 return m, nil
 
 case "/":
@@ -123,15 +136,16 @@ m.filter.Focus()
 return m, textinput.Blink
 
 case "r", "R":
-m.statusMsg = "refreshing..."
-return m, nil
-
-case "ctrl+p":
-m.showHelpPane = !m.showHelpPane
+m.statusMsg = "refreshed"
 return m, nil
 }
 
-// Navigation delegation
+// Pane-specific key handling.
+if m.focusedPane == paneHelp {
+return m.updateHelpPaneKeys(key)
+}
+
+// Tree navigation.
 switch m.scheme {
 case SchemeVim:
 return m.handleVim(msg)
@@ -140,6 +154,49 @@ return m.handleWASD(msg)
 default:
 return m.handleArrows(msg)
 }
+}
+
+func (m *Model) updateHelpPaneKeys(key string) (tea.Model, tea.Cmd) {
+switch key {
+case "up", "k":
+m.helpPane.ScrollUp(1)
+case "down", "j":
+m.helpPane.ScrollDown(1)
+case "pgup", "ctrl+u", "b":
+m.helpPane.PageUp()
+case "pgdown", "ctrl+d", "f":
+m.helpPane.PageDown()
+case "g":
+m.helpPane.Top()
+case "G":
+m.helpPane.Bottom()
+}
+return m, nil
+}
+
+func (m *Model) updatePreviewInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+key := msg.String()
+switch key {
+case "ctrl+c":
+m.quitting = true
+return m, tea.Quit
+case "esc":
+// Leave preview focus back to tree.
+m.setFocus(paneTree)
+m.statusMsg = "focus: tree"
+return m, nil
+case "tab":
+m.cycleFocus(1)
+return m, nil
+case "shift+tab":
+m.cycleFocus(-1)
+return m, nil
+}
+// Forward to textinput.
+cmd := m.preview.Update(msg)
+// Update tree highlighting whenever the input changes.
+m.tree.SetCmdTokens(m.preview.Tokens())
+return m, cmd
 }
 
 func (m *Model) handleArrows(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -202,15 +259,42 @@ return m, cmd
 }
 
 func (m *Model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
-// Scroll tree pane
-if msg.Type == tea.MouseWheelUp {
+switch msg.Type {
+case tea.MouseWheelUp:
+if m.focusedPane == paneHelp {
+m.helpPane.ScrollUp(3)
+} else {
 m.tree.Up()
 m.syncSelected()
-} else if msg.Type == tea.MouseWheelDown {
+}
+case tea.MouseWheelDown:
+if m.focusedPane == paneHelp {
+m.helpPane.ScrollDown(3)
+} else {
 m.tree.Down()
 m.syncSelected()
 }
+}
 return m, nil
+}
+
+// ---------- focus management ----------
+
+func (m *Model) cycleFocus(delta int) {
+next := (int(m.focusedPane) + delta + paneCount) % paneCount
+// Skip help pane if it's hidden.
+if pane(next) == paneHelp && !m.showHelpPane {
+next = (next + delta + paneCount) % paneCount
+}
+m.setFocus(pane(next))
+m.statusMsg = "focus: " + paneName(pane(next))
+}
+
+func (m *Model) setFocus(p pane) {
+m.focusedPane = p
+m.tree.SetFocused(p == paneTree)
+m.preview.SetFocused(p == panePreview)
+m.helpPane.SetFocused(p == paneHelp)
 }
 
 func (m *Model) syncSelected() {
@@ -220,70 +304,36 @@ m.helpPane.SetNode(node)
 }
 }
 
-func (m *Model) View() string {
-if m.quitting {
-return ""
+// ---------- layout ----------
+
+func (m *Model) applyLayout() {
+if m.width == 0 || m.height == 0 {
+return
 }
-if m.showHelp {
-return m.helpView()
+cH := m.contentHeight()
+m.tree.SetSize(m.treeWidth(), cH)
+m.helpPane.SetSize(m.helpWidth(), cH)
 }
 
-previewBar := m.preview.View(m.width)
-statusBar := m.statusBar()
+// previewHeight is how many terminal rows the preview bar occupies
+// (content line + bottom border).
+const previewBarHeight = 2
 
-contentH := m.contentHeight()
-treeView := m.tree.ViewSized(m.treeWidth(), contentH)
-
-var content string
-if m.showHelpPane {
-helpView := m.helpPane.View(m.helpWidth(), contentH)
-content = lipgloss.JoinHorizontal(lipgloss.Top, treeView, helpView)
-} else {
-content = treeView
+func (m *Model) contentHeight() int {
+h := m.height - previewBarHeight - 1 // 1 for status bar
+if h < 1 {
+return 1
 }
-
-return lipgloss.JoinVertical(lipgloss.Left, previewBar, content, statusBar)
-}
-
-func (m *Model) helpView() string {
-sb := strings.Builder{}
-sb.WriteString("treemand key bindings\n\n")
-sb.WriteString("  Navigation (toggle Ctrl+S):\n")
-sb.WriteString("    Arrows / vim (hjkl) / WASD\n\n")
-sb.WriteString("  Actions:\n")
-sb.WriteString("    Space/Enter  expand/activate\n")
-sb.WriteString("    /            fuzzy filter\n")
-sb.WriteString("    H            toggle help pane\n")
-sb.WriteString("    R            refresh node\n")
-sb.WriteString("    Ctrl+P       toggle panes\n")
-sb.WriteString("    Ctrl+S       cycle nav scheme\n")
-sb.WriteString("    ?            toggle this help\n")
-sb.WriteString("    q/Esc        quit\n")
-return sb.String()
-}
-
-func (m *Model) statusBar() string {
-selected := ""
-if node := m.tree.Selected(); node != nil {
-selected = node.FullCommand()
-}
-scheme := schemeName(m.scheme)
-hint := fmt.Sprintf("nav:%s  ?:help  /:filter  H:help-pane  q:quit", scheme)
-if m.statusMsg != "" {
-hint = m.statusMsg
-}
-if m.filtering {
-hint = "filter: " + m.filter.View() + "  (Enter/Esc to finish)"
-}
-left := lipgloss.NewStyle().Bold(true).Render(selected)
-right := lipgloss.NewStyle().Faint(true).Render(hint)
-gap := max(0, m.width-lipgloss.Width(left)-lipgloss.Width(right)-2)
-return left + strings.Repeat(" ", gap) + right
+return h
 }
 
 func (m *Model) treeWidth() int {
-if m.showHelpPane && m.width > 80 {
-return m.width * 6 / 10
+if m.showHelpPane && m.width >= 80 {
+tw := m.width * 55 / 100
+if tw < 30 {
+tw = 30
+}
+return tw
 }
 return m.width
 }
@@ -292,14 +342,62 @@ func (m *Model) helpWidth() int {
 return m.width - m.treeWidth()
 }
 
-func (m *Model) contentHeight() int {
-// subtract preview bar (3) + status bar (1)
-h := m.height - 4
-if h < 1 {
-return 1
+// ---------- view ----------
+
+func (m *Model) View() string {
+if m.quitting {
+return ""
 }
-return h
+
+previewBar := m.preview.View(m.width)
+statusBar := m.renderStatusBar()
+
+cH := m.contentHeight()
+treeView := m.tree.ViewSized(m.treeWidth(), cH)
+
+var body string
+if m.showHelpPane && m.helpWidth() > 20 {
+helpView := m.helpPane.View(m.helpWidth(), cH)
+body = lipgloss.JoinHorizontal(lipgloss.Top, treeView, helpView)
+} else {
+body = treeView
 }
+
+return lipgloss.JoinVertical(lipgloss.Left, previewBar, body, statusBar)
+}
+
+func (m *Model) renderStatusBar() string {
+selected := ""
+if node := m.tree.Selected(); node != nil {
+selected = node.FullCommand()
+}
+left := lipgloss.NewStyle().Bold(true).Render(selected)
+
+var hint string
+switch {
+case m.statusMsg != "":
+hint = m.statusMsg
+m.statusMsg = "" // clear after one render
+case m.filtering:
+hint = "filter: " + m.filter.View() + "  (Enter/Esc)"
+case m.focusedPane == panePreview:
+hint = "editing cmd · Esc: exit · Tab: switch pane"
+case m.focusedPane == paneHelp:
+hint = "↑↓/jk: scroll · PgUp/PgDn · g/G: top/bottom · Tab: switch"
+default:
+hint = fmt.Sprintf("Tab:focus  nav:%s  /:filter  H:help  q:quit",
+schemeName(m.scheme))
+}
+right := lipgloss.NewStyle().Faint(true).Render(hint)
+
+gap := m.width - lipgloss.Width(left) - lipgloss.Width(right) - 2
+if gap < 1 {
+gap = 1
+}
+return left + strings.Repeat(" ", gap) + right
+}
+
+// ---------- helpers ----------
 
 func schemeName(s NavScheme) string {
 switch s {
@@ -310,6 +408,24 @@ return "wasd"
 default:
 return "arrows"
 }
+}
+
+func paneName(p pane) string {
+switch p {
+case panePreview:
+return "preview"
+case paneHelp:
+return "help"
+default:
+return "tree"
+}
+}
+
+func min(a, b int) int {
+if a < b {
+return a
+}
+return b
 }
 
 func max(a, b int) int {

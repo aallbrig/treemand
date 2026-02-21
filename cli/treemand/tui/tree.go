@@ -10,61 +10,53 @@ tea "github.com/charmbracelet/bubbletea"
 "github.com/aallbrig/treemand/models"
 )
 
-// treeItem is a flattened view of a tree node for display.
+// treeItem is a flattened node for rendering.
 type treeItem struct {
 node     *models.Node
 depth    int
 expanded bool
-visible  bool
 }
 
-// TreeModel manages the tree pane.
+// TreeModel manages the scrollable, filterable tree pane.
 type TreeModel struct {
-root     *models.Node
-items    []treeItem
-cursor   int
-offset   int
-filter   string
-expanded map[string]bool
-cfg      *config.Config
-width    int
-height   int
-
-selectedStyle lipgloss.Style
-normalStyle   lipgloss.Style
-dimStyle      lipgloss.Style
+root      *models.Node
+items     []treeItem
+cursor    int
+offset    int
+filter    string
+expanded  map[string]bool
+cmdTokens []string // from preview textinput
+focused   bool
+cfg       *config.Config
+width     int
+height    int
 }
 
 func NewTreeModel(root *models.Node, cfg *config.Config) *TreeModel {
-selBg := lipgloss.Color(cfg.Colors.Selected)
 t := &TreeModel{
-root:          root,
-expanded:      make(map[string]bool),
-cfg:           cfg,
-selectedStyle: lipgloss.NewStyle().Background(selBg).Bold(true),
-normalStyle:   lipgloss.NewStyle(),
-dimStyle:      lipgloss.NewStyle().Faint(true),
+root:     root,
+expanded: make(map[string]bool),
+cfg:      cfg,
 }
-// Expand root by default
 t.expanded[nodeKey(root, 0)] = true
 t.rebuild()
 return t
 }
 
-func (t *TreeModel) SetSize(w, h int) {
-t.width = w
-t.height = h
-}
-
+func (t *TreeModel) SetSize(w, h int) { t.width = w; t.height = h }
 func (t *TreeModel) SetFilter(f string) {
 t.filter = f
+t.cursor = 0
+t.offset = 0
 t.rebuild()
 }
+func (t *TreeModel) SetCmdTokens(tokens []string) { t.cmdTokens = tokens }
+func (t *TreeModel) SetFocused(f bool)             { t.focused = f }
 
 func (t *TreeModel) Selected() *models.Node {
-visible := t.visibleItems()
-if t.cursor < len(visible) {
-return visible[t.cursor].node
+vis := t.visibleItems()
+if t.cursor < len(vis) {
+return vis[t.cursor].node
 }
 return nil
 }
@@ -72,24 +64,23 @@ return nil
 func (t *TreeModel) Up() {
 if t.cursor > 0 {
 t.cursor--
-}
 t.scrollIntoView()
+}
 }
 
 func (t *TreeModel) Down() {
-visible := t.visibleItems()
-if t.cursor < len(visible)-1 {
+if t.cursor < len(t.visibleItems())-1 {
 t.cursor++
-}
 t.scrollIntoView()
+}
 }
 
 func (t *TreeModel) Expand() {
-visible := t.visibleItems()
-if t.cursor >= len(visible) {
+vis := t.visibleItems()
+if t.cursor >= len(vis) {
 return
 }
-item := visible[t.cursor]
+item := vis[t.cursor]
 key := nodeKey(item.node, item.depth)
 if !t.expanded[key] {
 t.expanded[key] = true
@@ -98,11 +89,11 @@ t.rebuild()
 }
 
 func (t *TreeModel) Collapse() {
-visible := t.visibleItems()
-if t.cursor >= len(visible) {
+vis := t.visibleItems()
+if t.cursor >= len(vis) {
 return
 }
-item := visible[t.cursor]
+item := vis[t.cursor]
 key := nodeKey(item.node, item.depth)
 if t.expanded[key] {
 delete(t.expanded, key)
@@ -110,56 +101,71 @@ t.rebuild()
 }
 }
 
-func (t *TreeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-return t, nil
-}
-
-func (t *TreeModel) Init() tea.Cmd { return nil }
-
-func (t *TreeModel) View() string { return t.ViewSized(t.width, t.height) }
+func (t *TreeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { return t, nil }
+func (t *TreeModel) Init() tea.Cmd                           { return nil }
+func (t *TreeModel) View() string                            { return t.ViewSized(t.width, t.height) }
 
 func (t *TreeModel) ViewSized(w, h int) string {
 t.width = w
 t.height = h
-visible := t.visibleItems()
-
-// Ensure cursor is in range
-if t.cursor >= len(visible) && len(visible) > 0 {
-t.cursor = len(visible) - 1
+vis := t.visibleItems()
+if t.cursor >= len(vis) && len(vis) > 0 {
+t.cursor = len(vis) - 1
 }
 
-var sb strings.Builder
-end := t.offset + h
-if end > len(visible) {
-end = len(visible)
+borderColor := lipgloss.Color("#555555")
+if t.focused {
+borderColor = lipgloss.Color("#5EA4F5")
+}
+
+titleStyle := lipgloss.NewStyle().Bold(true)
+if t.focused {
+titleStyle = titleStyle.Foreground(lipgloss.Color("#5EA4F5"))
+}
+title := titleStyle.Render("Tree: " + t.root.Name)
+
+// Inner width available for content (box subtracts 2 for borders + 1 pad each side)
+innerW := w - 4
+if innerW < 1 {
+innerW = 1
+}
+
+// Visible height inside box: total h minus 2 border rows minus title row
+innerH := h - 3
+if innerH < 1 {
+innerH = 1
+}
+
+var lines []string
+end := t.offset + innerH
+if end > len(vis) {
+end = len(vis)
 }
 for i := t.offset; i < end; i++ {
-item := visible[i]
-line := t.renderItem(item, i == t.cursor)
-// Pad/truncate to width
-lineW := lipgloss.Width(line)
-if lineW < w {
-line += strings.Repeat(" ", w-lineW)
+line := t.renderItem(vis[i], i == t.cursor, innerW)
+lines = append(lines, line)
 }
-sb.WriteString(line)
-sb.WriteByte('\n')
+// Pad to fill box height.
+for len(lines) < innerH {
+lines = append(lines, "")
 }
 
 boxStyle := lipgloss.NewStyle().
 Border(lipgloss.RoundedBorder()).
-BorderForeground(lipgloss.Color("#555555")).
+BorderForeground(borderColor).
 Width(w - 2).
-Height(h)
+Height(h - 2)
 
-title := lipgloss.NewStyle().Bold(true).Render("Tree: " + t.root.Name)
-content := title + "\n" + sb.String()
+content := title + "\n" + strings.Join(lines, "\n")
 return boxStyle.Render(content)
 }
 
-func (t *TreeModel) renderItem(item treeItem, selected bool) string {
+func (t *TreeModel) renderItem(item treeItem, selected bool, maxW int) string {
 indent := strings.Repeat("  ", item.depth)
-icon := "• "
-if len(item.node.Children) > 0 {
+hasChildren := len(item.node.Children) > 0
+
+icon := ""
+if hasChildren {
 if t.expanded[nodeKey(item.node, item.depth)] {
 icon = "▼ "
 } else {
@@ -167,28 +173,91 @@ icon = "▶ "
 }
 }
 
-name := item.node.Name
-meta := ""
-if len(item.node.Positionals) > 0 {
-var parts []string
+// Determine text colors
+nameColor := lipgloss.Color(t.cfg.Colors.Base)
+if item.depth > 0 {
+nameColor = lipgloss.Color(t.cfg.Colors.Subcmd)
+}
+nameStyle := lipgloss.NewStyle().Foreground(nameColor)
+if item.depth == 0 {
+nameStyle = nameStyle.Bold(true)
+}
+
+// Check if this node is matched by current cmd tokens (highlighted in preview).
+if t.matchesTokenPrefix(item.node) {
+nameStyle = nameStyle.Foreground(lipgloss.Color("#50FA7B")).Bold(true) // bright green
+}
+
+name := nameStyle.Render(item.node.Name)
+
+// Inline positionals
+var metaParts []string
+posStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(t.cfg.Colors.Pos)).Faint(true)
 for _, p := range item.node.Positionals {
 if p.Required {
-parts = append(parts, "<"+p.Name+">")
+metaParts = append(metaParts, posStyle.Render("<"+p.Name+">"))
 } else {
-parts = append(parts, "["+p.Name+"]")
+metaParts = append(metaParts, posStyle.Render("["+p.Name+"]"))
 }
 }
-meta = " " + strings.Join(parts, " ")
+
+// Inline flags (abbreviated).
+flagStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(t.cfg.Colors.Flag)).Faint(true)
+if len(item.node.Flags) > 0 {
+const maxInline = 3
+var fnames []string
+for i, f := range item.node.Flags {
+if i >= maxInline {
+fnames = append(fnames, "…")
+break
+}
+n := f.Name
+if f.ShortName != "" && !strings.HasPrefix(f.ShortName, "-") && len(f.ShortName) == 1 {
+n += "|-" + f.ShortName
+}
+fnames = append(fnames, n)
+}
+metaParts = append(metaParts, flagStyle.Render("["+strings.Join(fnames, ", ")+"]"))
+}
+
+meta := ""
+if len(metaParts) > 0 {
+meta = " " + strings.Join(metaParts, " ")
 }
 
 line := indent + icon + name + meta
+
 if selected {
-return t.selectedStyle.Render(line)
+selStyle := lipgloss.NewStyle().
+Background(lipgloss.Color(t.cfg.Colors.Selected)).
+Bold(true)
+// Pad to full width so the background covers the whole line.
+lineW := lipgloss.Width(line)
+if lineW < maxW {
+line += strings.Repeat(" ", maxW-lineW)
 }
-if item.depth == 0 {
-return lipgloss.NewStyle().Bold(true).Render(line)
+return selStyle.Render(line)
 }
-return t.normalStyle.Render(line)
+return line
+}
+
+// matchesTokenPrefix returns true when the node's full path is a prefix-match
+// of the current cmdTokens (case-insensitive). Used to highlight nodes that
+// correspond to what is typed in the preview bar.
+func (t *TreeModel) matchesTokenPrefix(node *models.Node) bool {
+if len(t.cmdTokens) == 0 {
+return false
+}
+fp := node.FullPath
+if len(fp) > len(t.cmdTokens) {
+return false
+}
+for i, part := range fp {
+if !strings.EqualFold(part, t.cmdTokens[i]) {
+return false
+}
+}
+return true
 }
 
 func (t *TreeModel) rebuild() {
@@ -197,13 +266,14 @@ t.flatten(t.root, 0)
 }
 
 func (t *TreeModel) flatten(node *models.Node, depth int) {
-item := treeItem{node: node, depth: depth}
-item.expanded = t.expanded[nodeKey(node, depth)]
-
+item := treeItem{
+node:     node,
+depth:    depth,
+expanded: t.expanded[nodeKey(node, depth)],
+}
 if t.filter == "" || matchesFilter(node, t.filter) {
 t.items = append(t.items, item)
 }
-
 if item.expanded {
 for _, child := range node.Children {
 t.flatten(child, depth+1)
@@ -211,16 +281,18 @@ t.flatten(child, depth+1)
 }
 }
 
-func (t *TreeModel) visibleItems() []treeItem {
-return t.items
-}
+func (t *TreeModel) visibleItems() []treeItem { return t.items }
 
 func (t *TreeModel) scrollIntoView() {
+innerH := t.height - 3
+if innerH < 1 {
+innerH = 1
+}
 if t.cursor < t.offset {
 t.offset = t.cursor
 }
-if t.cursor >= t.offset+t.height {
-t.offset = t.cursor - t.height + 1
+if t.cursor >= t.offset+innerH {
+t.offset = t.cursor - innerH + 1
 }
 }
 
