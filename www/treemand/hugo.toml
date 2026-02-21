@@ -1,0 +1,25 @@
+baseURL = "/treemand/"
+languageCode = "en-us"
+title = "Treemand"
+theme = "minimal"
+
+[params]
+  description = "Visualize CLI command hierarchies as a tree"
+  author = "aallbrig"
+
+[menu]
+  [[menu.main]]
+    identifier = "home"
+    name = "Home"
+    url = "/"
+    weight = 1
+  [[menu.main]]
+    identifier = "installation"
+    name = "Installation"
+    url = "/installation/"
+    weight = 2
+  [[menu.main]]
+    identifier = "getting-started"
+    name = "Getting Started"
+    url = "/getting-started/"
+    weight = 3

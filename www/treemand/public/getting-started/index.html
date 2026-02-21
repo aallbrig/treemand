@@ -1,0 +1,59 @@
+<!doctype html><html lang=en><head><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Getting Started | Treemand</title>
+<link rel=stylesheet href=/treemand/css/main.css></head><body><header><nav><a href=/ class=site-title>🌲 Treemand</a><ul><li><a href=/treemand/>Home</a></li><li><a href=/treemand/installation/>Installation</a></li><li><a href=/treemand/getting-started/>Getting Started</a></li></ul></nav></header><main><article><h1>Getting Started</h1><h2 id=basic-usage>Basic Usage</h2><p>Discover and visualize any CLI command hierarchy:</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Explore git</span>
+</span></span><span style=display:flex><span>treemand git
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Explore kubectl</span>
+</span></span><span style=display:flex><span>treemand kubectl
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Explore the AWS CLI</span>
+</span></span><span style=display:flex><span>treemand aws
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Explore treemand itself</span>
+</span></span><span style=display:flex><span>treemand treemand
+</span></span></code></pre></div><h2 id=non-interactive-mode>Non-Interactive Mode</h2><pre tabindex=0><code>▼ git  the version control system
+├── ▼ remote
+│   ├── • add &lt;name&gt; &lt;url&gt;
+│   ├── • remove &lt;name&gt;
+│   └── • get-url &lt;name&gt;
+├── • commit [-m &lt;message&gt;] [file]
+├── • status
+└── • push [--force]
+</code></pre><h3 id=flags>Flags</h3><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Limit tree depth</span>
+</span></span><span style=display:flex><span>treemand --depth<span style=color:#f92672>=</span><span style=color:#ae81ff>2</span> git
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Filter to matching nodes</span>
+</span></span><span style=display:flex><span>treemand --filter<span style=color:#f92672>=</span>remote git
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Exclude certain nodes</span>
+</span></span><span style=display:flex><span>treemand --exclude<span style=color:#f92672>=</span>help git
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Show commands only (no flags/positionals)</span>
+</span></span><span style=display:flex><span>treemand --commands-only kubectl
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Output as JSON</span>
+</span></span><span style=display:flex><span>treemand --output<span style=color:#f92672>=</span>json git &gt; git-tree.json
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Disable color</span>
+</span></span><span style=display:flex><span>treemand --no-color git
+</span></span></code></pre></div><h2 id=interactive-tui--i>Interactive TUI (<code>-i</code>)</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>treemand -i git
+</span></span></code></pre></div><p>The TUI gives you a full explorer:</p><pre tabindex=0><code>┌─ Preview ─────────────────────────────────────────────┐
+│ git remote add &lt;name&gt; &lt;url&gt;                           │
+└───────────────────────────────────────────────────────┘
+┌─ Tree: git ──────────────┐ ┌─ Help: remote ──────────┐
+│ ▼ git                    │ │ Manage remotes           │
+│   ▼ remote               │ │                          │
+│ ▶ ● add &lt;name&gt; &lt;url&gt;     │ │ Subcommands:             │
+│   • remove &lt;name&gt;        │ │   add, remove, get-url   │
+└──────────────────────────┘ └─────────────────────────┘
+  git remote add  nav:arrows  ?:help  /:filter  q:quit
+</code></pre><h3 id=keyboard-controls>Keyboard Controls</h3><table><thead><tr><th>Key</th><th>Action</th></tr></thead><tbody><tr><td><code>↑</code>/<code>↓</code></td><td>Navigate tree</td></tr><tr><td><code>→</code>/<code>Space</code>/<code>Enter</code></td><td>Expand node</td></tr><tr><td><code>←</code></td><td>Collapse node</td></tr><tr><td><code>Ctrl+S</code></td><td>Cycle nav scheme (arrows → vim → WASD)</td></tr><tr><td><code>/</code></td><td>Fuzzy filter</td></tr><tr><td><code>H</code></td><td>Toggle help pane</td></tr><tr><td><code>?</code></td><td>Show key bindings</td></tr><tr><td><code>Ctrl+P</code></td><td>Toggle panes</td></tr><tr><td><code>R</code></td><td>Refresh node</td></tr><tr><td><code>q</code>/<code>Esc</code></td><td>Quit</td></tr></tbody></table><h3 id=navigation-schemes>Navigation Schemes</h3><p>Toggle between three schemes with <strong>Ctrl+S</strong>:</p><ul><li><strong>Arrows</strong> — <code>↑↓←→</code></li><li><strong>Vim</strong> — <code>hjkl</code></li><li><strong>WASD</strong> — <code>wasd</code></li></ul><h2 id=caching>Caching</h2><p>Discovery results are cached in <code>~/.treemand/cache.db</code> for 24 hours.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Bypass cache</span>
+</span></span><span style=display:flex><span>treemand --no-cache git
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Cache location can be changed via environment variable</span>
+</span></span><span style=display:flex><span>TREEMAND_CACHE_DIR<span style=color:#f92672>=</span>/tmp/treemand treemand git
+</span></span></code></pre></div><h2 id=discovery-strategies>Discovery Strategies</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Default: --help recursion</span>
+</span></span><span style=display:flex><span>treemand -s help git
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Future: shell completions (coming soon)</span>
+</span></span><span style=display:flex><span>treemand -s completions kubectl
+</span></span></code></pre></div></article></main><footer><p>MIT License · <a href=https://github.com/aallbrig/treemand>GitHub</a></p></footer></body></html>
