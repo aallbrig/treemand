@@ -56,6 +56,38 @@ return nil
 return strings.Fields(v)
 }
 
+
+// SetCommand replaces the preview with an explicit command string.
+func (p *PreviewModel) SetCommand(cmd string) {
+p.ti.SetValue(cmd)
+}
+
+// AppendToken appends a single space-separated token to the preview.
+func (p *PreviewModel) AppendToken(s string) {
+cur := strings.TrimSpace(p.ti.Value())
+if cur == "" {
+p.ti.SetValue(s)
+} else {
+p.ti.SetValue(cur + " " + s)
+}
+p.ti.CursorEnd()
+}
+
+// RemoveLastToken removes the last whitespace-delimited token from the preview.
+func (p *PreviewModel) RemoveLastToken() {
+cur := strings.TrimSpace(p.ti.Value())
+if cur == "" {
+return
+}
+idx := strings.LastIndex(cur, " ")
+if idx < 0 {
+p.ti.SetValue("")
+} else {
+p.ti.SetValue(cur[:idx])
+}
+p.ti.CursorEnd()
+}
+
 // Update forwards tea messages to the textinput when focused.
 func (p *PreviewModel) Update(msg tea.Msg) tea.Cmd {
 var cmd tea.Cmd
@@ -86,40 +118,16 @@ content = p.buildColoredPreview()
 return style.Render(content)
 }
 
-// buildColoredPreview renders the node's full path with lipgloss colors.
+// buildColoredPreview renders the current textinput value with color-coded tokens.
 func (p *PreviewModel) buildColoredPreview() string {
-if p.node == nil {
+tokens := p.Tokens()
+if len(tokens) == 0 {
+if p.node != nil {
+return buildColoredFromTokens(p.node.FullPath, p.cfg)
+}
 return ""
 }
-baseStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(p.cfg.Colors.Base))
-subcmdStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(p.cfg.Colors.Subcmd))
-flagStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(p.cfg.Colors.Flag))
-posStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(p.cfg.Colors.Pos))
-
-var parts []string
-for i, part := range p.node.FullPath {
-if i == 0 {
-parts = append(parts, baseStyle.Render(part))
-} else {
-parts = append(parts, subcmdStyle.Render(part))
-}
-}
-for _, pos := range p.node.Positionals {
-if pos.Required {
-parts = append(parts, posStyle.Render("<"+pos.Name+">"))
-} else {
-parts = append(parts, posStyle.Render("["+pos.Name+"]"))
-}
-}
-const maxFlags = 4
-for i, f := range p.node.Flags {
-if i >= maxFlags {
-parts = append(parts, flagStyle.Render("…"))
-break
-}
-parts = append(parts, flagStyle.Render(f.Name))
-}
-return strings.Join(parts, " ")
+return buildColoredFromTokens(tokens, p.cfg)
 }
 
 // buildColoredFromTokens renders a manually-typed command with color coding

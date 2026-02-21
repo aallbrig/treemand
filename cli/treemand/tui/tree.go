@@ -118,20 +118,14 @@ if t.focused {
 borderColor = lipgloss.Color("#5EA4F5")
 }
 
-titleStyle := lipgloss.NewStyle().Bold(true)
-if t.focused {
-titleStyle = titleStyle.Foreground(lipgloss.Color("#5EA4F5"))
-}
-title := titleStyle.Render("Tree: " + t.root.Name)
-
 // Inner width available for content (box subtracts 2 for borders + 1 pad each side)
 innerW := w - 4
 if innerW < 1 {
 innerW = 1
 }
 
-// Visible height inside box: total h minus 2 border rows minus title row
-innerH := h - 3
+// Visible height inside box: total h minus top and bottom border rows.
+innerH := h - 2
 if innerH < 1 {
 innerH = 1
 }
@@ -156,7 +150,7 @@ BorderForeground(borderColor).
 Width(w - 2).
 Height(h - 2)
 
-content := title + "\n" + strings.Join(lines, "\n")
+content := strings.Join(lines, "\n")
 return boxStyle.Render(content)
 }
 
@@ -201,23 +195,37 @@ metaParts = append(metaParts, posStyle.Render("["+p.Name+"]"))
 }
 }
 
-// Inline flags (abbreviated).
-flagStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(t.cfg.Colors.Flag)).Faint(true)
+// Inline flags (abbreviated). Flags that appear in cmdTokens are highlighted.
 if len(item.node.Flags) > 0 {
+inactiveStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(t.cfg.Colors.Flag)).Faint(true)
+activeStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFB86C")).Bold(true)
+sepStyle := inactiveStyle
 const maxInline = 3
-var fnames []string
+var flagParts []string
 for i, f := range item.node.Flags {
 if i >= maxInline {
-fnames = append(fnames, "…")
+flagParts = append(flagParts, inactiveStyle.Render("…"))
 break
 }
 n := f.Name
 if f.ShortName != "" && !strings.HasPrefix(f.ShortName, "-") && len(f.ShortName) == 1 {
 n += "|-" + f.ShortName
 }
-fnames = append(fnames, n)
+if isFlagActive(f, t.cmdTokens) {
+flagParts = append(flagParts, activeStyle.Render(n))
+} else {
+flagParts = append(flagParts, inactiveStyle.Render(n))
 }
-metaParts = append(metaParts, flagStyle.Render("["+strings.Join(fnames, ", ")+"]"))
+}
+sep := sepStyle.Render(", ")
+combined := ""
+for i, p := range flagParts {
+if i > 0 {
+combined += sep
+}
+combined += p
+}
+metaParts = append(metaParts, inactiveStyle.Render("[")+combined+inactiveStyle.Render("]"))
 }
 
 meta := ""
@@ -284,7 +292,7 @@ t.flatten(child, depth+1)
 func (t *TreeModel) visibleItems() []treeItem { return t.items }
 
 func (t *TreeModel) scrollIntoView() {
-innerH := t.height - 3
+innerH := t.height - 2
 if innerH < 1 {
 innerH = 1
 }
@@ -300,6 +308,45 @@ func nodeKey(n *models.Node, depth int) string {
 return strings.Join(n.FullPath, "/") + "@" + string(rune('0'+depth))
 }
 
+
+// isFlagActive returns true when the flag's name or short name matches any
+// flag-shaped token (--flag or -f) in the current cmdTokens.
+func isFlagActive(f models.Flag, tokens []string) bool {
+longName := strings.TrimPrefix(f.Name, "--")
+for _, tok := range tokens {
+if strings.HasPrefix(tok, "--") {
+name := strings.TrimPrefix(tok, "--")
+if idx := strings.Index(name, "="); idx >= 0 {
+name = name[:idx]
+}
+if strings.EqualFold(name, longName) {
+return true
+}
+} else if strings.HasPrefix(tok, "-") && len(tok) == 2 && f.ShortName != "" {
+if strings.EqualFold(tok[1:], f.ShortName) {
+return true
+}
+}
+}
+return false
+}
+
 func matchesFilter(node *models.Node, filter string) bool {
 return strings.Contains(strings.ToLower(node.Name), strings.ToLower(filter))
+}
+
+// ToggleExpand expands the selected node if collapsed, or collapses it if expanded.
+func (t *TreeModel) ToggleExpand() {
+vis := t.visibleItems()
+if t.cursor >= len(vis) {
+return
+}
+item := vis[t.cursor]
+key := nodeKey(item.node, item.depth)
+if t.expanded[key] {
+delete(t.expanded, key)
+} else {
+t.expanded[key] = true
+}
+t.rebuild()
 }

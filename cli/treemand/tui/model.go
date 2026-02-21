@@ -3,8 +3,11 @@ package tui
 
 import (
 "fmt"
+"os"
+"os/exec"
 "strings"
 
+"github.com/atotto/clipboard"
 "github.com/charmbracelet/bubbles/textinput"
 tea "github.com/charmbracelet/bubbletea"
 "github.com/charmbracelet/lipgloss"
@@ -33,22 +36,31 @@ paneHelp    pane = 2
 paneCount        = 3
 )
 
+// executeModal is the Ctrl+E dialog for running or copying the built command.
+type executeModal struct {
+active  bool
+command string
+}
+
 // Model is the root Bubble Tea model.
 type Model struct {
-root        *models.Node
-cfg         *config.Config
-scheme      NavScheme
-tree        *TreeModel
-preview     *PreviewModel
-helpPane    *HelpPaneModel
+root         *models.Node
+cfg          *config.Config
+scheme       NavScheme
+tree         *TreeModel
+preview      *PreviewModel
+helpPane     *HelpPaneModel
 showHelpPane bool
-filter      textinput.Model
-filtering   bool
-focusedPane pane
-width       int
-height      int
-statusMsg   string
-quitting    bool
+filter       textinput.Model
+filtering    bool
+focusedPane  pane
+width        int
+height       int
+statusMsg    string
+quitting     bool
+modal        *executeModal
+commandToRun string // set when user picks "Run" in the modal
+flagCycleIdx int    // index for cycling through flags with the f key
 }
 
 // NewModel creates a new root TUI model.
@@ -66,6 +78,7 @@ helpPane:     NewHelpPaneModel(cfg),
 filter:       filter,
 showHelpPane: true,
 focusedPane:  paneTree,
+modal:        &executeModal{},
 }
 m.tree.SetFocused(true)
 m.preview.SetNode(root)
@@ -78,6 +91,14 @@ return tea.EnableMouseAllMotion
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+// Modal intercepts all input when active.
+if m.modal.active {
+if km, ok := msg.(tea.KeyMsg); ok {
+return m.updateModal(km)
+}
+return m, nil
+}
+
 switch msg := msg.(type) {
 case tea.WindowSizeMsg:
 m.width = msg.Width
@@ -89,7 +110,6 @@ case tea.KeyMsg:
 if m.filtering {
 return m.updateFilter(msg)
 }
-// Preview pane is focused: forward all typing to the textinput.
 if m.focusedPane == panePreview {
 return m.updatePreviewInput(msg)
 }
@@ -101,12 +121,82 @@ return m.updateMouse(msg)
 return m, nil
 }
 
+// ---------- modal ----------
+
+func (m *Model) updateModal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+switch msg.String() {
+case "ctrl+c", "esc", "q":
+m.modal.active = false
+m.statusMsg = "cancelled"
+case "enter", "r", "R":
+m.commandToRun = m.modal.command
+m.modal.active = false
+m.quitting = true
+return m, tea.Quit
+case "c", "C":
+if err := clipboard.WriteAll(m.modal.command); err != nil {
+m.statusMsg = "copy failed: " + err.Error()
+} else {
+m.statusMsg = "copied: " + m.modal.command
+}
+m.modal.active = false
+}
+return m, nil
+}
+
+func (m *Model) renderModal() string {
+cmd := m.modal.command
+if cmd == "" {
+cmd = "(empty command)"
+}
+
+modalW := min(m.width-8, 72)
+if modalW < 30 {
+modalW = 30
+}
+
+titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#5EA4F5"))
+cmdStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(m.cfg.Colors.Base)).Bold(true)
+hintStyle := lipgloss.NewStyle().Faint(true)
+
+inner := titleStyle.Render("Execute Command") + "\n\n" +
+cmdStyle.Render(cmd) + "\n\n" +
+hintStyle.Render("[Enter/R] Run  [C] Copy  [Esc] Cancel")
+
+box := lipgloss.NewStyle().
+Border(lipgloss.RoundedBorder()).
+BorderForeground(lipgloss.Color("#5EA4F5")).
+Padding(1, 2).
+Width(modalW - 2).
+Render(inner)
+
+// Center horizontally; place in the middle of the screen vertically.
+padLeft := (m.width - lipgloss.Width(box)) / 2
+if padLeft < 0 {
+padLeft = 0
+}
+padTop := (m.height - lipgloss.Height(box)) / 2
+if padTop < 0 {
+padTop = 0
+}
+
+var sb strings.Builder
+emptyLine := strings.Repeat(" ", m.width)
+for i := 0; i < padTop; i++ {
+sb.WriteString(emptyLine + "\n")
+}
+leftPad := strings.Repeat(" ", padLeft)
+for _, line := range strings.Split(box, "\n") {
+sb.WriteString(leftPad + line + "\n")
+}
+return sb.String()
+}
+
 // ---------- key routing ----------
 
 func (m *Model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 key := msg.String()
 
-// Global keys work in all non-preview panes.
 switch key {
 case "ctrl+c", "q", "esc":
 m.quitting = true
@@ -125,7 +215,7 @@ m.scheme = (m.scheme + 1) % 3
 m.statusMsg = "nav: " + schemeName(m.scheme)
 return m, nil
 
-case "H", "ctrl+p":
+case "h", "H", "ctrl+p":
 m.showHelpPane = !m.showHelpPane
 m.applyLayout()
 return m, nil
@@ -138,9 +228,29 @@ return m, textinput.Blink
 case "r", "R":
 m.statusMsg = "refreshed"
 return m, nil
+
+case "ctrl+e":
+cmd := strings.Join(m.preview.Tokens(), " ")
+if cmd == "" {
+if node := m.tree.Selected(); node != nil {
+cmd = node.FullCommand()
+}
+}
+m.modal.command = cmd
+m.modal.active = true
+return m, nil
+
+case "backspace", "delete":
+m.preview.RemoveLastToken()
+m.tree.SetCmdTokens(m.preview.Tokens())
+m.statusMsg = "removed last token"
+return m, nil
+
+case "f", "F":
+return m.addNextFlag()
 }
 
-// Pane-specific key handling.
+// Help pane specific keys.
 if m.focusedPane == paneHelp {
 return m.updateHelpPaneKeys(key)
 }
@@ -154,6 +264,22 @@ return m.handleWASD(msg)
 default:
 return m.handleArrows(msg)
 }
+}
+
+// addNextFlag appends the next flag of the selected node (cycling) to the preview.
+func (m *Model) addNextFlag() (tea.Model, tea.Cmd) {
+node := m.tree.Selected()
+if node == nil || len(node.Flags) == 0 {
+m.statusMsg = "no flags available"
+return m, nil
+}
+m.flagCycleIdx = m.flagCycleIdx % len(node.Flags)
+f := node.Flags[m.flagCycleIdx]
+m.preview.AppendToken(f.Name)
+m.tree.SetCmdTokens(m.preview.Tokens())
+m.statusMsg = "added: " + f.Name
+m.flagCycleIdx++
+return m, nil
 }
 
 func (m *Model) updateHelpPaneKeys(key string) (tea.Model, tea.Cmd) {
@@ -181,7 +307,6 @@ case "ctrl+c":
 m.quitting = true
 return m, tea.Quit
 case "esc":
-// Leave preview focus back to tree.
 m.setFocus(paneTree)
 m.statusMsg = "focus: tree"
 return m, nil
@@ -191,10 +316,13 @@ return m, nil
 case "shift+tab":
 m.cycleFocus(-1)
 return m, nil
+case "ctrl+e":
+cmd := strings.Join(m.preview.Tokens(), " ")
+m.modal.command = cmd
+m.modal.active = true
+return m, nil
 }
-// Forward to textinput.
 cmd := m.preview.Update(msg)
-// Update tree highlighting whenever the input changes.
 m.tree.SetCmdTokens(m.preview.Tokens())
 return m, cmd
 }
@@ -207,8 +335,17 @@ case "down":
 m.tree.Down()
 case "left":
 m.tree.Collapse()
-case "right", " ", "enter":
+case "right":
 m.tree.Expand()
+case " ":
+m.tree.ToggleExpand()
+case "enter":
+if node := m.tree.Selected(); node != nil {
+m.preview.SetCommand(node.FullCommand())
+m.tree.SetCmdTokens(m.preview.Tokens())
+m.flagCycleIdx = 0
+m.statusMsg = "set: " + node.FullCommand()
+}
 }
 m.syncSelected()
 return m, nil
@@ -220,10 +357,17 @@ case "k":
 m.tree.Up()
 case "j":
 m.tree.Down()
-case "h":
-m.tree.Collapse()
-case "l", " ", "enter":
+case "l":
 m.tree.Expand()
+case " ":
+m.tree.ToggleExpand()
+case "enter":
+if node := m.tree.Selected(); node != nil {
+m.preview.SetCommand(node.FullCommand())
+m.tree.SetCmdTokens(m.preview.Tokens())
+m.flagCycleIdx = 0
+m.statusMsg = "set: " + node.FullCommand()
+}
 }
 m.syncSelected()
 return m, nil
@@ -237,8 +381,17 @@ case "s":
 m.tree.Down()
 case "a":
 m.tree.Collapse()
-case "d", " ", "enter":
+case "d":
 m.tree.Expand()
+case " ":
+m.tree.ToggleExpand()
+case "enter":
+if node := m.tree.Selected(); node != nil {
+m.preview.SetCommand(node.FullCommand())
+m.tree.SetCmdTokens(m.preview.Tokens())
+m.flagCycleIdx = 0
+m.statusMsg = "set: " + node.FullCommand()
+}
 }
 m.syncSelected()
 return m, nil
@@ -260,15 +413,19 @@ return m, cmd
 
 func (m *Model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 switch msg.Type {
+case tea.MouseLeft:
+m.handleMouseClick(msg.X, msg.Y)
+
 case tea.MouseWheelUp:
-if m.focusedPane == paneHelp {
+if m.showHelpPane && m.width > 0 && msg.X >= m.treeWidth() {
 m.helpPane.ScrollUp(3)
 } else {
 m.tree.Up()
 m.syncSelected()
 }
+
 case tea.MouseWheelDown:
-if m.focusedPane == paneHelp {
+if m.showHelpPane && m.width > 0 && msg.X >= m.treeWidth() {
 m.helpPane.ScrollDown(3)
 } else {
 m.tree.Down()
@@ -278,11 +435,21 @@ m.syncSelected()
 return m, nil
 }
 
+func (m *Model) handleMouseClick(x, y int) {
+if y < previewBarHeight {
+m.setFocus(panePreview)
+} else if m.showHelpPane && m.width > 0 && x >= m.treeWidth() {
+m.setFocus(paneHelp)
+} else {
+m.setFocus(paneTree)
+}
+m.statusMsg = "focus: " + paneName(m.focusedPane)
+}
+
 // ---------- focus management ----------
 
 func (m *Model) cycleFocus(delta int) {
 next := (int(m.focusedPane) + delta + paneCount) % paneCount
-// Skip help pane if it's hidden.
 if pane(next) == paneHelp && !m.showHelpPane {
 next = (next + delta + paneCount) % paneCount
 }
@@ -315,12 +482,10 @@ m.tree.SetSize(m.treeWidth(), cH)
 m.helpPane.SetSize(m.helpWidth(), cH)
 }
 
-// previewHeight is how many terminal rows the preview bar occupies
-// (content line + bottom border).
 const previewBarHeight = 2
 
 func (m *Model) contentHeight() int {
-h := m.height - previewBarHeight - 1 // 1 for status bar
+h := m.height - previewBarHeight - 1
 if h < 1 {
 return 1
 }
@@ -347,6 +512,10 @@ return m.width - m.treeWidth()
 func (m *Model) View() string {
 if m.quitting {
 return ""
+}
+
+if m.modal.active {
+return m.renderModal()
 }
 
 previewBar := m.preview.View(m.width)
@@ -377,15 +546,15 @@ var hint string
 switch {
 case m.statusMsg != "":
 hint = m.statusMsg
-m.statusMsg = "" // clear after one render
+m.statusMsg = ""
 case m.filtering:
 hint = "filter: " + m.filter.View() + "  (Enter/Esc)"
 case m.focusedPane == panePreview:
-hint = "editing cmd · Esc: exit · Tab: switch pane"
+hint = "editing · Esc:tree · Enter:flag · Ctrl+E:exec · Tab:switch"
 case m.focusedPane == paneHelp:
-hint = "↑↓/jk: scroll · PgUp/PgDn · g/G: top/bottom · Tab: switch"
+hint = "↑↓/jk:scroll · PgUp/PgDn · g/G:top/bottom · Tab:switch"
 default:
-hint = fmt.Sprintf("Tab:focus  nav:%s  /:filter  H:help  q:quit",
+hint = fmt.Sprintf("Enter:set-cmd  f:add-flag  Backspace:remove  Ctrl+E:exec  h:help  q:quit  nav:%s",
 schemeName(m.scheme))
 }
 right := lipgloss.NewStyle().Faint(true).Render(hint)
@@ -435,15 +604,29 @@ return a
 return b
 }
 
-// Run starts the interactive TUI.
+// Run starts the interactive TUI. If the user chose "Run" in the Ctrl+E modal,
+// it executes the command after the TUI exits.
 func Run(root *models.Node, cfg *config.Config) error {
 m := NewModel(root, cfg)
 p := tea.NewProgram(m,
 tea.WithAltScreen(),
 tea.WithMouseAllMotion(),
 )
-_, err := p.Run()
+finalModel, err := p.Run()
+if err != nil {
 return err
+}
+if fm, ok := finalModel.(*Model); ok && fm.commandToRun != "" {
+parts := strings.Fields(fm.commandToRun)
+if len(parts) > 0 {
+c := exec.Command(parts[0], parts[1:]...) //nolint:gosec
+c.Stdin = os.Stdin
+c.Stdout = os.Stdout
+c.Stderr = os.Stderr
+return c.Run()
+}
+}
+return nil
 }
 
 // NodePreview returns a color-coded command preview string.
