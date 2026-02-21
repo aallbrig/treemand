@@ -1,0 +1,81 @@
+// Package config provides color scheme and configuration management.
+package config
+
+import (
+	"os"
+	"strings"
+)
+
+// ColorScheme defines the color palette for tree rendering.
+type ColorScheme struct {
+	Base     string // root/base command color (hex)
+	Subcmd   string // subcommand color
+	Flag     string // flag color
+	Pos      string // positional argument color
+	Value    string // value/type color
+	Invalid  string // invalid/error color
+	Selected string // selected item in TUI
+}
+
+// DefaultColors returns the default color scheme.
+func DefaultColors() ColorScheme {
+	return ColorScheme{
+		Base:     "#FFFFFF",
+		Subcmd:   "#5EA4F5",
+		Flag:     "#50FA7B",
+		Pos:      "#F1FA8C",
+		Value:    "#FF79C6",
+		Invalid:  "#FF5555",
+		Selected: "#00BFFF",
+	}
+}
+
+// Config holds all treemand configuration.
+type Config struct {
+	Colors    ColorScheme
+	NoColor   bool
+	Depth     int
+	NoCache   bool
+	CacheDir  string
+	Strategies []string
+}
+
+// DefaultConfig returns config with sensible defaults.
+func DefaultConfig() *Config {
+	cacheDir := os.Getenv("TREEMAND_CACHE_DIR")
+	if cacheDir == "" {
+		home, _ := os.UserHomeDir()
+		cacheDir = home + "/.treemand"
+	}
+	return &Config{
+		Colors:    DefaultColors(),
+		NoColor:   os.Getenv("NO_COLOR") != "" || os.Getenv("TREEMAND_NO_COLOR") != "",
+		Depth:     -1, // unlimited
+		NoCache:   false,
+		CacheDir:  cacheDir,
+		Strategies: defaultStrategies(),
+	}
+}
+
+func defaultStrategies() []string {
+	if s := os.Getenv("TREEMAND_STRATEGIES"); s != "" {
+		return strings.Split(s, ",")
+	}
+	return []string{"help"}
+}
+
+// ParseStrategies splits a comma-separated strategy string.
+func ParseStrategies(s string) []string {
+	if s == "" {
+		return defaultStrategies()
+	}
+	parts := strings.Split(s, ",")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			result = append(result, p)
+		}
+	}
+	return result
+}
