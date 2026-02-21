@@ -1,0 +1,32 @@
+name: Deploy Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "www/treemand/**"
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: "0.123.7"
+          extended: true
+
+      - name: Build
+        working-directory: www/treemand
+        run: hugo --minify --baseURL "https://aallbrig.github.io/treemand/"
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: www/treemand/public
