@@ -4,9 +4,12 @@ package discovery
 import (
 "context"
 "fmt"
+"os"
 "os/exec"
+"path/filepath"
 "regexp"
 "strings"
+"sync"
 "time"
 
 "github.com/aallbrig/treemand/models"
@@ -62,27 +65,103 @@ node.Description = parsed.Description
 node.Flags = parsed.Flags
 node.Positionals = parsed.Positionals
 
-if depth < h.MaxDepth {
-for _, sub := range parsed.Subcommands {
+if depth < h.MaxDepth && len(parsed.Subcommands) > 0 {
+// Discover subcommands in parallel; limit concurrency to avoid
+// overwhelming the target CLI or the system.
+const maxWorkers = 8
+sem := make(chan struct{}, maxWorkers)
+type result struct {
+idx   int
+child *models.Node
+}
+results := make([]result, len(parsed.Subcommands))
+var wg sync.WaitGroup
+for i, sub := range parsed.Subcommands {
+wg.Add(1)
+go func(i int, sub string) {
+defer wg.Done()
+sem <- struct{}{}
+defer func() { <-sem }()
 subCtx, cancel := context.WithTimeout(ctx, h.Timeout)
-child, cerr := h.discover(subCtx, cliName, append(args, sub), depth+1)
-cancel()
-if cerr != nil {
-child = &models.Node{
+defer cancel()
+subArgs := append(append([]string{}, args...), sub)
+subFull := append(append([]string{}, fullPath...), sub)
+// Peek at the child's help before recursing. If it's identical to
+// the parent's (e.g. systemctl subcommands) we stop here to avoid
+// an exponential explosion of subprocess calls.
+childHelp, err := h.runHelp(subCtx, cliName, subArgs)
+if err != nil || childHelp == "" {
+results[i] = result{i, &models.Node{
 Name:     sub,
-FullPath: append(append([]string{}, fullPath...), sub),
+FullPath: subFull,
+Discovered: true,
+Description: fmt.Sprintf("(could not get help: %v)", err),
+}}
+return
+}
+var child *models.Node
+if childHelp == helpText {
+// Same help as parent — no unique sub-hierarchy, build stub node.
+childParsed := ParseHelpOutput(childHelp)
+child = &models.Node{
+Name:       sub,
+FullPath:   subFull,
+Discovered: true,
+HelpText:   childHelp,
+Description: childParsed.Description,
+Flags:      childParsed.Flags,
+Positionals: childParsed.Positionals,
+}
+} else {
+// Unique help — recurse fully.
+var cerr error
+child, cerr = h.discover(subCtx, cliName, subArgs, depth+1)
+if cerr != nil {
+child = &models.Node{Name: sub, FullPath: subFull}
 }
 }
-node.Children = append(node.Children, child)
+results[i] = result{i, child}
+}(i, sub)
+}
+wg.Wait()
+for _, r := range results {
+if r.child != nil {
+node.Children = append(node.Children, r.child)
+}
 }
 }
 return node, nil
 }
 
+// resolveBinary finds the executable for cliName.
+// Tries PATH first, then ./cliName (current dir), then the directory of the
+// running executable so that "treemand treemand" works without PATH changes.
+func resolveBinary(cliName string) string {
+if p, err := exec.LookPath(cliName); err == nil {
+return p
+}
+// Try the current working directory
+if cwd, err := os.Getwd(); err == nil {
+candidate := filepath.Join(cwd, cliName)
+if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+return candidate
+}
+}
+// Try the directory of the running executable (e.g. ./treemand treemand)
+if exe, err := os.Executable(); err == nil {
+candidate := filepath.Join(filepath.Dir(exe), cliName)
+if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+return candidate
+}
+}
+return cliName
+}
+
 func (h *HelpDiscoverer) runHelp(ctx context.Context, cliName string, args []string) (string, error) {
+resolved := resolveBinary(cliName)
 for _, flag := range []string{"--help", "-h"} {
 cmdArgs := append(append([]string{}, args...), flag)
-cmd := exec.CommandContext(ctx, cliName, cmdArgs...) //nolint:gosec
+cmd := exec.CommandContext(ctx, resolved, cmdArgs...) //nolint:gosec
 out, _ := cmd.CombinedOutput()
 if len(strings.TrimSpace(string(out))) > 0 {
 return string(out), nil
@@ -142,33 +221,43 @@ longFlagRe = regexp.MustCompile(
 `(?:(-[A-Za-z0-9])(?:,\s*|\s+))?` + // optional short: -x, or -x (space)
 `(--[A-Za-z][A-Za-z0-9_-]*)` + // long: --flag
 `(?:` +
-`(?:[= ](?:<([^>]+)>|\[([^\]]+)\]|([A-Za-z][A-Za-z0-9_-]*)))` + // =<type> or =type
+`(?:\[=[A-Za-z][A-Za-z0-9_-]*\])` + // [=WHEN] GNU optional-value style
+`|(?:[= ](?:<([^>]+)>|\[([^\]]+)\]|([A-Za-z][A-Za-z0-9_-]*)))` + // =<type> or =type
 `)?` +
-`(?:\s{2,}(.*))?$`, // description (2+ spaces gap)
+`(?:\s+(.*))?$`, // description (1+ spaces gap)
 )
 // short-only flag: -v or -v <value>
 shortOnlyFlagRe = regexp.MustCompile(
 `^\s{2,8}(-[A-Za-z0-9])(?:\s+(?:<([^>]+)>|([A-Za-z][A-Za-z0-9_-]*)))?(?:\s{2,}(.*))?$`,
 )
-// subcommand line: 2–8 leading spaces, lowercase word, 2+ spaces, description
-subcmdRe = regexp.MustCompile(`^\s{2,8}([a-z][a-z0-9_-]*)(?:\s{2,}(.+))?$`)
+// subcommand line: 2–8 leading spaces, lowercase word; args like [PATTERN...] may appear
+// between name and description (e.g. systemctl's "  list-units [PAT...]   description")
+subcmdRe = regexp.MustCompile(`^\s{2,8}([a-z][a-z0-9_-]*)(?:.*?\s{2,}(.+))?$`)
 // positional in usage: <required> or [optional]
 reqArgRe = regexp.MustCompile(`<([A-Za-z][A-Za-z0-9_.-]*)>`)
 optArgRe = regexp.MustCompile(`\[([A-Za-z][A-Za-z0-9_.-]*)(?:\.{3})?\]`)
 // URL in help text
 urlRe = regexp.MustCompile(`https?://[^\s]+`)
+// ANSI escape codes (colors, etc.)
+ansiRe = regexp.MustCompile(`\x1b\[[0-9;]*[mGKHF]`)
 )
 
 // skipSubcmdWords are words that look like subcommands but aren't.
 var skipSubcmdWords = map[string]bool{
-"help": true, "version": true, "true": true, "false": true,
+"true": true, "false": true,
 "none": true, "all": true, "on": true, "off": true,
 "yes": true, "no": true, "default": true,
+}
+
+// stripANSI removes ANSI terminal escape codes from a string.
+func stripANSI(s string) string {
+return ansiRe.ReplaceAllString(s, "")
 }
 
 // ParseHelpOutput parses --help output into structured ParsedHelp.
 // Exported so it can be tested directly.
 func ParseHelpOutput(text string) ParsedHelp {
+text = stripANSI(text)
 var result ParsedHelp
 lines := strings.Split(text, "\n")
 section := secNone
@@ -319,6 +408,15 @@ return f, true
 return models.Flag{}, false
 }
 
+// positionalPlaceholders are all-caps words in usage lines that represent
+// option/flag slots, not real positional arguments.
+var positionalPlaceholders = map[string]bool{
+"OPTION": true, "OPTIONS": true, "OPTS": true, "OPT": true,
+"FLAG": true, "FLAGS": true, "ARG": true, "ARGS": true,
+"ARGUMENTS": true, "PARAMS": true, "PARAMETERS": true,
+"SHORT-OPTION": true, "LONG-OPTION": true,
+}
+
 // parsePositionals extracts positional args from a usage line.
 func parsePositionals(line string) []models.Positional {
 var result []models.Positional
@@ -330,14 +428,14 @@ searchLine = line[idx+6:]
 }
 for _, m := range reqArgRe.FindAllStringSubmatch(searchLine, -1) {
 name := m[1]
-if !seen[name] && !strings.ContainsAny(name, "= ") {
+if !seen[name] && !strings.ContainsAny(name, "= ") && !positionalPlaceholders[strings.ToUpper(name)] {
 seen[name] = true
 result = append(result, models.Positional{Name: name, Required: true})
 }
 }
 for _, m := range optArgRe.FindAllStringSubmatch(searchLine, -1) {
 name := m[1]
-if !seen[name] && !strings.ContainsAny(name, "= ") {
+if !seen[name] && !strings.ContainsAny(name, "= ") && !positionalPlaceholders[strings.ToUpper(name)] {
 seen[name] = true
 result = append(result, models.Positional{Name: name, Required: false})
 }
