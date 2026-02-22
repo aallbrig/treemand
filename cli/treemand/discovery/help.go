@@ -137,24 +137,39 @@ return node, nil
 // Tries PATH first, then ./cliName (current dir), then the directory of the
 // running executable so that "treemand treemand" works without PATH changes.
 func resolveBinary(cliName string) string {
-if p, err := exec.LookPath(cliName); err == nil {
+p, _ := resolveBinaryOrError(cliName)
 return p
+}
+
+// resolveBinaryOrError is like resolveBinary but returns an error when the
+// binary cannot be located anywhere on the system.
+func resolveBinaryOrError(cliName string) (string, error) {
+if p, err := exec.LookPath(cliName); err == nil {
+return p, nil
 }
 // Try the current working directory
 if cwd, err := os.Getwd(); err == nil {
 candidate := filepath.Join(cwd, cliName)
 if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
-return candidate
+return candidate, nil
 }
 }
 // Try the directory of the running executable (e.g. ./treemand treemand)
 if exe, err := os.Executable(); err == nil {
 candidate := filepath.Join(filepath.Dir(exe), cliName)
 if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
-return candidate
+return candidate, nil
 }
 }
-return cliName
+return cliName, fmt.Errorf("command %q not found in PATH or current directory", cliName)
+}
+
+// CheckAvailable returns an error if cliName cannot be resolved to an
+// executable. Call this before starting discovery to give the user a clear
+// error message instead of a cryptic "no help output" stub node.
+func CheckAvailable(cliName string) error {
+_, err := resolveBinaryOrError(cliName)
+return err
 }
 
 // truncatedHelpRe matches messages that indicate --help output is abbreviated

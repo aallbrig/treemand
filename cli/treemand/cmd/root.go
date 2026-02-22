@@ -74,6 +74,12 @@ logLevel = zerolog.DebugLevel
 log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr}).Level(logLevel)
 
 cliName := args[0]
+
+// Fail early with a clear message if the binary cannot be found.
+if err := discovery.CheckAvailable(cliName); err != nil {
+return fmt.Errorf("%w\nHint: check spelling and ensure the command is on your PATH", err)
+}
+
 cfg := config.DefaultConfig()
 cfg.NoColor = cfgNoColor || cfg.NoColor
 cfg.Depth = cfgDepth

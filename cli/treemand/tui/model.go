@@ -91,40 +91,42 @@ return tea.EnableMouseAllMotion
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-// Modal intercepts all input when active.
-if m.modal.active {
-if km, ok := msg.(tea.KeyMsg); ok {
-return m.updateModal(km)
-}
+	// Flag modal intercepts all input when active.
 	if m.fm.active {
 		if km, ok := msg.(tea.KeyMsg); ok {
 			return m.updateFlagModal(km)
 		}
 		return m, nil
 	}
-return m, nil
-}
 
-switch msg := msg.(type) {
-case tea.WindowSizeMsg:
-m.width = msg.Width
-m.height = msg.Height
-m.applyLayout()
-return m, nil
+	// Execute modal intercepts all input when active.
+	if m.modal.active {
+		if km, ok := msg.(tea.KeyMsg); ok {
+			return m.updateModal(km)
+		}
+		return m, nil
+	}
 
-case tea.KeyMsg:
-if m.filtering {
-return m.updateFilter(msg)
-}
-if m.focusedPane == panePreview {
-return m.updatePreviewInput(msg)
-}
-return m.updateKeys(msg)
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		m.applyLayout()
+		return m, nil
 
-case tea.MouseMsg:
-return m.updateMouse(msg)
-}
-return m, nil
+	case tea.KeyMsg:
+		if m.filtering {
+			return m.updateFilter(msg)
+		}
+		if m.focusedPane == panePreview {
+			return m.updatePreviewInput(msg)
+		}
+		return m.updateKeys(msg)
+
+	case tea.MouseMsg:
+		return m.updateMouse(msg)
+	}
+	return m, nil
 }
 
 // ---------- modal ----------
