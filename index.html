@@ -1,0 +1,20 @@
+<!doctype html><html lang=en><head><meta name=generator content="Hugo 0.123.7"><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Treemand | Treemand</title>
+<link rel=stylesheet href=/treemand/css/main.css></head><body><header><nav><a href=/ class=site-title>🌲 Treemand</a><ul><li><a href=/treemand/>Home</a></li><li><a href=/treemand/installation/>Installation</a></li><li><a href=/treemand/getting-started/>Getting Started</a></li></ul></nav></header><main><h2 id=what-is-treemand>What is Treemand?</h2><p><code>treemand</code> is a Go CLI tool that <strong>discovers and visualizes</strong> any CLI command hierarchy — <code>git</code>, <code>kubectl</code>, <code>aws</code>, <code>docker</code> — as an intuitive tree, inspired by the classic <code>tree</code> command.</p><pre tabindex=0><code>▼ git  [--version --verbose]
+├── ▼ remote
+│   ├── • add &lt;name&gt; &lt;url&gt;
+│   └── • remove &lt;name&gt;
+├── • commit [--message=&lt;string&gt;]
+└── • status
+</code></pre><h2 id=features>Features</h2><ul><li>🔍 <strong>Auto-discovery</strong> — discovers commands via <code>--help</code> recursion (no config needed)</li><li>🎨 <strong>Colored output</strong> — syntax-highlighted tree with configurable color schemes</li><li>🖥️ <strong>Interactive TUI</strong> (<code>-i</code>) — k9s-inspired explorer with live preview, keyboard + mouse</li><li>💾 <strong>Caching</strong> — SQLite cache for instant repeat lookups</li><li>📦 <strong>Zero config</strong> — works with any CLI out of the box</li><li>🔄 <strong>Self-dogfooding</strong> — <code>treemand treemand</code> works!</li></ul><h2 id=quick-start>Quick Start</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Non-interactive tree</span>
+</span></span><span style=display:flex><span>treemand git
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Interactive TUI</span>
+</span></span><span style=display:flex><span>treemand -i kubectl
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Limit depth</span>
+</span></span><span style=display:flex><span>treemand --depth<span style=color:#f92672>=</span><span style=color:#ae81ff>2</span> aws
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># JSON output</span>
+</span></span><span style=display:flex><span>treemand --output<span style=color:#f92672>=</span>json docker
+</span></span></code></pre></div><h2 id=install>Install</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>go install github.com/aallbrig/treemand@latest
+</span></span></code></pre></div><p>Or download a <a href=https://github.com/aallbrig/treemand/releases>pre-built binary</a>.</p></main><footer><p>MIT License · <a href=https://github.com/aallbrig/treemand>GitHub</a></p></footer></body></html>
