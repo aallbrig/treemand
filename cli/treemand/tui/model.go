@@ -284,10 +284,27 @@ added  bool // true when already present in the preview
 
 // flagModal is the f-key flag-picker overlay.
 type flagModal struct {
-active  bool
-entries []flagEntry
-cursor  int
-offset  int
+active        bool
+entries       []flagEntry
+cursor        int
+offset        int
+awaitingValue bool   // true when prompting the user to type a value
+awaitingIdx   int    // index of the entry awaiting a value
+valueInput    textinput.Model
+}
+
+// flagTypeColor returns a colour for a flag's value-type indicator in the modal.
+func flagTypeColor(valueType string) lipgloss.Color {
+switch strings.ToLower(valueType) {
+case "", "bool":
+return lipgloss.Color("#50FA7B") // green
+case "string", "str":
+return lipgloss.Color("#8BE9FD") // cyan
+case "int", "int64", "uint", "uint64", "float", "float64", "duration":
+return lipgloss.Color("#FFB86C") // orange
+default:
+return lipgloss.Color("#BD93F9") // purple
+}
 }
 
 // openFlagModal builds and activates the flag picker for the selected node.
@@ -343,11 +360,41 @@ m.statusMsg = "no flags available"
 return
 }
 
-m.fm = flagModal{active: true, entries: entries}
+vi := textinput.New()
+vi.CharLimit = 128
+
+m.fm = flagModal{active: true, entries: entries, valueInput: vi}
 }
 
 // updateFlagModal handles keys while the flag picker is open.
 func (m *Model) updateFlagModal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+// When awaiting a value, route all keys into the text input.
+if m.fm.awaitingValue {
+switch msg.String() {
+case "ctrl+c", "esc":
+m.fm.awaitingValue = false
+m.fm.valueInput.SetValue("")
+return m, nil
+case "enter":
+e := m.fm.entries[m.fm.awaitingIdx]
+val := strings.TrimSpace(m.fm.valueInput.Value())
+token := e.flag.Name
+if val != "" {
+token += "=" + val
+}
+m.preview.AppendToken(token)
+m.tree.SetCmdTokens(m.preview.Tokens())
+m.fm.entries[m.fm.awaitingIdx].added = true
+m.statusMsg = "added: " + token
+m.fm.awaitingValue = false
+m.fm.valueInput.SetValue("")
+return m, nil
+}
+var cmd tea.Cmd
+m.fm.valueInput, cmd = m.fm.valueInput.Update(msg)
+return m, cmd
+}
+
 switch msg.String() {
 case "ctrl+c", "esc", "q":
 m.fm.active = false
@@ -362,6 +409,16 @@ m.fm.cursor++
 case "enter", " ":
 e := m.fm.entries[m.fm.cursor]
 if !e.added {
+vt := strings.ToLower(e.flag.ValueType)
+if vt != "" && vt != "bool" {
+// Non-bool flag: prompt for a value before adding.
+m.fm.awaitingValue = true
+m.fm.awaitingIdx = m.fm.cursor
+m.fm.valueInput.Placeholder = "value for " + e.flag.Name
+m.fm.valueInput.SetValue("")
+m.fm.valueInput.Focus()
+return m, textinput.Blink
+}
 m.preview.AppendToken(e.flag.Name)
 m.tree.SetCmdTokens(m.preview.Tokens())
 m.fm.entries[m.fm.cursor].added = true
@@ -375,7 +432,7 @@ return m, nil
 // the full terminal height so Bubble Tea clears stale content from the
 // previous frame.
 func (m *Model) renderFlagModal() string {
-modalW := min(m.width-6, 68)
+modalW := min(m.width-6, 72)
 if modalW < 36 {
 modalW = 36
 }
@@ -407,13 +464,13 @@ if m.fm.cursor >= m.fm.offset+vp {
 m.fm.offset = m.fm.cursor - vp + 1
 }
 
-titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#5EA4F5"))
-hintStyle  := lipgloss.NewStyle().Faint(true)
-selStyle   := lipgloss.NewStyle().Background(lipgloss.Color("#264F78")).Bold(true)
-addedStyle := lipgloss.NewStyle().Faint(true).Strikethrough(true)
+titleStyle  := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#5EA4F5"))
+hintStyle   := lipgloss.NewStyle().Faint(true)
+selStyle    := lipgloss.NewStyle().Background(lipgloss.Color("#264F78")).Bold(true)
+addedStyle  := lipgloss.NewStyle().Faint(true) // checkmark shown separately; no strikethrough
 globalStyle := lipgloss.NewStyle().Faint(true).Italic(true)
-flagStyle  := lipgloss.NewStyle().Foreground(lipgloss.Color("#50FA7B"))
-sepStyle   := lipgloss.NewStyle().Faint(true).Foreground(lipgloss.Color("#888888"))
+descStyle   := lipgloss.NewStyle().Faint(true)
+sepStyle    := lipgloss.NewStyle().Faint(true).Foreground(lipgloss.Color("#888888"))
 
 inner := modalW - 6
 var rows []string
@@ -434,48 +491,78 @@ check := "  "
 if e.added {
 check = "✓ "
 }
-name := e.flag.Name
+
+// Flag name coloured by value type.
+nameColor := flagTypeColor(e.flag.ValueType)
+nameStr := e.flag.Name
 if e.flag.ShortName != "" {
-name += ", -" + e.flag.ShortName
+nameStr += ", -" + e.flag.ShortName
 }
-if e.flag.ValueType != "" && e.flag.ValueType != "bool" {
-name += " <" + e.flag.ValueType + ">"
-}
-// Truncate description to fit on one line.
-desc := e.flag.Description
-maxDesc := inner - lipgloss.Width(check) - lipgloss.Width(name) - 2
-if maxDesc < 0 {
-maxDesc = 0
-}
-if lipgloss.Width(desc) > maxDesc {
-if maxDesc > 3 {
-desc = desc[:maxDesc-1] + "…"
-} else {
-desc = ""
-}
-}
-row := check + name
-if desc != "" {
-row += "  " + desc
-}
-// Hard-clamp to inner width using visible width.
-if lipgloss.Width(row) > inner {
-row = row[:inner]
+// Value-type badge for non-bool flags.
+typeTag := ""
+if vt := strings.ToLower(e.flag.ValueType); vt != "" && vt != "bool" {
+typeTag = " <" + e.flag.ValueType + ">"
 }
 
+// Measure available space for description.
+fullName := nameStr + typeTag
+maxDesc := inner - lipgloss.Width(check) - lipgloss.Width(fullName) - 3
+desc := e.flag.Description
+if maxDesc < 4 {
+desc = ""
+} else if lipgloss.Width(desc) > maxDesc {
+desc = desc[:maxDesc-1] + "…"
+}
+
+// Render this row using coloured sub-parts, then merge.
 var rendered string
 switch {
 case i == m.fm.cursor:
-pad := max(0, inner-lipgloss.Width(row))
-rendered = selStyle.Render(row + strings.Repeat(" ", pad))
+// Selected: uniform highlight across full inner width.
+plain := check + fullName
+if desc != "" {
+plain += "   " + desc
+}
+if lipgloss.Width(plain) > inner {
+plain = plain[:inner]
+}
+pad := max(0, inner-lipgloss.Width(plain))
+rendered = selStyle.Render(plain + strings.Repeat(" ", pad))
 case e.added:
-rendered = addedStyle.Render(row)
+// Added: faint; the checkmark is the indicator, no strikethrough.
+plain := check + fullName
+if desc != "" {
+plain += "   " + desc
+}
+rendered = addedStyle.Render(plain)
 case e.global:
-rendered = globalStyle.Render(row)
+// Global flag (from root node): italic + faint.
+plain := check + fullName
+if desc != "" {
+plain += "   " + desc
+}
+rendered = globalStyle.Render(plain)
 default:
-rendered = flagStyle.Render(row)
+// Normal flag: type-coloured name, faint description.
+namePart := lipgloss.NewStyle().Foreground(nameColor).Render(check + nameStr)
+typePart := ""
+if typeTag != "" {
+typePart = lipgloss.NewStyle().
+Foreground(nameColor).Faint(true).Render(typeTag)
+}
+descPart := ""
+if desc != "" {
+descPart = "   " + descStyle.Render(desc)
+}
+rendered = namePart + typePart + descPart
 }
 rows = append(rows, rendered)
+}
+
+// Hint line changes when awaiting a value input.
+hint := "↑↓/jk navigate · Enter add · Esc close"
+if m.fm.awaitingValue {
+hint = "Type value · Enter confirm · Esc cancel"
 }
 
 scrollHint := ""
@@ -483,9 +570,23 @@ if len(m.fm.entries) > vp {
 scrollHint = fmt.Sprintf(" [%d/%d]", m.fm.cursor+1, len(m.fm.entries))
 }
 
+listSection := strings.Join(rows, "\n")
+
+// Value input prompt (shown when a non-bool flag is selected).
+valueSection := ""
+if m.fm.awaitingValue {
+e := m.fm.entries[m.fm.awaitingIdx]
+promptStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#FFB86C"))
+m.fm.valueInput.Width = inner - 4
+valueSection = "\n" +
+sepStyle.Render(strings.Repeat("─", inner)) + "\n" +
+promptStyle.Render("Value for "+e.flag.Name+":") + "\n" +
+m.fm.valueInput.View()
+}
+
 content := titleStyle.Render("Add Flag"+scrollHint) + "\n" +
-hintStyle.Render("↑↓/jk navigate · Enter/Space add · Esc close") + "\n\n" +
-strings.Join(rows, "\n")
+hintStyle.Render(hint) + "\n\n" +
+listSection + valueSection
 
 box := lipgloss.NewStyle().
 Border(lipgloss.RoundedBorder()).
