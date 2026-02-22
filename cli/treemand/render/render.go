@@ -41,13 +41,17 @@ type Renderer struct {
 }
 
 type styles struct {
-	base     lipgloss.Style
-	subcmd   lipgloss.Style
-	flag     lipgloss.Style
-	pos      lipgloss.Style
-	value    lipgloss.Style
-	invalid  lipgloss.Style
-	dim      lipgloss.Style
+	base       lipgloss.Style
+	subcmd     lipgloss.Style
+	flag       lipgloss.Style // bool / fallback
+	flagBool   lipgloss.Style
+	flagString lipgloss.Style
+	flagInt    lipgloss.Style
+	flagOther  lipgloss.Style
+	pos        lipgloss.Style
+	value      lipgloss.Style
+	invalid    lipgloss.Style
+	dim        lipgloss.Style
 }
 
 // New creates a Renderer with the given options.
@@ -55,23 +59,31 @@ func New(opts Options) *Renderer {
 	r := &Renderer{opts: opts}
 	if opts.NoColor {
 		r.styles = styles{
-			base:    lipgloss.NewStyle(),
-			subcmd:  lipgloss.NewStyle(),
-			flag:    lipgloss.NewStyle(),
-			pos:     lipgloss.NewStyle(),
-			value:   lipgloss.NewStyle(),
-			invalid: lipgloss.NewStyle(),
-			dim:     lipgloss.NewStyle(),
+			base:       lipgloss.NewStyle(),
+			subcmd:     lipgloss.NewStyle(),
+			flag:       lipgloss.NewStyle(),
+			flagBool:   lipgloss.NewStyle(),
+			flagString: lipgloss.NewStyle(),
+			flagInt:    lipgloss.NewStyle(),
+			flagOther:  lipgloss.NewStyle(),
+			pos:        lipgloss.NewStyle(),
+			value:      lipgloss.NewStyle(),
+			invalid:    lipgloss.NewStyle(),
+			dim:        lipgloss.NewStyle(),
 		}
 	} else {
 		r.styles = styles{
-			base:    lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(opts.Colors.Base)),
-			subcmd:  lipgloss.NewStyle().Foreground(lipgloss.Color(opts.Colors.Subcmd)),
-			flag:    lipgloss.NewStyle().Foreground(lipgloss.Color(opts.Colors.Flag)),
-			pos:     lipgloss.NewStyle().Foreground(lipgloss.Color(opts.Colors.Pos)),
-			value:   lipgloss.NewStyle().Foreground(lipgloss.Color(opts.Colors.Value)),
-			invalid: lipgloss.NewStyle().Foreground(lipgloss.Color(opts.Colors.Invalid)),
-			dim:     lipgloss.NewStyle().Faint(true),
+			base:       lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(opts.Colors.Base)),
+			subcmd:     lipgloss.NewStyle().Foreground(lipgloss.Color(opts.Colors.Subcmd)),
+			flag:       lipgloss.NewStyle().Foreground(lipgloss.Color(opts.Colors.Flag)),
+			flagBool:   lipgloss.NewStyle().Foreground(lipgloss.Color(opts.Colors.FlagBool)),
+			flagString: lipgloss.NewStyle().Foreground(lipgloss.Color(opts.Colors.FlagString)),
+			flagInt:    lipgloss.NewStyle().Foreground(lipgloss.Color(opts.Colors.FlagInt)),
+			flagOther:  lipgloss.NewStyle().Foreground(lipgloss.Color(opts.Colors.FlagOther)),
+			pos:        lipgloss.NewStyle().Foreground(lipgloss.Color(opts.Colors.Pos)),
+			value:      lipgloss.NewStyle().Foreground(lipgloss.Color(opts.Colors.Value)),
+			invalid:    lipgloss.NewStyle().Foreground(lipgloss.Color(opts.Colors.Invalid)),
+			dim:        lipgloss.NewStyle().Faint(true),
 		}
 	}
 	return r
@@ -151,7 +163,7 @@ func (r *Renderer) renderNode(w io.Writer, node *models.Node, prefix string, isL
 		if len(node.Flags) > 0 && len(node.Flags) <= 5 {
 			var flagStrs []string
 			for _, f := range node.Flags {
-				fs := r.styles.flag.Render(f.Name)
+				fs := r.flagStyle(f.ValueType).Render(f.Name)
 				if f.ValueType != "" && f.ValueType != "bool" {
 					fs += "=" + r.styles.value.Render("<"+f.ValueType+">")
 				}
@@ -240,5 +252,19 @@ func collectStats(node *models.Node, depth int, s *Stats) {
 	}
 	for _, child := range node.Children {
 		collectStats(child, depth+1, s)
+	}
+}
+
+// flagStyle returns the lipgloss style for a flag based on its value type.
+func (r *Renderer) flagStyle(valueType string) lipgloss.Style {
+	switch valueType {
+	case "bool", "":
+		return r.styles.flagBool
+	case "string", "stringArray", "[]string":
+		return r.styles.flagString
+	case "int", "int64", "uint", "uint64", "count":
+		return r.styles.flagInt
+	default:
+		return r.styles.flagOther
 	}
 }

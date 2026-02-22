@@ -195,16 +195,17 @@ metaParts = append(metaParts, posStyle.Render("["+p.Name+"]"))
 }
 }
 
-// Inline flags (abbreviated). Flags that appear in cmdTokens are highlighted.
+// Inline flags (abbreviated). Active flags are highlighted orange;
+// inactive flags use per-type colors (bool=green, string=cyan, int=orange, other=purple).
 if len(item.node.Flags) > 0 {
-inactiveStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(t.cfg.Colors.Flag)).Faint(true)
+bracketStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(t.cfg.Colors.Flag)).Faint(true)
+sepStyle := bracketStyle
 activeStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFB86C")).Bold(true)
-sepStyle := inactiveStyle
 const maxInline = 3
 var flagParts []string
 for i, f := range item.node.Flags {
 if i >= maxInline {
-flagParts = append(flagParts, inactiveStyle.Render("…"))
+flagParts = append(flagParts, bracketStyle.Render("…"))
 break
 }
 n := f.Name
@@ -214,7 +215,7 @@ n += "|-" + f.ShortName
 if isFlagActive(f, t.cmdTokens) {
 flagParts = append(flagParts, activeStyle.Render(n))
 } else {
-flagParts = append(flagParts, inactiveStyle.Render(n))
+flagParts = append(flagParts, t.flagColorStyle(f.ValueType).Faint(true).Render(n))
 }
 }
 sep := sepStyle.Render(", ")
@@ -225,7 +226,7 @@ combined += sep
 }
 combined += p
 }
-metaParts = append(metaParts, inactiveStyle.Render("[")+combined+inactiveStyle.Render("]"))
+metaParts = append(metaParts, bracketStyle.Render("[")+combined+bracketStyle.Render("]"))
 }
 
 meta := ""
@@ -334,6 +335,23 @@ return false
 func matchesFilter(node *models.Node, filter string) bool {
 return strings.Contains(strings.ToLower(node.Name), strings.ToLower(filter))
 }
+// flagColorStyle returns a lipgloss.Style coloured for the given flag ValueType.
+func (t *TreeModel) flagColorStyle(valueType string) lipgloss.Style {
+var hex string
+switch valueType {
+case "bool", "":
+hex = t.cfg.Colors.FlagBool
+case "string", "stringArray", "[]string":
+hex = t.cfg.Colors.FlagString
+case "int", "int64", "uint", "uint64", "count":
+hex = t.cfg.Colors.FlagInt
+default:
+hex = t.cfg.Colors.FlagOther
+}
+return lipgloss.NewStyle().Foreground(lipgloss.Color(hex))
+}
+
+
 
 // ToggleExpand expands the selected node if collapsed, or collapses it if expanded.
 func (t *TreeModel) ToggleExpand() {

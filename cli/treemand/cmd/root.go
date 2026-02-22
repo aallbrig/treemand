@@ -150,6 +150,7 @@ return r.Render(cmd.OutOrStdout(), node)
 // Execute runs the root command.
 func Execute() {
 rootCmd.AddCommand(versionCmd)
+rootCmd.AddCommand(cacheCmd)
 if err := rootCmd.Execute(); err != nil {
 fmt.Fprintln(os.Stderr, "Error:", err)
 os.Exit(1)

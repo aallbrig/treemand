@@ -115,6 +115,31 @@ _, err := c.db.Exec(`DELETE FROM trees`)
 return err
 }
 
+// ClearCLI removes all cached entries for a specific CLI name.
+func (c *Cache) ClearCLI(cli string) error {
+_, err := c.db.Exec(`DELETE FROM trees WHERE cli = ?`, cli)
+return err
+}
+
+// ListCLIs returns the names of all CLIs currently in the cache.
+func (c *Cache) ListCLIs() ([]string, error) {
+rows, err := c.db.Query(`SELECT DISTINCT cli FROM trees ORDER BY cli`)
+if err != nil {
+return nil, err
+}
+defer rows.Close()
+var names []string
+for rows.Next() {
+var name string
+if err := rows.Scan(&name); err != nil {
+return nil, err
+}
+names = append(names, name)
+}
+return names, rows.Err()
+}
+
+
 // CLIVersion attempts to get the version string for a CLI by running <cli> --version.
 func CLIVersion(cli string) string {
 cmd := exec.Command(cli, "--version") //nolint:gosec
