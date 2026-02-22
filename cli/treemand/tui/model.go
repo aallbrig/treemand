@@ -369,14 +369,34 @@ m.statusMsg = "added: " + e.flag.Name
 return m, nil
 }
 
-// renderFlagModal renders the flag picker as a centered overlay.
+// renderFlagModal renders the flag picker as a centered overlay that fills
+// the full terminal height so Bubble Tea clears stale content from the
+// previous frame.
 func (m *Model) renderFlagModal() string {
 modalW := min(m.width-6, 68)
 if modalW < 36 {
 modalW = 36
 }
-const maxVisible = 18
+
+// Calculate how many global-separator rows will be inserted so we can
+// keep the viewport from overflowing the modal box.
+hasGlobals := false
+for _, e := range m.fm.entries {
+if e.global {
+hasGlobals = true
+break
+}
+}
+sepRows := 0
+if hasGlobals {
+sepRows = 2 // separator line + "global flags" label
+}
+const maxVisible = 14
 vp := min(maxVisible, len(m.fm.entries))
+// Clamp vp so that entries + separator rows fit inside the box.
+if sepRows > 0 && vp+sepRows > maxVisible {
+vp = max(1, maxVisible-sepRows)
+}
 
 if m.fm.cursor < m.fm.offset {
 m.fm.offset = m.fm.cursor
@@ -385,19 +405,20 @@ if m.fm.cursor >= m.fm.offset+vp {
 m.fm.offset = m.fm.cursor - vp + 1
 }
 
-titleStyle     := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#5EA4F5"))
-hintStyle      := lipgloss.NewStyle().Faint(true)
-selStyle       := lipgloss.NewStyle().Background(lipgloss.Color("#264F78")).Bold(true)
-addedStyle     := lipgloss.NewStyle().Faint(true).Strikethrough(true)
-globalStyle    := lipgloss.NewStyle().Faint(true).Italic(true)
-flagStyle      := lipgloss.NewStyle().Foreground(lipgloss.Color("#50FA7B"))
-sepStyle       := lipgloss.NewStyle().Faint(true).Foreground(lipgloss.Color("#888888"))
+titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#5EA4F5"))
+hintStyle  := lipgloss.NewStyle().Faint(true)
+selStyle   := lipgloss.NewStyle().Background(lipgloss.Color("#264F78")).Bold(true)
+addedStyle := lipgloss.NewStyle().Faint(true).Strikethrough(true)
+globalStyle := lipgloss.NewStyle().Faint(true).Italic(true)
+flagStyle  := lipgloss.NewStyle().Foreground(lipgloss.Color("#50FA7B"))
+sepStyle   := lipgloss.NewStyle().Faint(true).Foreground(lipgloss.Color("#888888"))
 
 inner := modalW - 6
 var rows []string
 prevWasLocal := true
 for i := m.fm.offset; i < m.fm.offset+vp && i < len(m.fm.entries); i++ {
 e := m.fm.entries[i]
+// Insert the "global flags" separator once, before the first global entry.
 if e.global && prevWasLocal {
 rows = append(rows, sepStyle.Render(strings.Repeat("─", inner)))
 rows = append(rows, sepStyle.Render("  global flags"))
@@ -418,12 +439,13 @@ name += ", -" + e.flag.ShortName
 if e.flag.ValueType != "" && e.flag.ValueType != "bool" {
 name += " <" + e.flag.ValueType + ">"
 }
+// Truncate description to fit on one line.
 desc := e.flag.Description
-maxDesc := inner - len(check) - len(name) - 2
+maxDesc := inner - lipgloss.Width(check) - lipgloss.Width(name) - 2
 if maxDesc < 0 {
 maxDesc = 0
 }
-if len(desc) > maxDesc {
+if lipgloss.Width(desc) > maxDesc {
 if maxDesc > 3 {
 desc = desc[:maxDesc-1] + "…"
 } else {
@@ -434,15 +456,16 @@ row := check + name
 if desc != "" {
 row += "  " + desc
 }
-if len(row) > inner {
+// Hard-clamp to inner width using visible width.
+if lipgloss.Width(row) > inner {
 row = row[:inner]
 }
 
 var rendered string
 switch {
 case i == m.fm.cursor:
-padded := row + strings.Repeat(" ", max(0, inner-len(row)))
-rendered = selStyle.Render(padded)
+pad := max(0, inner-lipgloss.Width(row))
+rendered = selStyle.Render(row + strings.Repeat(" ", pad))
 case e.added:
 rendered = addedStyle.Render(row)
 case e.global:
@@ -469,23 +492,29 @@ Padding(0, 2).
 Width(modalW - 2).
 Render(content)
 
+boxH := lipgloss.Height(box)
 padLeft := (m.width - lipgloss.Width(box)) / 2
 if padLeft < 0 {
 padLeft = 0
 }
-padTop := (m.height - lipgloss.Height(box)) / 2
+padTop := (m.height - boxH) / 2
 if padTop < 0 {
 padTop = 0
 }
+padBottom := max(0, m.height-padTop-boxH)
 
-var sb strings.Builder
+// Build a full-height string so Bubble Tea clears old content beneath.
 blankLine := strings.Repeat(" ", m.width)
+leftPad := strings.Repeat(" ", padLeft)
+var sb strings.Builder
 for i := 0; i < padTop; i++ {
 sb.WriteString(blankLine + "\n")
 }
-leftPad := strings.Repeat(" ", padLeft)
 for _, line := range strings.Split(box, "\n") {
 sb.WriteString(leftPad + line + "\n")
+}
+for i := 0; i < padBottom; i++ {
+sb.WriteString(blankLine + "\n")
 }
 return sb.String()
 }
@@ -672,7 +701,9 @@ m.helpPane.SetFocused(p == paneHelp)
 
 func (m *Model) syncSelected() {
 if node := m.tree.Selected(); node != nil {
-m.preview.SetNode(node)
+// Only update the help pane when the cursor moves.
+// The preview is intentionally NOT updated here — it only changes
+// when the user explicitly presses Enter to activate a node.
 m.helpPane.SetNode(node)
 }
 }
