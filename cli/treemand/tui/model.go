@@ -31,8 +31,8 @@ type pane int
 
 const (
 paneTree    pane = 0
-panePreview pane = 1
-paneHelp    pane = 2
+paneHelp    pane = 1
+panePreview pane = 2
 paneCount        = 3
 )
 
@@ -60,7 +60,7 @@ statusMsg    string
 quitting     bool
 modal        *executeModal
 commandToRun string // set when user picks "Run" in the modal
-flagCycleIdx int    // index for cycling through flags with the f key
+	fm           flagModal
 }
 
 // NewModel creates a new root TUI model.
@@ -96,6 +96,12 @@ if m.modal.active {
 if km, ok := msg.(tea.KeyMsg); ok {
 return m.updateModal(km)
 }
+	if m.fm.active {
+		if km, ok := msg.(tea.KeyMsg); ok {
+			return m.updateFlagModal(km)
+		}
+		return m, nil
+	}
 return m, nil
 }
 
@@ -247,7 +253,8 @@ m.statusMsg = "removed last token"
 return m, nil
 
 case "f", "F":
-return m.addNextFlag()
+		m.openFlagModal()
+		return m, nil
 }
 
 // Help pane specific keys.
@@ -266,21 +273,223 @@ return m.handleArrows(msg)
 }
 }
 
-// addNextFlag appends the next flag of the selected node (cycling) to the preview.
-func (m *Model) addNextFlag() (tea.Model, tea.Cmd) {
+// flagEntry is one row in the flag picker modal.
+type flagEntry struct {
+flag   models.Flag
+global bool // true when sourced from the root node (global flag)
+added  bool // true when already present in the preview
+}
+
+// flagModal is the f-key flag-picker overlay.
+type flagModal struct {
+active  bool
+entries []flagEntry
+cursor  int
+offset  int
+}
+
+// openFlagModal builds and activates the flag picker for the selected node.
+func (m *Model) openFlagModal() {
 node := m.tree.Selected()
-if node == nil || len(node.Flags) == 0 {
+if node == nil {
+m.statusMsg = "no node selected"
+return
+}
+
+// Build set of flag names already in the preview.
+addedSet := make(map[string]bool)
+for _, tok := range m.preview.Tokens() {
+if strings.HasPrefix(tok, "--") {
+name := strings.TrimPrefix(tok, "--")
+if idx := strings.Index(name, "="); idx >= 0 {
+name = name[:idx]
+}
+addedSet["--"+name] = true
+} else if strings.HasPrefix(tok, "-") && len(tok) == 2 {
+addedSet[tok] = true
+}
+}
+
+// Collect node-specific flags.
+nodeFlags := make(map[string]bool)
+var entries []flagEntry
+for _, f := range node.Flags {
+nodeFlags[f.Name] = true
+entries = append(entries, flagEntry{
+flag:   f,
+global: false,
+added:  addedSet[f.Name] || (f.ShortName != "" && addedSet["-"+f.ShortName]),
+})
+}
+
+// Append global (root) flags not already listed above.
+if node != m.root {
+for _, f := range m.root.Flags {
+if nodeFlags[f.Name] {
+continue
+}
+entries = append(entries, flagEntry{
+flag:   f,
+global: true,
+added:  addedSet[f.Name] || (f.ShortName != "" && addedSet["-"+f.ShortName]),
+})
+}
+}
+
+if len(entries) == 0 {
 m.statusMsg = "no flags available"
-return m, nil
+return
 }
-m.flagCycleIdx = m.flagCycleIdx % len(node.Flags)
-f := node.Flags[m.flagCycleIdx]
-m.preview.AppendToken(f.Name)
+
+m.fm = flagModal{active: true, entries: entries}
+}
+
+// updateFlagModal handles keys while the flag picker is open.
+func (m *Model) updateFlagModal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+switch msg.String() {
+case "ctrl+c", "esc", "q":
+m.fm.active = false
+case "up", "k":
+if m.fm.cursor > 0 {
+m.fm.cursor--
+}
+case "down", "j":
+if m.fm.cursor < len(m.fm.entries)-1 {
+m.fm.cursor++
+}
+case "enter", " ":
+e := m.fm.entries[m.fm.cursor]
+if !e.added {
+m.preview.AppendToken(e.flag.Name)
 m.tree.SetCmdTokens(m.preview.Tokens())
-m.statusMsg = "added: " + f.Name
-m.flagCycleIdx++
+m.fm.entries[m.fm.cursor].added = true
+m.statusMsg = "added: " + e.flag.Name
+}
+}
 return m, nil
 }
+
+// renderFlagModal renders the flag picker as a centered overlay.
+func (m *Model) renderFlagModal() string {
+modalW := min(m.width-6, 68)
+if modalW < 36 {
+modalW = 36
+}
+const maxVisible = 18
+vp := min(maxVisible, len(m.fm.entries))
+
+if m.fm.cursor < m.fm.offset {
+m.fm.offset = m.fm.cursor
+}
+if m.fm.cursor >= m.fm.offset+vp {
+m.fm.offset = m.fm.cursor - vp + 1
+}
+
+titleStyle     := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#5EA4F5"))
+hintStyle      := lipgloss.NewStyle().Faint(true)
+selStyle       := lipgloss.NewStyle().Background(lipgloss.Color("#264F78")).Bold(true)
+addedStyle     := lipgloss.NewStyle().Faint(true).Strikethrough(true)
+globalStyle    := lipgloss.NewStyle().Faint(true).Italic(true)
+flagStyle      := lipgloss.NewStyle().Foreground(lipgloss.Color("#50FA7B"))
+sepStyle       := lipgloss.NewStyle().Faint(true).Foreground(lipgloss.Color("#888888"))
+
+inner := modalW - 6
+var rows []string
+prevWasLocal := true
+for i := m.fm.offset; i < m.fm.offset+vp && i < len(m.fm.entries); i++ {
+e := m.fm.entries[i]
+if e.global && prevWasLocal {
+rows = append(rows, sepStyle.Render(strings.Repeat("─", inner)))
+rows = append(rows, sepStyle.Render("  global flags"))
+prevWasLocal = false
+}
+if !e.global {
+prevWasLocal = true
+}
+
+check := "  "
+if e.added {
+check = "✓ "
+}
+name := e.flag.Name
+if e.flag.ShortName != "" {
+name += ", -" + e.flag.ShortName
+}
+if e.flag.ValueType != "" && e.flag.ValueType != "bool" {
+name += " <" + e.flag.ValueType + ">"
+}
+desc := e.flag.Description
+maxDesc := inner - len(check) - len(name) - 2
+if maxDesc < 0 {
+maxDesc = 0
+}
+if len(desc) > maxDesc {
+if maxDesc > 3 {
+desc = desc[:maxDesc-1] + "…"
+} else {
+desc = ""
+}
+}
+row := check + name
+if desc != "" {
+row += "  " + desc
+}
+if len(row) > inner {
+row = row[:inner]
+}
+
+var rendered string
+switch {
+case i == m.fm.cursor:
+padded := row + strings.Repeat(" ", max(0, inner-len(row)))
+rendered = selStyle.Render(padded)
+case e.added:
+rendered = addedStyle.Render(row)
+case e.global:
+rendered = globalStyle.Render(row)
+default:
+rendered = flagStyle.Render(row)
+}
+rows = append(rows, rendered)
+}
+
+scrollHint := ""
+if len(m.fm.entries) > vp {
+scrollHint = fmt.Sprintf(" [%d/%d]", m.fm.cursor+1, len(m.fm.entries))
+}
+
+content := titleStyle.Render("Add Flag"+scrollHint) + "\n" +
+hintStyle.Render("↑↓/jk navigate · Enter/Space add · Esc close") + "\n\n" +
+strings.Join(rows, "\n")
+
+box := lipgloss.NewStyle().
+Border(lipgloss.RoundedBorder()).
+BorderForeground(lipgloss.Color("#5EA4F5")).
+Padding(0, 2).
+Width(modalW - 2).
+Render(content)
+
+padLeft := (m.width - lipgloss.Width(box)) / 2
+if padLeft < 0 {
+padLeft = 0
+}
+padTop := (m.height - lipgloss.Height(box)) / 2
+if padTop < 0 {
+padTop = 0
+}
+
+var sb strings.Builder
+blankLine := strings.Repeat(" ", m.width)
+for i := 0; i < padTop; i++ {
+sb.WriteString(blankLine + "\n")
+}
+leftPad := strings.Repeat(" ", padLeft)
+for _, line := range strings.Split(box, "\n") {
+sb.WriteString(leftPad + line + "\n")
+}
+return sb.String()
+}
+
 
 func (m *Model) updateHelpPaneKeys(key string) (tea.Model, tea.Cmd) {
 switch key {
@@ -290,7 +499,7 @@ case "down", "j":
 m.helpPane.ScrollDown(1)
 case "pgup", "ctrl+u", "b":
 m.helpPane.PageUp()
-case "pgdown", "ctrl+d", "f":
+case "pgdown", "ctrl+d":
 m.helpPane.PageDown()
 case "g":
 m.helpPane.Top()
@@ -343,7 +552,6 @@ case "enter":
 if node := m.tree.Selected(); node != nil {
 m.preview.SetCommand(node.FullCommand())
 m.tree.SetCmdTokens(m.preview.Tokens())
-m.flagCycleIdx = 0
 m.statusMsg = "set: " + node.FullCommand()
 }
 }
@@ -365,7 +573,6 @@ case "enter":
 if node := m.tree.Selected(); node != nil {
 m.preview.SetCommand(node.FullCommand())
 m.tree.SetCmdTokens(m.preview.Tokens())
-m.flagCycleIdx = 0
 m.statusMsg = "set: " + node.FullCommand()
 }
 }
@@ -389,7 +596,6 @@ case "enter":
 if node := m.tree.Selected(); node != nil {
 m.preview.SetCommand(node.FullCommand())
 m.tree.SetCmdTokens(m.preview.Tokens())
-m.flagCycleIdx = 0
 m.statusMsg = "set: " + node.FullCommand()
 }
 }
@@ -517,6 +723,10 @@ return ""
 if m.modal.active {
 return m.renderModal()
 }
+	if m.fm.active {
+		return m.renderFlagModal()
+	}
+
 
 previewBar := m.preview.View(m.width)
 statusBar := m.renderStatusBar()
