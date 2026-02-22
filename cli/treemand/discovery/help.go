@@ -157,15 +157,36 @@ return candidate
 return cliName
 }
 
+// truncatedHelpRe matches messages that indicate --help output is abbreviated
+// and a more complete form is available (e.g. curl's "use --help all").
+var truncatedHelpRe = regexp.MustCompile(`(?i)--help all|--help <category>|not the full help`)
+
 func (h *HelpDiscoverer) runHelp(ctx context.Context, cliName string, args []string) (string, error) {
 resolved := resolveBinary(cliName)
+var firstOut string
 for _, flag := range []string{"--help", "-h"} {
 cmdArgs := append(append([]string{}, args...), flag)
 cmd := exec.CommandContext(ctx, resolved, cmdArgs...) //nolint:gosec
 out, _ := cmd.CombinedOutput()
-if len(strings.TrimSpace(string(out))) > 0 {
-return string(out), nil
+s := strings.TrimSpace(string(out))
+if s == "" {
+continue
 }
+// Detect truncated help (e.g. curl) and retry with --help all
+if truncatedHelpRe.MatchString(s) {
+allArgs := append(append([]string{}, args...), "--help", "all")
+cmd2 := exec.CommandContext(ctx, resolved, allArgs...) //nolint:gosec
+out2, _ := cmd2.CombinedOutput()
+if s2 := strings.TrimSpace(string(out2)); s2 != "" {
+return s2, nil
+}
+}
+if firstOut == "" {
+firstOut = s
+}
+}
+if firstOut != "" {
+return firstOut, nil
 }
 return "", fmt.Errorf("no help output from %s", cliName)
 }
@@ -428,14 +449,16 @@ searchLine = line[idx+6:]
 }
 for _, m := range reqArgRe.FindAllStringSubmatch(searchLine, -1) {
 name := m[1]
-if !seen[name] && !strings.ContainsAny(name, "= ") && !positionalPlaceholders[strings.ToUpper(name)] {
+canonical := strings.TrimRight(strings.ToUpper(name), ".+")
+if !seen[name] && !strings.ContainsAny(name, "= ") && !positionalPlaceholders[canonical] {
 seen[name] = true
 result = append(result, models.Positional{Name: name, Required: true})
 }
 }
 for _, m := range optArgRe.FindAllStringSubmatch(searchLine, -1) {
 name := m[1]
-if !seen[name] && !strings.ContainsAny(name, "= ") && !positionalPlaceholders[strings.ToUpper(name)] {
+canonical := strings.TrimRight(strings.ToUpper(name), ".+")
+if !seen[name] && !strings.ContainsAny(name, "= ") && !positionalPlaceholders[canonical] {
 seen[name] = true
 result = append(result, models.Positional{Name: name, Required: false})
 }

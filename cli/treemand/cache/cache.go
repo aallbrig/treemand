@@ -59,9 +59,13 @@ _, err := c.db.Exec(schema)
 return err
 }
 
+// cacheSchemaVersion is bumped whenever parsing logic changes significantly,
+// forcing old cached entries to be ignored.
+const cacheSchemaVersion = "v2"
+
 // Key produces a cache key from cli name, version string, and strategies list.
 func Key(cli, version string, strategies []string) string {
-s := cli + "|" + version + "|" + strings.Join(strategies, ",")
+s := cli + "|" + version + "|" + strings.Join(strategies, ",") + "|" + cacheSchemaVersion
 h := sha256.Sum256([]byte(s))
 return fmt.Sprintf("%x", h[:8])
 }
