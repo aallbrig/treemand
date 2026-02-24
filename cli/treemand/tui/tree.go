@@ -152,6 +152,23 @@ pos++
 if pos < len(t.rows) {
 t.cursor = pos
 t.scrollIntoView()
+// Auto-expand collapsed command nodes when navigating into them.
+row := t.rows[t.cursor]
+if row.kind == rowKindCommand {
+key := nodeKey(row.node, row.depth)
+if !t.nodeExpanded[key] {
+t.nodeExpanded[key] = true
+t.rebuild()
+// cursor may have shifted after rebuild; re-find the same node
+for i, r := range t.rows {
+if r.kind == rowKindCommand && r.node == row.node && r.depth == row.depth {
+t.cursor = i
+break
+}
+}
+t.scrollIntoView()
+}
+}
 }
 }
 
@@ -346,6 +363,8 @@ nameStyle = nameStyle.Foreground(lipgloss.Color("#50FA7B")).Bold(true)
 name := nameStyle.Render(row.node.Name)
 
 // Collapsed: show inline flag list like [--all,--clean,--config=<string>]
+// Colors match the non-interactive output: per-type (bool=green, string=cyan,
+// int=orange, other=purple); active flags are highlighted brighter.
 summary := ""
 if !isExpanded && len(row.node.Flags) > 0 {
 bracketStyle := lipgloss.NewStyle().Faint(true)
@@ -359,7 +378,7 @@ fs += "=<" + f.ValueType + ">"
 if isFlagActive(f, t.cmdTokens) {
 flagParts = append(flagParts, activeStyle.Render(fs))
 } else {
-flagParts = append(flagParts, bracketStyle.Render(fs))
+flagParts = append(flagParts, t.flagColorStyle(f.ValueType).Faint(true).Render(fs))
 }
 }
 summary = " " + bracketStyle.Render("[") +
