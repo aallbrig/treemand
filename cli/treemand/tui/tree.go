@@ -345,27 +345,26 @@ nameStyle = nameStyle.Foreground(lipgloss.Color("#50FA7B")).Bold(true)
 
 name := nameStyle.Render(row.node.Name)
 
-// Collapsed: show count summary.
+// Collapsed: show inline flag list like [--all,--clean,--config=<string>]
 summary := ""
-if !isExpanded {
-var parts []string
-nFlags := len(row.node.Flags)
-nChildren := 0
-for _, c := range row.node.Children {
-if !c.Virtual {
-nChildren++
+if !isExpanded && len(row.node.Flags) > 0 {
+bracketStyle := lipgloss.NewStyle().Faint(true)
+activeStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFB86C")).Bold(true)
+var flagParts []string
+for _, f := range row.node.Flags {
+fs := f.Name
+if f.ValueType != "" && f.ValueType != "bool" {
+fs += "=<" + f.ValueType + ">"
+}
+if isFlagActive(f, t.cmdTokens) {
+flagParts = append(flagParts, activeStyle.Render(fs))
+} else {
+flagParts = append(flagParts, bracketStyle.Render(fs))
 }
 }
-if nFlags > 0 {
-parts = append(parts, fmt.Sprintf("%d flags", nFlags))
-}
-if nChildren > 0 {
-parts = append(parts, fmt.Sprintf("%d subcmds", nChildren))
-}
-if len(parts) > 0 {
-dimStyle := lipgloss.NewStyle().Faint(true)
-summary = " " + dimStyle.Render("("+strings.Join(parts, ", ")+")")
-}
+summary = " " + bracketStyle.Render("[") +
+strings.Join(flagParts, bracketStyle.Render(",")) +
+bracketStyle.Render("]")
 }
 
 line := indent + icon + name + summary
