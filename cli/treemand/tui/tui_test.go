@@ -111,18 +111,19 @@ func TestTreeModel_navigation(t *testing.T) {
 cfg := config.DefaultConfig()
 tree := tui.NewTreeModel(sampleTree(), cfg)
 tree.SetSize(80, 24)
-tree.Expand()
-tree.Down()
+// Right() expands root and enters first child.
+tree.Right()
 sel := tree.Selected()
 if sel == nil {
-t.Fatal("expected selected node after Down()")
+t.Fatal("expected selected node after Right()")
 }
 if sel.Name != "commit" {
-t.Errorf("after Down, selected = %q, want %q", sel.Name, "commit")
+t.Errorf("after Right, selected = %q, want %q", sel.Name, "commit")
 }
-tree.Up()
+// Left() should return to the parent (git).
+tree.Left()
 if tree.Selected().Name != "git" {
-t.Errorf("after Up, want git, got %q", tree.Selected().Name)
+t.Errorf("after Left, want git, got %q", tree.Selected().Name)
 }
 }
 
@@ -159,12 +160,11 @@ func TestTreeModel_inlineFlags(t *testing.T) {
 cfg := config.DefaultConfig()
 tree := tui.NewTreeModel(sampleTree(), cfg)
 tree.SetSize(120, 40)
-// Root is already expanded; Expand() again expands its flags section.
-tree.Expand()
+// Collapse the root so inline flag list is shown.
+tree.Left()
 v := tree.ViewSized(120, 40)
-// Flag names should appear in the expanded flags section.
 if !strings.Contains(v, "--version") && !strings.Contains(v, "--help") {
-t.Error("expected flag names in tree view after expanding flags section")
+t.Error("expected inline flag names on collapsed root node")
 }
 }
 

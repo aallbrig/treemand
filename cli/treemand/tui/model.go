@@ -782,9 +782,9 @@ m.tree.Up()
 case "down":
 m.tree.Down()
 case "left":
-m.tree.Collapse()
+m.tree.Left()
 case "right":
-m.tree.Expand()
+m.tree.Right()
 case " ":
 m.tree.ToggleExpand()
 case "enter":
@@ -825,7 +825,7 @@ m.tree.Up()
 case "j":
 m.tree.Down()
 case "l":
-m.tree.Expand()
+m.tree.Right()
 case " ":
 m.tree.ToggleExpand()
 case "enter":
@@ -866,9 +866,9 @@ m.tree.Up()
 case "s":
 m.tree.Down()
 case "a":
-m.tree.Collapse()
+m.tree.Left()
 case "d":
-m.tree.Expand()
+m.tree.Right()
 case " ":
 m.tree.ToggleExpand()
 case "enter":

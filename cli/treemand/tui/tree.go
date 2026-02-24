@@ -145,11 +145,26 @@ t.scrollIntoView()
 }
 
 func (t *TreeModel) Down() {
+// Advance past section headers, expanding any collapsed ones we encounter.
 pos := t.cursor + 1
-for pos < len(t.rows) && t.rows[pos].kind == rowKindSection {
+for pos < len(t.rows) {
+row := t.rows[pos]
+if row.kind != rowKindSection {
+break
+}
+if !t.isSectionExpanded(row.sectionKey, row.sectionDefault) {
+// Expand the collapsed section so its items become visible.
+t.sectionExpanded[row.sectionKey] = true
+t.rebuild()
+// After rebuild positions change; restart the search from cursor+1.
+pos = t.cursor + 1
+continue
+}
 pos++
 }
-if pos < len(t.rows) {
+if pos >= len(t.rows) {
+return
+}
 t.cursor = pos
 t.scrollIntoView()
 // Auto-expand collapsed command nodes when navigating into them.
@@ -159,7 +174,6 @@ key := nodeKey(row.node, row.depth)
 if !t.nodeExpanded[key] {
 t.nodeExpanded[key] = true
 t.rebuild()
-// cursor may have shifted after rebuild; re-find the same node
 for i, r := range t.rows {
 if r.kind == rowKindCommand && r.node == row.node && r.depth == row.depth {
 t.cursor = i
@@ -170,12 +184,10 @@ t.scrollIntoView()
 }
 }
 }
-}
 
-// Expand expands the current command node if collapsed.
-// If the command is already expanded, expands its flags section (if any and collapsed).
-// Does nothing on flag/positional rows.
-func (t *TreeModel) Expand() {
+// Right moves the cursor INTO the current command node (expand + enter first child).
+// On flag/positional rows it is a no-op (no sub-level to enter).
+func (t *TreeModel) Right() {
 if t.cursor >= len(t.rows) {
 return
 }
@@ -183,49 +195,93 @@ row := t.rows[t.cursor]
 if row.kind != rowKindCommand {
 return
 }
+// Ensure the node itself is expanded.
 key := nodeKey(row.node, row.depth)
 if !t.nodeExpanded[key] {
 t.nodeExpanded[key] = true
 t.rebuild()
-return
+// Re-find this command row after rebuild.
+for i, r := range t.rows {
+if r.kind == rowKindCommand && r.node == row.node && r.depth == row.depth {
+t.cursor = i
+break
 }
-// Already expanded: expand flags section if available and collapsed.
-if len(row.node.Flags) > 0 {
-sKey := key + "/flags"
-if !t.isSectionExpanded(sKey, false) {
-t.sectionExpanded[sKey] = true
+}
+}
+// Advance past section headers, expanding them if needed, then land on first child.
+pos := t.cursor + 1
+for pos < len(t.rows) {
+r := t.rows[pos]
+if r.kind != rowKindSection {
+break
+}
+if !t.isSectionExpanded(r.sectionKey, r.sectionDefault) {
+t.sectionExpanded[r.sectionKey] = true
 t.rebuild()
+// Re-find command row and restart search.
+for i, rr := range t.rows {
+if rr.kind == rowKindCommand && rr.node == row.node && rr.depth == row.depth {
+t.cursor = i
+break
 }
+}
+pos = t.cursor + 1
+continue
+}
+pos++
+}
+// Only enter if the next row is actually a child of this node (deeper depth).
+if pos < len(t.rows) && t.rows[pos].depth > row.depth {
+t.cursor = pos
+t.scrollIntoView()
 }
 }
 
-// Collapse collapses the current node.
-// On a flag/positional row: collapses the containing section and moves cursor to the owner.
-func (t *TreeModel) Collapse() {
+// Left moves the cursor UP one level:
+//   - from a flag/positional row → the owner command row
+//   - from a command row → collapse it and move to the parent command row
+func (t *TreeModel) Left() {
 if t.cursor >= len(t.rows) {
 return
 }
 row := t.rows[t.cursor]
 switch row.kind {
-case rowKindCommand:
-key := nodeKey(row.node, row.depth)
-if t.nodeExpanded[key] {
-delete(t.nodeExpanded, key)
-t.rebuild()
-}
 case rowKindFlag, rowKindPositional:
-t.sectionExpanded[row.sectionRef] = false
-t.rebuild()
-// Move cursor back to the owning command row.
+// Move to owner command row.
 for i, r := range t.rows {
 if r.kind == rowKindCommand && r.node == row.owner && r.depth == row.ownerDepth {
 t.cursor = i
-break
-}
-}
 t.scrollIntoView()
+return
 }
 }
+case rowKindCommand:
+// Collapse this node.
+key := nodeKey(row.node, row.depth)
+delete(t.nodeExpanded, key)
+if len(row.node.FullPath) <= 1 {
+// Root node: just collapse, no parent to jump to.
+t.rebuild()
+return
+}
+// Find the parent command row (FullPath minus last element).
+parentPath := row.node.FullPath[:len(row.node.FullPath)-1]
+t.rebuild()
+for i, r := range t.rows {
+if r.kind == rowKindCommand && pathsEqual(r.node.FullPath, parentPath) {
+t.cursor = i
+t.scrollIntoView()
+return
+}
+}
+}
+}
+
+// Expand is kept as an alias for Right for backward compatibility.
+func (t *TreeModel) Expand() { t.Right() }
+
+// Collapse is kept as an alias for Left for backward compatibility.
+func (t *TreeModel) Collapse() { t.Left() }
 
 // ToggleExpand toggles the current command node's expansion (Space key).
 func (t *TreeModel) ToggleExpand() {
@@ -656,6 +712,18 @@ t.offset = t.cursor - innerH + 1
 
 func nodeKey(n *models.Node, depth int) string {
 return fmt.Sprintf("%s@%d", strings.Join(n.FullPath, "/"), depth)
+}
+
+func pathsEqual(a, b []string) bool {
+if len(a) != len(b) {
+return false
+}
+for i := range a {
+if a[i] != b[i] {
+return false
+}
+}
+return true
 }
 
 func isFlagActive(f models.Flag, tokens []string) bool {
