@@ -61,7 +61,7 @@ return err
 
 // cacheSchemaVersion is bumped whenever parsing logic changes significantly,
 // forcing old cached entries to be ignored.
-const cacheSchemaVersion = "v3"
+const cacheSchemaVersion = "v4"
 
 // Key produces a cache key from cli name, version string, and strategies list.
 func Key(cli, version string, strategies []string) string {

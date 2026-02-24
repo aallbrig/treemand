@@ -66,8 +66,6 @@ node.Flags = parsed.Flags
 node.Positionals = parsed.Positionals
 
 if depth < h.MaxDepth && len(parsed.Subcommands) > 0 {
-// Discover subcommands in parallel; limit concurrency to avoid
-// overwhelming the target CLI or the system.
 const maxWorkers = 8
 sem := make(chan struct{}, maxWorkers)
 type result struct {
@@ -86,34 +84,29 @@ subCtx, cancel := context.WithTimeout(ctx, h.Timeout)
 defer cancel()
 subArgs := append(append([]string{}, args...), sub)
 subFull := append(append([]string{}, fullPath...), sub)
-// Peek at the child's help before recursing. If it's identical to
-// the parent's (e.g. systemctl subcommands) we stop here to avoid
-// an exponential explosion of subprocess calls.
 childHelp, err := h.runHelp(subCtx, cliName, subArgs)
 if err != nil || childHelp == "" {
 results[i] = result{i, &models.Node{
-Name:     sub,
-FullPath: subFull,
-Discovered: true,
+Name:        sub,
+FullPath:    subFull,
+Discovered:  true,
 Description: fmt.Sprintf("(could not get help: %v)", err),
 }}
 return
 }
 var child *models.Node
 if childHelp == helpText {
-// Same help as parent — no unique sub-hierarchy, build stub node.
 childParsed := ParseHelpOutput(childHelp)
 child = &models.Node{
-Name:       sub,
-FullPath:   subFull,
-Discovered: true,
-HelpText:   childHelp,
+Name:        sub,
+FullPath:    subFull,
+Discovered:  true,
+HelpText:    childHelp,
 Description: childParsed.Description,
-Flags:      childParsed.Flags,
+Flags:       childParsed.Flags,
 Positionals: childParsed.Positionals,
 }
 } else {
-// Unique help — recurse fully.
 var cerr error
 child, cerr = h.discover(subCtx, cliName, subArgs, depth+1)
 if cerr != nil {
@@ -129,8 +122,41 @@ if r.child != nil {
 node.Children = append(node.Children, r.child)
 }
 }
+} else if len(parsed.Sections) > 1 {
+// No real subcommands but multiple named flag sections exist (e.g. Godot).
+// Create virtual group children so the tree has meaningful structure.
+for _, sec := range parsed.Sections {
+slug := sectionSlug(sec.Name)
+child := &models.Node{
+Name:        slug,
+FullPath:    append(append([]string{}, fullPath...), slug),
+Description: sec.Name,
+Flags:       sec.Flags,
+Discovered:  true,
+Virtual:     true,
+}
+node.Children = append(node.Children, child)
+}
 }
 return node, nil
+}
+
+// sectionSlug converts a flag-section header like "General options" into a
+// lowercase kebab-case identifier used as the virtual node name.
+func sectionSlug(name string) string {
+name = strings.ToLower(name)
+var b strings.Builder
+prevHyphen := false
+for _, r := range name {
+if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+b.WriteRune(r)
+prevHyphen = false
+} else if !prevHyphen {
+b.WriteByte('-')
+prevHyphen = true
+}
+}
+return strings.Trim(b.String(), "-")
 }
 
 // resolveBinary finds the executable for cliName.
@@ -244,6 +270,15 @@ Flags       []models.Flag
 Positionals []models.Positional
 Subcommands []string
 DocsURL     string
+// Sections holds named flag groups (e.g. Godot's "General options:",
+// "Debug options:"). Only populated when multiple distinct sections exist.
+Sections    []ParsedSection
+}
+
+// ParsedSection is a named group of flags found under a section header.
+type ParsedSection struct {
+Name  string
+Flags []models.Flag
 }
 
 // section labels we recognize
@@ -349,9 +384,33 @@ seenSubs := map[string]bool{}
 seenFlags := map[string]bool{}
 usageLines := []string{}
 
+// Section-grouping state: track the current flag-section header name so we
+// can build ParsedSection children for tools like Godot.
+currentSectionName := ""
+sectionFlagCount := map[string]int{} // section name → flag count added so far
+
 // pendingFlag holds a partially-parsed AWS-style flag whose description is
 // on the next non-empty line ("--flag (type)" followed by "   description").
 var pendingFlag *models.Flag
+
+// addFlag appends a flag to result.Flags and (if we are in a named section)
+// also to the corresponding ParsedSection entry.
+addFlag := func(f models.Flag) {
+if seenFlags[f.Name] {
+return
+}
+seenFlags[f.Name] = true
+result.Flags = append(result.Flags, f)
+if currentSectionName != "" {
+n := len(result.Sections)
+if n == 0 || result.Sections[n-1].Name != currentSectionName {
+result.Sections = append(result.Sections, ParsedSection{Name: currentSectionName})
+n++
+}
+result.Sections[n-1].Flags = append(result.Sections[n-1].Flags, f)
+sectionFlagCount[currentSectionName]++
+}
+}
 
 for i, rawLine := range lines {
 trimmed := strings.TrimSpace(rawLine)
@@ -364,14 +423,21 @@ if !strings.HasPrefix(trimmed, "--") && awsFlagRe.FindString(rawLine) == "" {
 pendingFlag.Description = trimmed
 }
 if !seenFlags[pendingFlag.Name] {
-seenFlags[pendingFlag.Name] = true
-result.Flags = append(result.Flags, *pendingFlag)
+addFlag(*pendingFlag)
 }
 pendingFlag = nil
 }
 
 // Detect section header: "Flags:", "Available Commands:", "GLOBAL OPTIONS", etc.
 if sec := detectSection(lower); sec != secNone {
+// For named flag-group sections (e.g. "General options:", "Debug options:"),
+// remember the human-readable name so flags get grouped under it.
+if sec == secFlags {
+// Capture the raw header text (without trailing colon) as the section name.
+currentSectionName = strings.TrimSuffix(trimmed, ":")
+} else {
+currentSectionName = ""
+}
 section = sec
 continue
 }
@@ -385,6 +451,7 @@ detectSection(lower) == secNone {
 // Man-page footers like "TOOLNAME()" at end of page shouldn't reset.
 if !strings.HasSuffix(trimmed, "()") {
 section = secNone
+currentSectionName = ""
 }
 }
 
@@ -425,9 +492,8 @@ f.ValueType = "bool"
 pendingFlag = &f
 continue
 }
-if f, ok := parseFlag(rawLine); ok && !seenFlags[f.Name] {
-seenFlags[f.Name] = true
-result.Flags = append(result.Flags, f)
+if f, ok := parseFlag(rawLine); ok {
+addFlag(f)
 }
 case secCommands:
 // AWS man-page bullet: "       +o subcmd"
@@ -448,9 +514,8 @@ result.Subcommands = append(result.Subcommands, name)
 }
 case secNone, secUsage:
 // Outside named sections: pick up flags and subcommands with stricter checks.
-if f, ok := parseFlag(rawLine); ok && !seenFlags[f.Name] {
-seenFlags[f.Name] = true
-result.Flags = append(result.Flags, f)
+if f, ok := parseFlag(rawLine); ok {
+addFlag(f)
 }
 // Git-style free-form subcommand lists: indented word + required description.
 if m2 := subcmdRe.FindStringSubmatch(rawLine); m2 != nil && m2[2] != "" {
@@ -464,9 +529,20 @@ result.Subcommands = append(result.Subcommands, name)
 }
 
 // Flush any trailing pending flag.
-if pendingFlag != nil && !seenFlags[pendingFlag.Name] {
-seenFlags[pendingFlag.Name] = true
-result.Flags = append(result.Flags, *pendingFlag)
+if pendingFlag != nil {
+addFlag(*pendingFlag)
+}
+
+// Drop sections that have fewer than 2 flags — they are noise.
+{
+filtered := result.Sections[:0]
+for _, s := range result.Sections {
+if len(s.Flags) >= 2 {
+filtered = append(filtered, s)
+}
+}
+result.Sections = filtered
+_ = sectionFlagCount // used implicitly via addFlag
 }
 
 // Parse positionals from all collected usage lines

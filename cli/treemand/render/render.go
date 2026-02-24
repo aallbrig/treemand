@@ -106,6 +106,7 @@ func (r *Renderer) Render(w io.Writer, root *models.Node) error {
 
 const (
 	iconBranch   = "▼ "
+	iconVirtual  = "◆ " // display-only group node (e.g. Godot flag sections)
 	iconLeaf     = "• "
 	connLast     = "└── "
 	connMid      = "├── "
@@ -133,7 +134,9 @@ func (r *Renderer) renderNode(w io.Writer, node *models.Node, prefix string, isL
 
 	// Choose icon
 	icon := iconLeaf
-	if len(node.Children) > 0 {
+	if node.Virtual {
+		icon = iconVirtual
+	} else if len(node.Children) > 0 {
 		icon = iconBranch
 	}
 

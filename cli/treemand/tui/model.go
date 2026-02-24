@@ -681,7 +681,7 @@ m.tree.Expand()
 case " ":
 m.tree.ToggleExpand()
 case "enter":
-if node := m.tree.Selected(); node != nil {
+if node := m.tree.Selected(); node != nil && !node.Virtual {
 m.preview.SetCommand(node.FullCommand())
 m.tree.SetCmdTokens(m.preview.Tokens())
 m.statusMsg = "set: " + node.FullCommand()
@@ -702,7 +702,7 @@ m.tree.Expand()
 case " ":
 m.tree.ToggleExpand()
 case "enter":
-if node := m.tree.Selected(); node != nil {
+if node := m.tree.Selected(); node != nil && !node.Virtual {
 m.preview.SetCommand(node.FullCommand())
 m.tree.SetCmdTokens(m.preview.Tokens())
 m.statusMsg = "set: " + node.FullCommand()
@@ -725,7 +725,7 @@ m.tree.Expand()
 case " ":
 m.tree.ToggleExpand()
 case "enter":
-if node := m.tree.Selected(); node != nil {
+if node := m.tree.Selected(); node != nil && !node.Virtual {
 m.preview.SetCommand(node.FullCommand())
 m.tree.SetCmdTokens(m.preview.Tokens())
 m.statusMsg = "set: " + node.FullCommand()

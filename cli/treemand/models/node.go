@@ -28,6 +28,10 @@ type Node struct {
 	Children    []*Node      `json:"children,omitempty"`
 	HelpText    string       `json:"help_text,omitempty"`
 	Discovered  bool         `json:"discovered"`
+	// Virtual marks a display-only group node (e.g. a Godot flag section like
+	// "run-options"). Virtual nodes organise flags visually but do not
+	// produce command tokens in the preview bar.
+	Virtual bool `json:"virtual,omitempty"`
 }
 
 // FullCommand returns the full command string (e.g., "git remote add").
