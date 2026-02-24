@@ -172,27 +172,44 @@ _, err := resolveBinaryOrError(cliName)
 return err
 }
 
+// pagerEnv are environment variable overrides appended to every help command
+// so that tools that pipe through a pager (AWS, man, etc.) emit plain text.
+var pagerEnv = []string{
+"AWS_PAGER=",
+"PAGER=cat",
+"MANPAGER=cat",
+"GIT_PAGER=cat",
+}
+
 // truncatedHelpRe matches messages that indicate --help output is abbreviated
 // and a more complete form is available (e.g. curl's "use --help all").
 var truncatedHelpRe = regexp.MustCompile(`(?i)--help all|--help <category>|not the full help`)
 
+// runHelp tries to get help text for args under cliName.
+// It attempts --help / -h first, then `help` as a positional fallback
+// (needed for tools like aws that use "aws help" instead of "aws --help").
 func (h *HelpDiscoverer) runHelp(ctx context.Context, cliName string, args []string) (string, error) {
 resolved := resolveBinary(cliName)
+
+// Helper that runs a command with pager env vars and returns trimmed output.
+run := func(cmdArgs []string) string {
+cmd := exec.CommandContext(ctx, resolved, cmdArgs...) //nolint:gosec
+cmd.Env = append(os.Environ(), pagerEnv...)
+out, _ := cmd.CombinedOutput()
+return strings.TrimSpace(string(out))
+}
+
 var firstOut string
 for _, flag := range []string{"--help", "-h"} {
 cmdArgs := append(append([]string{}, args...), flag)
-cmd := exec.CommandContext(ctx, resolved, cmdArgs...) //nolint:gosec
-out, _ := cmd.CombinedOutput()
-s := strings.TrimSpace(string(out))
+s := run(cmdArgs)
 if s == "" {
 continue
 }
-// Detect truncated help (e.g. curl) and retry with --help all
+// Detect truncated help (e.g. curl) and retry with --help all.
 if truncatedHelpRe.MatchString(s) {
 allArgs := append(append([]string{}, args...), "--help", "all")
-cmd2 := exec.CommandContext(ctx, resolved, allArgs...) //nolint:gosec
-out2, _ := cmd2.CombinedOutput()
-if s2 := strings.TrimSpace(string(out2)); s2 != "" {
+if s2 := run(allArgs); s2 != "" {
 return s2, nil
 }
 }
@@ -200,6 +217,19 @@ if firstOut == "" {
 firstOut = s
 }
 }
+
+// Fallback: some CLIs (aws, man-page wrappers) use `<cli> [sub...] help`
+// as a positional rather than a flag.
+if firstOut == "" {
+helpArgs := append(append([]string{}, args...), "help")
+if s := run(helpArgs); s != "" {
+// Avoid returning the parent's "how to get help" message as content.
+if !strings.Contains(strings.ToLower(s), "aws help\n  aws") {
+firstOut = s
+}
+}
+}
+
 if firstOut != "" {
 return firstOut, nil
 }
@@ -229,25 +259,33 @@ secAliases  = "aliases"
 
 // sectionHeaders maps lower-cased keywords that appear in section header lines.
 var sectionHeaders = map[string]string{
-"available commands":  secCommands,
-"available command":   secCommands,
-"management commands": secCommands,
-"management command":  secCommands,
-"commands":            secCommands,
-"subcommands":         secCommands,
-"flags":               secFlags,
-"options":             secFlags,
-"global flags":        secFlags,
-"global options":      secFlags,
-"optional arguments":  secFlags,
-"arguments":           secFlags,
-"usage":               secUsage,
-"use":                 secUsage,
-"description":         secDesc,
-"examples":            secExamples,
-"example":             secExamples,
-"aliases":             secAliases,
+"available commands":   secCommands,
+"available command":    secCommands,
+"available services":   secCommands, // AWS man-page style
+"available service":    secCommands,
+"management commands":  secCommands,
+"management command":   secCommands,
+"commands":             secCommands,
+"subcommands":          secCommands,
+"flags":                secFlags,
+"options":              secFlags,
+"global flags":         secFlags,
+"global options":       secFlags,
+"optional arguments":   secFlags,
+"arguments":            secFlags,
+"usage":                secUsage,
+"use":                  secUsage,
+"description":          secDesc,
+"examples":             secExamples,
+"example":              secExamples,
+"aliases":              secAliases,
 }
+
+// awsBulletRe matches AWS man-page bullet list items: "       +o word"
+var awsBulletRe = regexp.MustCompile(`^\s{2,}\+o\s+([a-z][a-z0-9_-]*)$`)
+
+// awsFlagRe matches AWS man-page flag lines: "       --flag (type)"
+var awsFlagRe = regexp.MustCompile(`^\s{2,}(--[A-Za-z][A-Za-z0-9_-]*)\s+\(([^)]+)\)\s*$`)
 
 // regexes compiled once
 var (
@@ -278,6 +316,16 @@ urlRe = regexp.MustCompile(`https?://[^\s]+`)
 ansiRe = regexp.MustCompile(`\x1b\[[0-9;]*[mGKHF]`)
 )
 
+// buildMarkerRe matches Godot-style build-availability markers at the start of
+// a flag description: a single uppercase letter (R/D/X/E) followed by 2+ spaces.
+// e.g. "R  Display this help message." → "Display this help message."
+var buildMarkerRe = regexp.MustCompile(`^[A-Z]\s{2,}`)
+
+// stripBuildMarker removes a leading build-availability marker if present.
+func stripBuildMarker(s string) string {
+return strings.TrimSpace(buildMarkerRe.ReplaceAllString(s, ""))
+}
+
 // skipSubcmdWords are words that look like subcommands but aren't.
 var skipSubcmdWords = map[string]bool{
 "true": true, "false": true,
@@ -301,38 +349,65 @@ seenSubs := map[string]bool{}
 seenFlags := map[string]bool{}
 usageLines := []string{}
 
+// pendingFlag holds a partially-parsed AWS-style flag whose description is
+// on the next non-empty line ("--flag (type)" followed by "   description").
+var pendingFlag *models.Flag
+
 for i, rawLine := range lines {
 trimmed := strings.TrimSpace(rawLine)
 lower := strings.ToLower(trimmed)
 
-// Detect section header: "Flags:", "Available Commands:", etc.
+// Flush a pending AWS-style flag when we encounter a non-empty line.
+if pendingFlag != nil && trimmed != "" {
+// If the next line is another flag, don't use it as a description.
+if !strings.HasPrefix(trimmed, "--") && awsFlagRe.FindString(rawLine) == "" {
+pendingFlag.Description = trimmed
+}
+if !seenFlags[pendingFlag.Name] {
+seenFlags[pendingFlag.Name] = true
+result.Flags = append(result.Flags, *pendingFlag)
+}
+pendingFlag = nil
+}
+
+// Detect section header: "Flags:", "Available Commands:", "GLOBAL OPTIONS", etc.
 if sec := detectSection(lower); sec != secNone {
 section = sec
 continue
 }
-// A non-indented non-empty line that ends without : resets section
-// (but only if we're past the first few lines to avoid clobbering usage)
-if i > 0 && trimmed != "" && !strings.HasPrefix(rawLine, " ") &&
+// A non-indented non-empty line resets the section — EXCEPT for
+// man-page headers that are themselves section detectors (handled above).
+// We only reset when it's clearly not a section header.
+if i > 4 && trimmed != "" && !strings.HasPrefix(rawLine, " ") &&
 !strings.HasPrefix(rawLine, "\t") && section != secNone &&
-!strings.HasSuffix(lower, ":") {
+!strings.HasSuffix(lower, ":") &&
+detectSection(lower) == secNone {
+// Man-page footers like "TOOLNAME()" at end of page shouldn't reset.
+if !strings.HasSuffix(trimmed, "()") {
 section = secNone
 }
+}
 
-// Capture first non-empty non-flag non-usage line as description
-if result.Description == "" && i < 6 && trimmed != "" &&
+// Capture first non-empty non-flag non-usage line as description.
+// For man-page format, skip the "NAME\n   cmd -" header lines.
+if result.Description == "" && i < 10 && trimmed != "" &&
 !strings.HasPrefix(trimmed, "-") &&
 !strings.HasPrefix(lower, "usage") &&
-!strings.HasPrefix(lower, "use ") {
+!strings.HasPrefix(lower, "use ") &&
+!strings.HasPrefix(lower, "name") &&
+!strings.HasPrefix(lower, "synopsis") &&
+lower != "name" && lower != "synopsis" && lower != "description" {
 result.Description = trimmed
 }
 
-// Collect all usage lines for positional parsing
+// Collect all usage / synopsis lines for positional parsing.
 if strings.HasPrefix(lower, "usage:") || strings.HasPrefix(lower, "use:") ||
+lower == "synopsis" ||
 (section == secUsage && trimmed != "") {
 usageLines = append(usageLines, rawLine)
 }
 
-// Detect docs URL anywhere in text
+// Detect docs URL anywhere in text.
 if result.DocsURL == "" {
 if m := urlRe.FindString(rawLine); m != "" {
 result.DocsURL = m
@@ -341,11 +416,29 @@ result.DocsURL = m
 
 switch section {
 case secFlags:
+// AWS man-page flag style: "       --flag (type)"
+if m := awsFlagRe.FindStringSubmatch(rawLine); m != nil {
+f := models.Flag{Name: m[1], ValueType: m[2]}
+if m[2] == "boolean" {
+f.ValueType = "bool"
+}
+pendingFlag = &f
+continue
+}
 if f, ok := parseFlag(rawLine); ok && !seenFlags[f.Name] {
 seenFlags[f.Name] = true
 result.Flags = append(result.Flags, f)
 }
 case secCommands:
+// AWS man-page bullet: "       +o subcmd"
+if m := awsBulletRe.FindStringSubmatch(rawLine); m != nil {
+name := m[1]
+if !seenSubs[name] && !skipSubcmdWords[name] {
+seenSubs[name] = true
+result.Subcommands = append(result.Subcommands, name)
+}
+continue
+}
 if m := subcmdRe.FindStringSubmatch(rawLine); m != nil {
 name := m[1]
 if !seenSubs[name] && !skipSubcmdWords[name] {
@@ -354,8 +447,7 @@ result.Subcommands = append(result.Subcommands, name)
 }
 }
 case secNone, secUsage:
-// Outside named sections: still try to pick up flags and subcommands
-// with stricter confidence checks.
+// Outside named sections: pick up flags and subcommands with stricter checks.
 if f, ok := parseFlag(rawLine); ok && !seenFlags[f.Name] {
 seenFlags[f.Name] = true
 result.Flags = append(result.Flags, f)
@@ -371,6 +463,12 @@ result.Subcommands = append(result.Subcommands, name)
 }
 }
 
+// Flush any trailing pending flag.
+if pendingFlag != nil && !seenFlags[pendingFlag.Name] {
+seenFlags[pendingFlag.Name] = true
+result.Flags = append(result.Flags, *pendingFlag)
+}
+
 // Parse positionals from all collected usage lines
 for _, ul := range usageLines {
 for _, p := range parsePositionals(ul) {
@@ -384,20 +482,25 @@ return result
 }
 
 // detectSection returns a section constant if the line is a recognized header.
+// Handles "Title Case:" (cobra/click style) and "UPPER CASE" (man/AWS style).
 func detectSection(lower string) string {
-if !strings.HasSuffix(lower, ":") {
-return secNone
-}
-candidate := strings.TrimSuffix(lower, ":")
-// Exact match: "flags:", "commands:", etc.
+// Strip optional trailing colon present in cobra/click style.
+candidate := strings.TrimSuffix(strings.TrimSpace(lower), ":")
+
+// Exact match handles most cases ("flags", "commands", "global options", etc.)
 if s, ok := sectionHeaders[candidate]; ok {
 return s
 }
-// Prefix match: "available commands:", "global flags:", etc.
-// Suffix match: "general options:", "required arguments:", etc.
+
+// Prefix/suffix match for compound headers like "general options:",
+// "required arguments:", "available services:", etc.
+// Only apply to short candidates (section headers are rarely > 30 chars);
+// this prevents false-positives on lines like "Usage: ls [OPTION]... [FILE]..."
+if len(candidate) <= 30 {
 for kw, sec := range sectionHeaders {
 if strings.HasPrefix(candidate, kw) || strings.HasSuffix(candidate, kw) {
 return sec
+}
 }
 }
 return secNone
@@ -421,7 +524,7 @@ f.ValueType = m[5]
 default:
 f.ValueType = "bool"
 }
-f.Description = strings.TrimSpace(m[6])
+f.Description = stripBuildMarker(m[6])
 return f, true
 }
 // Try short-only flag
@@ -438,7 +541,7 @@ f.ValueType = m[3]
 default:
 f.ValueType = "bool"
 }
-f.Description = strings.TrimSpace(m[4])
+f.Description = stripBuildMarker(m[4])
 return f, true
 }
 return models.Flag{}, false
