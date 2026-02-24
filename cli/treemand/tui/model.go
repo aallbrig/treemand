@@ -42,6 +42,14 @@ active  bool
 command string
 }
 
+// valueInputModal is the inline value-entry dialog for flag/positional rows.
+type valueInputModal struct {
+	active bool
+	label  string // e.g. "--flag-name <string>"
+	prefix string // token prefix e.g. "--flag-name=" or ""
+	input  textinput.Model
+}
+
 // Model is the root Bubble Tea model.
 type Model struct {
 root         *models.Node
@@ -61,6 +69,7 @@ quitting     bool
 modal        *executeModal
 commandToRun string // set when user picks "Run" in the modal
 	fm           flagModal
+	vm           valueInputModal
 }
 
 // NewModel creates a new root TUI model.
@@ -91,6 +100,14 @@ return tea.EnableMouseAllMotion
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Value input modal intercepts all input when active.
+	if m.vm.active {
+		if km, ok := msg.(tea.KeyMsg); ok {
+			return m.updateValueModal(km)
+		}
+		return m, nil
+	}
+
 	// Flag modal intercepts all input when active.
 	if m.fm.active {
 		if km, ok := msg.(tea.KeyMsg); ok {
@@ -127,6 +144,96 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateMouse(msg)
 	}
 	return m, nil
+}
+
+// ---------- value input modal ----------
+
+func (m *Model) updateValueModal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "enter":
+		val := m.vm.prefix + m.vm.input.Value()
+		m.preview.AppendToken(val)
+		m.tree.SetCmdTokens(m.preview.Tokens())
+		m.statusMsg = "added: " + val
+		m.vm.active = false
+		return m, nil
+	case "esc", "ctrl+c":
+		m.vm.active = false
+		return m, nil
+	}
+	var cmd tea.Cmd
+	m.vm.input, cmd = m.vm.input.Update(msg)
+	return m, cmd
+}
+
+func (m *Model) renderValueInputModal() string {
+	modalW := min(m.width-8, 60)
+	if modalW < 30 {
+		modalW = 30
+	}
+	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#5EA4F5"))
+	hintStyle := lipgloss.NewStyle().Faint(true)
+
+	m.vm.input.Width = modalW - 8
+	inner := titleStyle.Render(m.vm.label) + "\n\n" +
+		m.vm.input.View() + "\n\n" +
+		hintStyle.Render("[Enter] confirm  [Esc] cancel")
+
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#5EA4F5")).
+		Padding(1, 2).
+		Width(modalW - 2).
+		Render(inner)
+
+	padLeft := (m.width - lipgloss.Width(box)) / 2
+	if padLeft < 0 {
+		padLeft = 0
+	}
+	padTop := (m.height - lipgloss.Height(box)) / 2
+	if padTop < 0 {
+		padTop = 0
+	}
+	blankLine := strings.Repeat(" ", m.width)
+	leftPad := strings.Repeat(" ", padLeft)
+	var sb strings.Builder
+	for i := 0; i < padTop; i++ {
+		sb.WriteString(blankLine + "\n")
+	}
+	for _, line := range strings.Split(box, "\n") {
+		sb.WriteString(leftPad + line + "\n")
+	}
+	return sb.String()
+}
+
+func (m *Model) openValueModal(f *models.Flag) {
+	vi := textinput.New()
+	vi.Placeholder = "value…"
+	vi.CharLimit = 256
+	vi.Focus()
+	m.vm = valueInputModal{
+		active: true,
+		label:  f.Name + " <" + f.ValueType + ">",
+		prefix: f.Name + "=",
+		input:  vi,
+	}
+}
+
+func (m *Model) openPositionalModal(p *models.Positional) {
+	name := "<" + p.Name + ">"
+	if !p.Required {
+		name = "[" + p.Name + "]"
+	}
+	vi := textinput.New()
+	vi.Placeholder = p.Name
+	vi.CharLimit = 256
+	vi.Focus()
+	m.vm = valueInputModal{
+		active: true,
+		label:  name,
+		prefix: "",
+		input:  vi,
+	}
 }
 
 // ---------- modal ----------
@@ -681,11 +788,31 @@ m.tree.Expand()
 case " ":
 m.tree.ToggleExpand()
 case "enter":
-if node := m.tree.Selected(); node != nil && !node.Virtual {
-m.preview.SetCommand(node.FullCommand())
-m.tree.SetCmdTokens(m.preview.Tokens())
-m.statusMsg = "set: " + node.FullCommand()
-}
+	sel := m.tree.SelectedItem()
+	if sel == nil {
+		break
+	}
+	switch sel.Kind {
+	case SelCommand:
+		if !sel.Node.Virtual {
+			m.preview.SetCommand(sel.Node.FullCommand())
+			m.tree.SetCmdTokens(m.preview.Tokens())
+			m.statusMsg = "set: " + sel.Node.FullCommand()
+		}
+	case SelFlag:
+		vt := strings.ToLower(sel.Flag.ValueType)
+		if vt == "" || vt == "bool" {
+			if !isFlagActive(*sel.Flag, m.preview.Tokens()) {
+				m.preview.AppendToken(sel.Flag.Name)
+				m.tree.SetCmdTokens(m.preview.Tokens())
+				m.statusMsg = "added: " + sel.Flag.Name
+			}
+		} else {
+			m.openValueModal(sel.Flag)
+		}
+	case SelPositional:
+		m.openPositionalModal(sel.Positional)
+	}
 }
 m.syncSelected()
 return m, nil
@@ -702,11 +829,31 @@ m.tree.Expand()
 case " ":
 m.tree.ToggleExpand()
 case "enter":
-if node := m.tree.Selected(); node != nil && !node.Virtual {
-m.preview.SetCommand(node.FullCommand())
-m.tree.SetCmdTokens(m.preview.Tokens())
-m.statusMsg = "set: " + node.FullCommand()
-}
+	sel := m.tree.SelectedItem()
+	if sel == nil {
+		break
+	}
+	switch sel.Kind {
+	case SelCommand:
+		if !sel.Node.Virtual {
+			m.preview.SetCommand(sel.Node.FullCommand())
+			m.tree.SetCmdTokens(m.preview.Tokens())
+			m.statusMsg = "set: " + sel.Node.FullCommand()
+		}
+	case SelFlag:
+		vt := strings.ToLower(sel.Flag.ValueType)
+		if vt == "" || vt == "bool" {
+			if !isFlagActive(*sel.Flag, m.preview.Tokens()) {
+				m.preview.AppendToken(sel.Flag.Name)
+				m.tree.SetCmdTokens(m.preview.Tokens())
+				m.statusMsg = "added: " + sel.Flag.Name
+			}
+		} else {
+			m.openValueModal(sel.Flag)
+		}
+	case SelPositional:
+		m.openPositionalModal(sel.Positional)
+	}
 }
 m.syncSelected()
 return m, nil
@@ -725,11 +872,31 @@ m.tree.Expand()
 case " ":
 m.tree.ToggleExpand()
 case "enter":
-if node := m.tree.Selected(); node != nil && !node.Virtual {
-m.preview.SetCommand(node.FullCommand())
-m.tree.SetCmdTokens(m.preview.Tokens())
-m.statusMsg = "set: " + node.FullCommand()
-}
+	sel := m.tree.SelectedItem()
+	if sel == nil {
+		break
+	}
+	switch sel.Kind {
+	case SelCommand:
+		if !sel.Node.Virtual {
+			m.preview.SetCommand(sel.Node.FullCommand())
+			m.tree.SetCmdTokens(m.preview.Tokens())
+			m.statusMsg = "set: " + sel.Node.FullCommand()
+		}
+	case SelFlag:
+		vt := strings.ToLower(sel.Flag.ValueType)
+		if vt == "" || vt == "bool" {
+			if !isFlagActive(*sel.Flag, m.preview.Tokens()) {
+				m.preview.AppendToken(sel.Flag.Name)
+				m.tree.SetCmdTokens(m.preview.Tokens())
+				m.statusMsg = "added: " + sel.Flag.Name
+			}
+		} else {
+			m.openValueModal(sel.Flag)
+		}
+	case SelPositional:
+		m.openPositionalModal(sel.Positional)
+	}
 }
 m.syncSelected()
 return m, nil
@@ -774,14 +941,15 @@ return m, nil
 }
 
 func (m *Model) handleMouseClick(x, y int) {
-if y < previewBarHeight {
-m.setFocus(panePreview)
-} else if m.showHelpPane && m.width > 0 && x >= m.treeWidth() {
-m.setFocus(paneHelp)
-} else {
-m.setFocus(paneTree)
-}
-m.statusMsg = "focus: " + paneName(m.focusedPane)
+	if y < previewBarHeight {
+		m.setFocus(panePreview)
+	} else if m.showHelpPane && m.width > 0 && x >= m.treeWidth() {
+		m.setFocus(paneHelp)
+	} else {
+		m.setFocus(paneTree)
+		m.tree.ToggleSectionAtY(y - previewBarHeight - 1)
+	}
+	m.statusMsg = "focus: " + paneName(m.focusedPane)
 }
 
 // ---------- focus management ----------
@@ -803,12 +971,18 @@ m.helpPane.SetFocused(p == paneHelp)
 }
 
 func (m *Model) syncSelected() {
-if node := m.tree.Selected(); node != nil {
-// Only update the help pane when the cursor moves.
-// The preview is intentionally NOT updated here — it only changes
-// when the user explicitly presses Enter to activate a node.
-m.helpPane.SetNode(node)
-}
+	sel := m.tree.SelectedItem()
+	if sel == nil {
+		return
+	}
+	switch sel.Kind {
+	case SelCommand:
+		m.helpPane.SetNode(sel.Node)
+	case SelFlag:
+		m.helpPane.SetFlagContext(sel.Flag, sel.Owner)
+	case SelPositional:
+		m.helpPane.SetPositionalContext(sel.Positional, sel.Owner)
+	}
 }
 
 // ---------- layout ----------
@@ -860,6 +1034,9 @@ return m.renderModal()
 	if m.fm.active {
 		return m.renderFlagModal()
 	}
+	if m.vm.active {
+		return m.renderValueInputModal()
+	}
 
 
 previewBar := m.preview.View(m.width)
@@ -880,10 +1057,22 @@ return lipgloss.JoinVertical(lipgloss.Left, previewBar, body, statusBar)
 }
 
 func (m *Model) renderStatusBar() string {
-selected := ""
-if node := m.tree.Selected(); node != nil {
-selected = node.FullCommand()
-}
+	selected := ""
+	if sel := m.tree.SelectedItem(); sel != nil {
+		switch sel.Kind {
+		case SelFlag:
+			selected = sel.Flag.Name
+			if sel.Flag.ValueType != "" {
+				selected += " (" + sel.Flag.ValueType + ")"
+			}
+		case SelPositional:
+			selected = "<" + sel.Positional.Name + ">"
+		default:
+			if sel.Node != nil {
+				selected = sel.Node.FullCommand()
+			}
+		}
+	}
 left := lipgloss.NewStyle().Bold(true).Render(selected)
 
 var hint string

@@ -159,10 +159,12 @@ func TestTreeModel_inlineFlags(t *testing.T) {
 cfg := config.DefaultConfig()
 tree := tui.NewTreeModel(sampleTree(), cfg)
 tree.SetSize(120, 40)
+// Root is already expanded; Expand() again expands its flags section.
+tree.Expand()
 v := tree.ViewSized(120, 40)
-// Root node has flags; at least one flag name should appear inline.
+// Flag names should appear in the expanded flags section.
 if !strings.Contains(v, "--version") && !strings.Contains(v, "--help") {
-t.Error("expected inline flags in tree view")
+t.Error("expected flag names in tree view after expanding flags section")
 }
 }
 

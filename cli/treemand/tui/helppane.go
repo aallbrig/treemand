@@ -10,27 +10,62 @@ import (
 "github.com/aallbrig/treemand/models"
 )
 
+type helpMode int
+
+const (
+helpModeNode       helpMode = iota
+helpModeFlag
+helpModePositional
+)
+
 // HelpPaneModel shows structured --help content for the selected node.
 // The content is scrollable when the pane has focus.
 type HelpPaneModel struct {
-node         *models.Node
-cfg          *config.Config
-width        int
-height       int
-scrollOffset int
-focused      bool
-lines        []string // pre-rendered content lines
+node          *models.Node
+cfg           *config.Config
+width         int
+height        int
+scrollOffset  int
+focused       bool
+lines         []string // pre-rendered content lines
+mode          helpMode
+selFlag       *models.Flag
+selPositional *models.Positional
+selOwner      *models.Node
 }
 
 func NewHelpPaneModel(cfg *config.Config) *HelpPaneModel {
 return &HelpPaneModel{cfg: cfg}
 }
 
+// SetNode clears flag/positional context and sets node context.
 func (h *HelpPaneModel) SetNode(node *models.Node) {
-if h.node == node {
+if h.mode == helpModeNode && h.node == node {
 return
 }
+h.mode = helpModeNode
+h.selFlag = nil
+h.selPositional = nil
+h.selOwner = nil
 h.node = node
+h.scrollOffset = 0
+h.rebuildLines()
+}
+
+// SetFlagContext sets content to the given flag's info.
+func (h *HelpPaneModel) SetFlagContext(f *models.Flag, owner *models.Node) {
+h.mode = helpModeFlag
+h.selFlag = f
+h.selOwner = owner
+h.scrollOffset = 0
+h.rebuildLines()
+}
+
+// SetPositionalContext sets content to the given positional's info.
+func (h *HelpPaneModel) SetPositionalContext(p *models.Positional, owner *models.Node) {
+h.mode = helpModePositional
+h.selPositional = p
+h.selOwner = owner
 h.scrollOffset = 0
 h.rebuildLines()
 }
@@ -42,7 +77,6 @@ h.height = hi
 
 func (h *HelpPaneModel) SetFocused(f bool) { h.focused = f }
 
-// ScrollUp scrolls the content up by n lines.
 func (h *HelpPaneModel) ScrollUp(n int) {
 h.scrollOffset -= n
 if h.scrollOffset < 0 {
@@ -50,7 +84,6 @@ h.scrollOffset = 0
 }
 }
 
-// ScrollDown scrolls the content down by n lines.
 func (h *HelpPaneModel) ScrollDown(n int) {
 maxOff := len(h.lines) - h.viewportLines()
 if maxOff < 0 {
@@ -74,7 +107,6 @@ h.scrollOffset = maxOff
 }
 
 func (h *HelpPaneModel) viewportLines() int {
-// border top + title line + border bottom = 3 overhead
 v := h.height - 3
 if v < 1 {
 return 1
@@ -96,14 +128,12 @@ end = len(h.lines)
 }
 slice := h.lines[h.scrollOffset:end]
 
-// Pad to fill viewport so the box is a fixed height.
 padded := make([]string, vp)
 copy(padded, slice)
 for i := len(slice); i < vp; i++ {
 padded[i] = ""
 }
 
-// Scroll indicator shown in title when content overflows.
 scrollSuffix := ""
 if len(h.lines) > vp {
 pct := 0
@@ -117,8 +147,19 @@ scrollSuffix = fmt.Sprintf(" [%d%%]", pct)
 }
 
 title := "Help"
+switch h.mode {
+case helpModeFlag:
+if h.selFlag != nil {
+title += ": " + h.selFlag.Name
+}
+case helpModePositional:
+if h.selPositional != nil {
+title += ": <" + h.selPositional.Name + ">"
+}
+default:
 if h.node != nil {
 title += ": " + h.node.Name
+}
 }
 title += scrollSuffix
 
@@ -138,10 +179,9 @@ BorderForeground(borderColor).
 Width(w - 2).
 Height(hi - 2)
 
-innerW := w - 4 // account for borders + 1 pad each side
+innerW := w - 4
 var rendered []string
 for _, line := range padded {
-// Hard-wrap long lines to inner width so lipgloss doesn't overflow.
 rendered = append(rendered, hardWrap(line, innerW))
 }
 
@@ -149,7 +189,6 @@ content := titleStyle.Render(title) + "\n" + strings.Join(rendered, "\n")
 return boxStyle.Render(content)
 }
 
-// hardWrap truncates a line to maxW visible characters (no lipgloss width needed here).
 func hardWrap(s string, maxW int) string {
 if maxW <= 0 || len(s) <= maxW {
 return s
@@ -158,6 +197,67 @@ return s[:maxW]
 }
 
 func (h *HelpPaneModel) rebuildLines() {
+switch h.mode {
+case helpModeFlag:
+h.rebuildFlagLines()
+case helpModePositional:
+h.rebuildPositionalLines()
+default:
+h.rebuildNodeLines()
+}
+}
+
+func (h *HelpPaneModel) rebuildFlagLines() {
+if h.selFlag == nil {
+h.lines = nil
+return
+}
+f := h.selFlag
+var sb strings.Builder
+name := f.Name
+if f.ShortName != "" {
+name += " [-" + f.ShortName + "]"
+}
+sb.WriteString("Name: " + name + "\n")
+vt := f.ValueType
+if vt == "" {
+vt = "bool"
+}
+sb.WriteString("Type: " + vt + "\n")
+if f.Description != "" {
+sb.WriteString("Description: " + f.Description + "\n")
+}
+if h.selOwner != nil {
+sb.WriteString("\nCommand: " + h.selOwner.FullCommand() + "\n")
+}
+raw := sb.String()
+h.lines = strings.Split(strings.TrimRight(raw, "\n"), "\n")
+}
+
+func (h *HelpPaneModel) rebuildPositionalLines() {
+if h.selPositional == nil {
+h.lines = nil
+return
+}
+p := h.selPositional
+var sb strings.Builder
+sb.WriteString("Argument: <" + p.Name + ">\n")
+req := "no"
+if p.Required {
+req = "yes"
+}
+sb.WriteString("Required: " + req + "\n")
+if p.Description != "" {
+sb.WriteString("Description: " + p.Description + "\n")
+}
+if h.selOwner != nil {
+sb.WriteString("\nCommand: " + h.selOwner.FullCommand() + "\n")
+}
+raw := sb.String()
+h.lines = strings.Split(strings.TrimRight(raw, "\n"), "\n")
+}
+
+func (h *HelpPaneModel) rebuildNodeLines() {
 if h.node == nil {
 h.lines = nil
 return

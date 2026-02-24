@@ -122,41 +122,8 @@ if r.child != nil {
 node.Children = append(node.Children, r.child)
 }
 }
-} else if len(parsed.Sections) > 1 {
-// No real subcommands but multiple named flag sections exist (e.g. Godot).
-// Create virtual group children so the tree has meaningful structure.
-for _, sec := range parsed.Sections {
-slug := sectionSlug(sec.Name)
-child := &models.Node{
-Name:        slug,
-FullPath:    append(append([]string{}, fullPath...), slug),
-Description: sec.Name,
-Flags:       sec.Flags,
-Discovered:  true,
-Virtual:     true,
-}
-node.Children = append(node.Children, child)
-}
 }
 return node, nil
-}
-
-// sectionSlug converts a flag-section header like "General options" into a
-// lowercase kebab-case identifier used as the virtual node name.
-func sectionSlug(name string) string {
-name = strings.ToLower(name)
-var b strings.Builder
-prevHyphen := false
-for _, r := range name {
-if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
-b.WriteRune(r)
-prevHyphen = false
-} else if !prevHyphen {
-b.WriteByte('-')
-prevHyphen = true
-}
-}
-return strings.Trim(b.String(), "-")
 }
 
 // resolveBinary finds the executable for cliName.
