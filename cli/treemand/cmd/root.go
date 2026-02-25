@@ -155,6 +155,9 @@ return r.Render(cmd.OutOrStdout(), node)
 
 // Execute runs the root command.
 func Execute() {
+// Wire --version flag to show the same string as `treemand version`.
+rootCmd.Version = versionString()
+rootCmd.SetVersionTemplate("{{.Version}}\n")
 rootCmd.AddCommand(versionCmd)
 rootCmd.AddCommand(cacheCmd)
 if err := rootCmd.Execute(); err != nil {
