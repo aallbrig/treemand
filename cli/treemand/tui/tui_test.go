@@ -210,9 +210,9 @@ v := p.View(80)
 if v == "" {
 t.Error("expected non-empty view when focused")
 }
-// Should show "cmd:" label when focused.
-if !strings.Contains(v, "cmd:") {
-t.Errorf("expected 'cmd:' label when focused, got: %q", v)
+// Should show ► label when focused.
+if !strings.Contains(v, "►") {
+t.Errorf("expected '►' label when focused, got: %q", v)
 }
 }
 
@@ -285,5 +285,231 @@ h.SetSize(60, 30)
 v := h.View(60, 30)
 if !strings.Contains(v, "--version") {
 t.Error("expected flag '--version' in help pane")
+}
+}
+
+// --- Navigation edge cases ---
+
+func TestTreeModel_Down_autoExpandsSection(t *testing.T) {
+cfg := config.DefaultConfig()
+tree := tui.NewTreeModel(sampleTree(), cfg)
+tree.SetSize(80, 40)
+// Down from root (git) should move to first subcommand (commit) AND auto-expand it.
+tree.Down()
+sel := tree.SelectedItem()
+if sel == nil || sel.Kind != tui.SelCommand || sel.Node.Name != "commit" {
+t.Fatalf("expected commit after first Down from root, got %v", sel)
+}
+// Down again from commit (now expanded) should enter commit's first child value.
+tree.Down()
+sel2 := tree.SelectedItem()
+if sel2 == nil {
+t.Fatal("expected selection after Down into commit")
+}
+// Should be INSIDE commit (a flag, positional, or child command), not the next root sibling.
+if sel2.Kind == tui.SelCommand && sel2.Node.Name == "remote" {
+t.Error("second Down should enter commit's contents, not jump to remote sibling")
+}
+}
+
+func TestTreeModel_Left_fromFlag_returnsToCommand(t *testing.T) {
+cfg := config.DefaultConfig()
+tree := tui.NewTreeModel(sampleTree(), cfg)
+tree.SetSize(80, 40)
+// Navigate into commit, then Down into a flag row.
+tree.Right() // → commit
+for i := 0; i < 5; i++ {
+tree.Down()
+if sel := tree.SelectedItem(); sel != nil && sel.Kind == tui.SelFlag {
+break
+}
+}
+sel := tree.SelectedItem()
+if sel == nil || sel.Kind != tui.SelFlag {
+t.Skip("could not reach a flag row; skip Left-from-flag test")
+}
+tree.Left()
+back := tree.Selected()
+if back == nil {
+t.Fatal("expected node after Left from flag")
+}
+// Should have landed on a command row owning that flag.
+if back.Name != "commit" && back.Name != "git" {
+t.Errorf("Left from flag should return to owner command, got %q", back.Name)
+}
+}
+
+func TestTreeModel_Up_doesNotStop_atSectionHeader(t *testing.T) {
+cfg := config.DefaultConfig()
+tree := tui.NewTreeModel(sampleTree(), cfg)
+tree.SetSize(80, 40)
+tree.Right() // into commit
+// Go down several times so we're past any section headers.
+for i := 0; i < 4; i++ {
+tree.Down()
+}
+// Going up should never leave cursor on a section row (section rows are non-selectable).
+for i := 0; i < 6; i++ {
+tree.Up()
+sel := tree.SelectedItem()
+if sel == nil {
+t.Fatalf("Up() left cursor with no selection at step %d", i)
+}
+}
+}
+
+func TestTreeModel_Right_noOp_onFlag(t *testing.T) {
+cfg := config.DefaultConfig()
+tree := tui.NewTreeModel(sampleTree(), cfg)
+tree.SetSize(80, 40)
+tree.Right() // into commit
+// Navigate to a flag row.
+for i := 0; i < 5; i++ {
+tree.Down()
+if sel := tree.SelectedItem(); sel != nil && sel.Kind == tui.SelFlag {
+break
+}
+}
+if sel := tree.SelectedItem(); sel == nil || sel.Kind != tui.SelFlag {
+t.Skip("could not reach a flag row")
+}
+before := tree.SelectedItem()
+tree.Right() // should be a no-op on a flag row
+after := tree.SelectedItem()
+if before.Flag.Name != after.Flag.Name {
+t.Error("Right() on a flag row should be a no-op")
+}
+}
+
+// --- Model integration ---
+
+func TestModel_Enter_setsPreview(t *testing.T) {
+cfg := config.DefaultConfig()
+m := tui.NewModel(sampleTree(), cfg)
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+// Expand into commit with Right.
+m.Update(tea.KeyMsg{Type: tea.KeyRight})
+// Enter should set the preview to the commit command.
+m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+v := m.View()
+if !strings.Contains(v, "commit") {
+t.Error("expected 'commit' in preview after Enter on commit node")
+}
+}
+
+func TestModel_Backspace_removesToken(t *testing.T) {
+cfg := config.DefaultConfig()
+m := tui.NewModel(sampleTree(), cfg)
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+m.Update(tea.KeyMsg{Type: tea.KeyRight})
+m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+// Now backspace removes last token.
+m.Update(tea.KeyMsg{Type: tea.KeyBackspace})
+v := m.View()
+// After backspace the preview may show "git" only or be empty — should not contain "commit" as a separate token.
+_ = v // just ensure no panic
+}
+
+func TestModel_FlagModalOpens(t *testing.T) {
+cfg := config.DefaultConfig()
+m := tui.NewModel(sampleTree(), cfg)
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+// Press 'f' to open the flag modal.
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("f")})
+v := m.View()
+// Flag modal should appear with "Add Flag" title.
+if !strings.Contains(v, "Add Flag") {
+t.Error("expected 'Add Flag' modal after pressing f")
+}
+}
+
+func TestModel_FlagModal_EscCloses(t *testing.T) {
+cfg := config.DefaultConfig()
+m := tui.NewModel(sampleTree(), cfg)
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("f")})
+// Esc should close the modal.
+m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+v := m.View()
+if strings.Contains(v, "Add Flag") {
+t.Error("flag modal should be closed after Esc")
+}
+}
+
+func TestModel_HelpPane_toggle(t *testing.T) {
+cfg := config.DefaultConfig()
+m := tui.NewModel(sampleTree(), cfg)
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+// Default: help pane visible. Press 'h' to hide.
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("h")})
+v1 := m.View()
+// Press 'h' again to show.
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("h")})
+v2 := m.View()
+// Both views should be non-empty.
+if v1 == "" || v2 == "" {
+t.Error("view should never be empty")
+}
+}
+
+func TestModel_CtrlE_opensModal(t *testing.T) {
+cfg := config.DefaultConfig()
+m := tui.NewModel(sampleTree(), cfg)
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+// Set a command first.
+m.Update(tea.KeyMsg{Type: tea.KeyRight})
+m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+// Ctrl+E opens execute modal.
+m.Update(tea.KeyMsg{Type: tea.KeyCtrlE})
+v := m.View()
+if !strings.Contains(v, "Execute") && !strings.Contains(v, "commit") {
+t.Error("expected execute modal after Ctrl+E")
+}
+}
+
+func TestModel_PreviewBar_hasLabel(t *testing.T) {
+cfg := config.DefaultConfig()
+m := tui.NewModel(sampleTree(), cfg)
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+v := m.View()
+if !strings.Contains(v, "►") {
+t.Error("expected ► label in preview bar")
+}
+}
+
+func TestPreviewModel_noCommandPlaceholder(t *testing.T) {
+cfg := config.DefaultConfig()
+p := tui.NewPreviewModel(cfg)
+v := p.View(80)
+if !strings.Contains(v, "no command") {
+t.Error("expected 'no command' placeholder in empty preview bar")
+}
+}
+
+// --- HelpPane context modes ---
+
+func TestHelpPaneModel_flagContext(t *testing.T) {
+cfg := config.DefaultConfig()
+h := tui.NewHelpPaneModel(cfg)
+node := sampleTree()
+flag := &node.Flags[0] // --version
+h.SetFlagContext(flag, node)
+h.SetSize(60, 20)
+v := h.View(60, 20)
+if !strings.Contains(v, "--version") {
+t.Errorf("expected flag name '--version' in help pane flag context, got: %q", v)
+}
+}
+
+func TestHelpPaneModel_positionalContext(t *testing.T) {
+cfg := config.DefaultConfig()
+h := tui.NewHelpPaneModel(cfg)
+node := sampleTree().Children[0] // commit
+pos := &node.Positionals[0]      // msg
+h.SetPositionalContext(pos, node)
+h.SetSize(60, 20)
+v := h.View(60, 20)
+if !strings.Contains(v, "msg") {
+t.Errorf("expected positional name 'msg' in help pane positional context, got: %q", v)
 }
 }

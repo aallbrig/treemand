@@ -107,13 +107,21 @@ BorderForeground(borderColor).
 Width(width - 2).
 Padding(0, 1)
 
+labelStyle := lipgloss.NewStyle().
+Foreground(lipgloss.Color("#5EA4F5")).
+Bold(true)
+label := labelStyle.Render("► ")
+
 var content string
 if p.focused {
-p.ti.Width = width - 6
-label := lipgloss.NewStyle().Faint(true).Render("cmd: ")
+p.ti.Width = width - 8 // label(2) + padding(2) + border(2) + slack(2)
 content = label + p.ti.View()
 } else {
-content = p.buildColoredPreview()
+preview := p.buildColoredPreview()
+if preview == "" {
+preview = lipgloss.NewStyle().Faint(true).Render("(no command — navigate tree and press Enter)")
+}
+content = label + preview
 }
 return style.Render(content)
 }

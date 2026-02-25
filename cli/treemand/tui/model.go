@@ -1057,46 +1057,58 @@ return lipgloss.JoinVertical(lipgloss.Left, previewBar, body, statusBar)
 }
 
 func (m *Model) renderStatusBar() string {
+	// Left side: what is currently selected / focused item context.
 	selected := ""
 	if sel := m.tree.SelectedItem(); sel != nil {
 		switch sel.Kind {
 		case SelFlag:
 			selected = sel.Flag.Name
-			if sel.Flag.ValueType != "" {
-				selected += " (" + sel.Flag.ValueType + ")"
+			if sel.Flag.ValueType != "" && sel.Flag.ValueType != "bool" {
+				selected += " <" + sel.Flag.ValueType + ">"
+			}
+			if sel.Owner != nil {
+				selected = sel.Owner.Name + " " + selected
 			}
 		case SelPositional:
 			selected = "<" + sel.Positional.Name + ">"
+			if sel.Owner != nil {
+				selected = sel.Owner.Name + " " + selected
+			}
 		default:
 			if sel.Node != nil {
 				selected = sel.Node.FullCommand()
 			}
 		}
 	}
-left := lipgloss.NewStyle().Bold(true).Render(selected)
+	leftStyle := lipgloss.NewStyle().Bold(true)
+	if m.statusMsg != "" {
+		leftStyle = leftStyle.Foreground(lipgloss.Color("#FFB86C"))
+	}
+	left := leftStyle.Render(selected)
 
-var hint string
-switch {
-case m.statusMsg != "":
-hint = m.statusMsg
-m.statusMsg = ""
-case m.filtering:
-hint = "filter: " + m.filter.View() + "  (Enter/Esc)"
-case m.focusedPane == panePreview:
-hint = "editing · Esc:tree · Enter:flag · Ctrl+E:exec · Tab:switch"
-case m.focusedPane == paneHelp:
-hint = "↑↓/jk:scroll · PgUp/PgDn · g/G:top/bottom · Tab:switch"
-default:
-hint = fmt.Sprintf("Enter:set-cmd  f:add-flag  Backspace:remove  Ctrl+E:exec  h:help  q:quit  nav:%s",
-schemeName(m.scheme))
-}
-right := lipgloss.NewStyle().Faint(true).Render(hint)
+	// Right side: context-sensitive key hints.
+	var hint string
+	schemeIndicator := "[" + schemeName(m.scheme) + "] "
+	switch {
+	case m.statusMsg != "":
+		hint = m.statusMsg
+		m.statusMsg = ""
+	case m.filtering:
+		hint = "type to filter  Enter/Esc:done"
+	case m.focusedPane == panePreview:
+		hint = "Esc:back  Ctrl+E:exec/copy  Tab:switch"
+	case m.focusedPane == paneHelp:
+		hint = "↑↓:scroll  PgUp/PgDn  g/G:top/bottom  Tab:switch"
+	default:
+		hint = schemeIndicator + "↑↓:nav  ←→:level  Enter:pick  f:flags  /:filter  h:help  Ctrl+E:exec  q:quit"
+	}
+	right := lipgloss.NewStyle().Faint(true).Render(hint)
 
-gap := m.width - lipgloss.Width(left) - lipgloss.Width(right) - 2
-if gap < 1 {
-gap = 1
-}
-return left + strings.Repeat(" ", gap) + right
+	gap := m.width - lipgloss.Width(left) - lipgloss.Width(right) - 2
+	if gap < 1 {
+		gap = 1
+	}
+	return left + strings.Repeat(" ", gap) + right
 }
 
 // ---------- helpers ----------
