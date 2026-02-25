@@ -604,9 +604,9 @@ var positionalPlaceholders = map[string]bool{
 "RESOURCE": true, "NAME": true, "TYPE": true, "OBJECT": true,
 }
 
-// bracketOptionRe matches [--option...] patterns (e.g. git's [--exec-path[=<path>]])
-// that appear inside option descriptions, not as real positionals.
-var bracketOptionRe = regexp.MustCompile(`\[--[^\]]*\]`)
+// bracketOptionRe matches bracket-enclosed option patterns that should not be
+// treated as positional arguments: [--long-opt...] and [-X <value>] forms.
+var bracketOptionRe = regexp.MustCompile(`\[-[^\]]+\]`)
 
 // parsePositionals extracts positional args from a usage line.
 func parsePositionals(line string) []models.Positional {
