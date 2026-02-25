@@ -178,9 +178,10 @@ func (r *Renderer) renderNode(w io.Writer, node *models.Node, prefix string, isL
 		}
 	}
 
-	// Description (dimmed, truncated at 60 chars)
+	// Description (dimmed, truncated at 60 chars).
+	// Suppress internal discovery-error messages — they add noise for users.
 	desc := ""
-	if node.Description != "" {
+	if node.Description != "" && !strings.HasPrefix(node.Description, "(could not get help:") {
 		d := node.Description
 		if len([]rune(d)) > 60 {
 			d = string([]rune(d)[:60]) + "…"

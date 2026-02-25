@@ -421,10 +421,34 @@ name := nameStyle.Render(row.node.Name)
 // Collapsed: show inline flag list like [--all,--clean,--config=<string>]
 // Colors match the non-interactive output: per-type (bool=green, string=cyan,
 // int=orange, other=purple); active flags are highlighted brighter.
+// If more than 5 flags, show count instead to keep rows readable.
 summary := ""
 if !isExpanded && len(row.node.Flags) > 0 {
+const maxInlineFlags = 5
 bracketStyle := lipgloss.NewStyle().Faint(true)
+dimStyle := lipgloss.NewStyle().Faint(true)
 activeStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFB86C")).Bold(true)
+if len(row.node.Flags) > maxInlineFlags {
+// Check if any flags are active — show them regardless.
+var activeParts []string
+for _, f := range row.node.Flags {
+if isFlagActive(f, t.cmdTokens) {
+fs := f.Name
+if f.ValueType != "" && f.ValueType != "bool" {
+fs += "=<" + f.ValueType + ">"
+}
+activeParts = append(activeParts, activeStyle.Render(fs))
+}
+}
+if len(activeParts) > 0 {
+summary = " " + bracketStyle.Render("[") +
+strings.Join(activeParts, bracketStyle.Render(",")) + bracketStyle.Render(",") +
+dimStyle.Render(fmt.Sprintf("…+%d flags", len(row.node.Flags)-len(activeParts))) +
+bracketStyle.Render("]")
+} else {
+summary = " " + dimStyle.Render(fmt.Sprintf("[%d flags]", len(row.node.Flags)))
+}
+} else {
 var flagParts []string
 for _, f := range row.node.Flags {
 fs := f.Name
@@ -440,6 +464,7 @@ flagParts = append(flagParts, t.flagColorStyle(f.ValueType).Faint(true).Render(f
 summary = " " + bracketStyle.Render("[") +
 strings.Join(flagParts, bracketStyle.Render(",")) +
 bracketStyle.Render("]")
+}
 }
 
 line := indent + icon + name + summary
