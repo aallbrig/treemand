@@ -446,6 +446,7 @@ line := indent + icon + name + summary
 if selected {
 selStyle := lipgloss.NewStyle().
 Background(lipgloss.Color(t.cfg.Colors.Selected)).
+Foreground(lipgloss.Color(t.cfg.Colors.SelectedText)).
 Bold(true)
 lineW := lipgloss.Width(line)
 if lineW < maxW {
@@ -501,6 +502,7 @@ line := indent + namePart + typePart + descPart
 if selected {
 selStyle := lipgloss.NewStyle().
 Background(lipgloss.Color(t.cfg.Colors.Selected)).
+Foreground(lipgloss.Color(t.cfg.Colors.SelectedText)).
 Bold(true)
 lineW := lipgloss.Width(line)
 if lineW < maxW {
@@ -538,6 +540,7 @@ line := indent + namePart + descPart
 if selected {
 selStyle := lipgloss.NewStyle().
 Background(lipgloss.Color(t.cfg.Colors.Selected)).
+Foreground(lipgloss.Color(t.cfg.Colors.SelectedText)).
 Bold(true)
 lineW := lipgloss.Width(line)
 if lineW < maxW {

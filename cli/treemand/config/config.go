@@ -8,17 +8,18 @@ import (
 
 // ColorScheme defines the color palette for tree rendering.
 type ColorScheme struct {
-	Base       string // root/base command color (hex)
-	Subcmd     string // subcommand color
-	Flag       string // flag color (fallback / bool flags)
-	FlagBool   string // boolean (switch) flags: --verbose, --debug
-	FlagString string // string-value flags: --output=text
-	FlagInt    string // integer-value flags: --timeout=30
-	FlagOther  string // other typed flags: duration, float, slice, …
-	Pos        string // positional argument color
-	Value      string // value/type color (e.g. =string suffix in preview)
-	Invalid    string // invalid/error color
-	Selected   string // selected item in TUI
+	Base         string // root/base command color (hex)
+	Subcmd       string // subcommand color
+	Flag         string // flag color (fallback / bool flags)
+	FlagBool     string // boolean (switch) flags: --verbose, --debug
+	FlagString   string // string-value flags: --output=text
+	FlagInt      string // integer-value flags: --timeout=30
+	FlagOther    string // other typed flags: duration, float, slice, …
+	Pos          string // positional argument color
+	Value        string // value/type color (e.g. =string suffix in preview)
+	Invalid      string // invalid/error color
+	Selected     string // selected item background in TUI
+	SelectedText string // selected item foreground in TUI
 }
 
 // DefaultColors returns the default color scheme.
@@ -34,7 +35,8 @@ func DefaultColors() ColorScheme {
 		Pos:        "#F1FA8C",
 		Value:      "#FF79C6",
 		Invalid:    "#FF5555",
-		Selected:   "#00BFFF",
+		Selected:     "#00BFFF",
+		SelectedText: "#000000", // black text on bright highlight for contrast
 	}
 }
 
