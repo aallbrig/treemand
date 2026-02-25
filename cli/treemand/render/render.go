@@ -178,10 +178,14 @@ func (r *Renderer) renderNode(w io.Writer, node *models.Node, prefix string, isL
 		}
 	}
 
-	// Description (dimmed)
+	// Description (dimmed, truncated at 60 chars)
 	desc := ""
 	if node.Description != "" {
-		desc = "  " + r.styles.dim.Render(node.Description)
+		d := node.Description
+		if len([]rune(d)) > 60 {
+			d = string([]rune(d)[:60]) + "…"
+		}
+		desc = "  " + r.styles.dim.Render(d)
 	}
 
 	line := prefix

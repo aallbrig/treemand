@@ -597,7 +597,16 @@ var positionalPlaceholders = map[string]bool{
 "FLAG": true, "FLAGS": true, "ARG": true, "ARGS": true,
 "ARGUMENTS": true, "PARAMS": true, "PARAMETERS": true,
 "SHORT-OPTION": true, "LONG-OPTION": true,
+// cobra/click/common framework placeholders (lowercased inputs are uppercased before lookup)
+"COMMAND": true, "COMMANDS": true,
+"SUBCOMMAND": true, "SUBCOMMANDS": true,
+"CMD": true, "CMDS": true,
+"RESOURCE": true, "NAME": true, "TYPE": true, "OBJECT": true,
 }
+
+// bracketOptionRe matches [--option...] patterns (e.g. git's [--exec-path[=<path>]])
+// that appear inside option descriptions, not as real positionals.
+var bracketOptionRe = regexp.MustCompile(`\[--[^\]]*\]`)
 
 // parsePositionals extracts positional args from a usage line.
 func parsePositionals(line string) []models.Positional {
@@ -608,6 +617,9 @@ searchLine := line
 if idx := strings.Index(strings.ToLower(line), "usage:"); idx >= 0 {
 searchLine = line[idx+6:]
 }
+// Strip [--option] bracket patterns to avoid false positives from
+// lines like "git [--exec-path[=<path>]]".
+searchLine = bracketOptionRe.ReplaceAllString(searchLine, "")
 for _, m := range reqArgRe.FindAllStringSubmatch(searchLine, -1) {
 name := m[1]
 canonical := strings.TrimRight(strings.ToUpper(name), ".+")
