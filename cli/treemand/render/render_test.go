@@ -41,9 +41,9 @@ func sampleTree() *models.Node {
 func TestRenderToString_text(t *testing.T) {
 	opts := render.DefaultOptions()
 	opts.NoColor = true
-	got, err := render.RenderToString(sampleTree(), opts)
+	got, err := render.ToString(sampleTree(), opts)
 	if err != nil {
-		t.Fatalf("RenderToString error: %v", err)
+		t.Fatalf("ToString error: %v", err)
 	}
 	if !strings.Contains(got, "git") {
 		t.Error("expected 'git' in output")
@@ -62,9 +62,9 @@ func TestRenderToString_text(t *testing.T) {
 func TestRenderToString_json(t *testing.T) {
 	opts := render.DefaultOptions()
 	opts.Output = "json"
-	got, err := render.RenderToString(sampleTree(), opts)
+	got, err := render.ToString(sampleTree(), opts)
 	if err != nil {
-		t.Fatalf("RenderToString error: %v", err)
+		t.Fatalf("ToString error: %v", err)
 	}
 	if !strings.Contains(got, `"name"`) {
 		t.Error("expected JSON output with name field")
@@ -78,9 +78,9 @@ func TestRenderToString_maxDepth(t *testing.T) {
 	opts := render.DefaultOptions()
 	opts.NoColor = true
 	opts.MaxDepth = 1
-	got, err := render.RenderToString(sampleTree(), opts)
+	got, err := render.ToString(sampleTree(), opts)
 	if err != nil {
-		t.Fatalf("RenderToString error: %v", err)
+		t.Fatalf("ToString error: %v", err)
 	}
 	// "add" is at depth 2 (git=0, remote=1, add=2), should not appear
 	if strings.Contains(got, "└── ▼ add") || strings.Contains(got, "├── • add") {
@@ -92,9 +92,9 @@ func TestRenderToString_filter(t *testing.T) {
 	opts := render.DefaultOptions()
 	opts.NoColor = true
 	opts.Filter = "remote"
-	got, err := render.RenderToString(sampleTree(), opts)
+	got, err := render.ToString(sampleTree(), opts)
 	if err != nil {
-		t.Fatalf("RenderToString error: %v", err)
+		t.Fatalf("ToString error: %v", err)
 	}
 	if !strings.Contains(got, "remote") {
 		t.Error("expected 'remote' in filtered output")
@@ -104,7 +104,7 @@ func TestRenderToString_filter(t *testing.T) {
 func TestRenderToString_unknownFormat(t *testing.T) {
 	opts := render.DefaultOptions()
 	opts.Output = "yaml"
-	_, err := render.RenderToString(sampleTree(), opts)
+	_, err := render.ToString(sampleTree(), opts)
 	if err == nil {
 		t.Error("expected error for unknown output format")
 	}
@@ -123,9 +123,9 @@ func TestCollect(t *testing.T) {
 func TestRenderToString_icons(t *testing.T) {
 	opts := render.DefaultOptions()
 	opts.NoColor = true
-	got, err := render.RenderToString(sampleTree(), opts)
+	got, err := render.ToString(sampleTree(), opts)
 	if err != nil {
-		t.Fatalf("RenderToString error: %v", err)
+		t.Fatalf("ToString error: %v", err)
 	}
 	if !strings.Contains(got, "▼") {
 		t.Error("expected branch icon ▼ in output")

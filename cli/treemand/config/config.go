@@ -25,16 +25,16 @@ type ColorScheme struct {
 // DefaultColors returns the default color scheme.
 func DefaultColors() ColorScheme {
 	return ColorScheme{
-		Base:       "#FFFFFF",
-		Subcmd:     "#5EA4F5",
-		Flag:       "#50FA7B", // fallback (also used for bool)
-		FlagBool:   "#50FA7B", // green  — quick toggles
-		FlagString: "#8BE9FD", // cyan   — string values
-		FlagInt:    "#FFB86C", // orange — numeric values
-		FlagOther:  "#BD93F9", // purple — duration, float, slice, …
-		Pos:        "#F1FA8C",
-		Value:      "#FF79C6",
-		Invalid:    "#FF5555",
+		Base:         "#FFFFFF",
+		Subcmd:       "#5EA4F5",
+		Flag:         "#50FA7B", // fallback (also used for bool)
+		FlagBool:     "#50FA7B", // green  — quick toggles
+		FlagString:   "#8BE9FD", // cyan   — string values
+		FlagInt:      "#FFB86C", // orange — numeric values
+		FlagOther:    "#BD93F9", // purple — duration, float, slice, …
+		Pos:          "#F1FA8C",
+		Value:        "#FF79C6",
+		Invalid:      "#FF5555",
 		Selected:     "#00BFFF",
 		SelectedText: "#000000", // black text on bright highlight for contrast
 	}
@@ -42,11 +42,11 @@ func DefaultColors() ColorScheme {
 
 // Config holds all treemand configuration.
 type Config struct {
-	Colors    ColorScheme
-	NoColor   bool
-	Depth     int
-	NoCache   bool
-	CacheDir  string
+	Colors     ColorScheme
+	NoColor    bool
+	Depth      int
+	NoCache    bool
+	CacheDir   string
 	Strategies []string
 }
 
@@ -58,11 +58,11 @@ func DefaultConfig() *Config {
 		cacheDir = home + "/.treemand"
 	}
 	return &Config{
-		Colors:    DefaultColors(),
-		NoColor:   os.Getenv("NO_COLOR") != "" || os.Getenv("TREEMAND_NO_COLOR") != "",
-		Depth:     -1, // unlimited
-		NoCache:   false,
-		CacheDir:  cacheDir,
+		Colors:     DefaultColors(),
+		NoColor:    os.Getenv("NO_COLOR") != "" || os.Getenv("TREEMAND_NO_COLOR") != "",
+		Depth:      -1, // unlimited
+		NoCache:    false,
+		CacheDir:   cacheDir,
 		Strategies: defaultStrategies(),
 	}
 }

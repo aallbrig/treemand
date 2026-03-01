@@ -99,7 +99,7 @@ func BuildDiscoverers(strategies []string, maxDepth int) []Discoverer {
 		switch s {
 		case "help":
 			result = append(result, NewHelpDiscoverer(maxDepth))
-		// Future: case "completions": result = append(result, NewCompletionsDiscoverer())
+			// Future: case "completions": result = append(result, NewCompletionsDiscoverer())
 		}
 	}
 	if len(result) == 0 {

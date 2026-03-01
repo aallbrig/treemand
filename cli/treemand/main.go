@@ -4,5 +4,5 @@ package main
 import "github.com/aallbrig/treemand/cmd"
 
 func main() {
-cmd.Execute()
+	cmd.Execute()
 }

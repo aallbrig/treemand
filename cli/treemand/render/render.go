@@ -105,13 +105,13 @@ func (r *Renderer) Render(w io.Writer, root *models.Node) error {
 }
 
 const (
-	iconBranch   = "▼ "
-	iconVirtual  = "◆ " // display-only group node (e.g. Godot flag sections)
-	iconLeaf     = "• "
-	connLast     = "└── "
-	connMid      = "├── "
-	connLastPad  = "    "
-	connMidPad   = "│   "
+	iconBranch  = "▼ "
+	iconVirtual = "◆ " // display-only group node (e.g. Godot flag sections)
+	iconLeaf    = "• "
+	connLast    = "└── "
+	connMid     = "├── "
+	connLastPad = "    "
+	connMidPad  = "│   "
 )
 
 func (r *Renderer) renderNode(w io.Writer, node *models.Node, prefix string, isLast bool, depth int) {
@@ -228,8 +228,8 @@ func (r *Renderer) hasMatchingDescendant(node *models.Node, filter string) bool 
 	return false
 }
 
-// RenderToString renders the tree to a string.
-func RenderToString(root *models.Node, opts Options) (string, error) {
+// ToString renders the tree to a string.
+func ToString(root *models.Node, opts Options) (string, error) {
 	var sb strings.Builder
 	r := New(opts)
 	if err := r.Render(&sb, root); err != nil {
