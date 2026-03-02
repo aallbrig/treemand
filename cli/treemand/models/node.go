@@ -8,6 +8,9 @@ type Flag struct {
 	ValueType   string `json:"value_type,omitempty"` // string, bool, int, etc.
 	Description string `json:"description,omitempty"`
 	Required    bool   `json:"required,omitempty"`
+	// Inherited is set when this flag is also present on an ancestor node
+	// (e.g. Cobra global flags propagated to every subcommand).
+	Inherited bool `json:"inherited,omitempty"`
 }
 
 // Positional represents a positional argument in a CLI command.
@@ -100,4 +103,32 @@ func (n *Node) Clone() *Node {
 		c.Children = append(c.Children, child.Clone())
 	}
 	return c
+}
+
+// MarkInheritedFlags walks the tree and marks flags on child nodes that are
+// also present on a direct ancestor as Inherited=true. This handles CLIs like
+// Cobra-based tools where global flags propagate to every subcommand.
+func MarkInheritedFlags(root *Node) {
+	markInherited(root, map[string]bool{})
+}
+
+func markInherited(n *Node, ancestorFlags map[string]bool) {
+	// Build the set for this node's own flags before marking.
+	// A flag is "inherited" if its name appears in any ancestor.
+	for i := range n.Flags {
+		if ancestorFlags[n.Flags[i].Name] {
+			n.Flags[i].Inherited = true
+		}
+	}
+	// Pass down the combined ancestor+own flag set to children.
+	combined := make(map[string]bool, len(ancestorFlags)+len(n.Flags))
+	for k := range ancestorFlags {
+		combined[k] = true
+	}
+	for _, f := range n.Flags {
+		combined[f.Name] = true
+	}
+	for _, child := range n.Children {
+		markInherited(child, combined)
+	}
 }

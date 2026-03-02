@@ -39,7 +39,11 @@ func (h *HelpDiscoverer) Name() string { return "help" }
 
 // Discover runs the CLI with --help and recursively discovers subcommands.
 func (h *HelpDiscoverer) Discover(ctx context.Context, cliName string, args []string) (*models.Node, error) {
-	return h.discover(ctx, cliName, args, 0)
+	node, err := h.discover(ctx, cliName, args, 0)
+	if err == nil && node != nil {
+		models.MarkInheritedFlags(node)
+	}
+	return node, err
 }
 
 func (h *HelpDiscoverer) discover(ctx context.Context, cliName string, args []string, depth int) (*models.Node, error) {
@@ -255,6 +259,7 @@ const (
 	secCommands = "commands"
 	secUsage    = "usage"
 	secDesc     = "description"
+	secName     = "name" // man-page NAME section
 	secExamples = "examples"
 	secAliases  = "aliases"
 )
@@ -277,6 +282,7 @@ var sectionHeaders = map[string]string{
 	"arguments":           secFlags,
 	"usage":               secUsage,
 	"use":                 secUsage,
+	"name":                secName,
 	"description":         secDesc,
 	"examples":            secExamples,
 	"example":             secExamples,
@@ -306,6 +312,12 @@ var (
 	shortOnlyFlagRe = regexp.MustCompile(
 		`^\s{2,8}(-[A-Za-z0-9])(?:\s+(?:<([^>]+)>|([A-Za-z][A-Za-z0-9_-]*)))?(?:\s{2,}(.*))?$`,
 	)
+	// manpageHeaderRe matches lines like "GIT-CLONE(1)   Git Manual   GIT-CLONE(1)".
+	// These appear at the top of man-formatted --help output and should never be
+	// used as the command description.
+	manpageHeaderRe = regexp.MustCompile(`^[A-Z][A-Z0-9_.-]+\(\d+\)\s`)
+	// nameSectionDescRe matches the NAME section body: "   git-clone - Short desc"
+	nameSectionDescRe = regexp.MustCompile(`^[\s\t]+\S.*?\s+-\s+(.+)$`)
 	// subcommand line: 2–8 leading spaces, lowercase word; args like [PATTERN...] may appear
 	// between name and description (e.g. systemctl's "  list-units [PAT...]   description")
 	subcmdRe = regexp.MustCompile(`^\s{2,8}([a-z][a-z0-9_-]*)(?:.*?\s{2,}(.+))?$`)
@@ -350,6 +362,10 @@ func ParseHelpOutput(text string) ParsedHelp {
 	seenSubs := map[string]bool{}
 	seenFlags := map[string]bool{}
 	usageLines := []string{}
+
+	// inNameSection is set when we detect the man-page NAME section; used to
+	// extract a clean short description from "   git-clone - Short desc" lines.
+	inNameSection := false
 
 	// Section-grouping state: track the current flag-section header name so we
 	// can build ParsedSection children for tools like Godot.
@@ -406,6 +422,7 @@ func ParseHelpOutput(text string) ParsedHelp {
 				currentSectionName = ""
 			}
 			section = sec
+			inNameSection = (sec == secName)
 			continue
 		}
 		// A non-indented non-empty line resets the section — EXCEPT for
@@ -419,12 +436,21 @@ func ParseHelpOutput(text string) ParsedHelp {
 			if !strings.HasSuffix(trimmed, "()") {
 				section = secNone
 				currentSectionName = ""
+				inNameSection = false
 			}
 		}
 
-		// Capture first non-empty non-flag non-usage line as description.
-		// For man-page format, skip the "NAME\n   cmd -" header lines.
+		// Capture description:
+		// Priority 1 — man-page NAME section: "   git-clone - Short description"
+		if inNameSection && result.Description == "" && trimmed != "" {
+			if m := nameSectionDescRe.FindStringSubmatch(rawLine); m != nil {
+				result.Description = strings.TrimSpace(m[1])
+			}
+		}
+		// Priority 2 — first non-empty, non-header, non-flag line in first 10 lines.
+		// Skip man-page header lines like "GIT-CLONE(1)   Git Manual".
 		if result.Description == "" && i < 10 && trimmed != "" &&
+			!manpageHeaderRe.MatchString(trimmed) &&
 			!strings.HasPrefix(trimmed, "-") &&
 			!strings.HasPrefix(lower, "usage") &&
 			!strings.HasPrefix(lower, "use ") &&

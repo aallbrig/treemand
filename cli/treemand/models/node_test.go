@@ -91,3 +91,71 @@ func TestNodeHasFlags(t *testing.T) {
 		t.Error("expected HasFlags() = false")
 	}
 }
+
+func TestMarkInheritedFlags(t *testing.T) {
+	root := &models.Node{
+		Name: "app",
+		Flags: []models.Flag{
+			{Name: "--verbose"},
+			{Name: "--config"},
+		},
+		Children: []*models.Node{
+			{
+				Name: "sub",
+				Flags: []models.Flag{
+					{Name: "--verbose"}, // inherited
+					{Name: "--config"},  // inherited
+					{Name: "--force"},   // own
+				},
+				Children: []*models.Node{
+					{
+						Name: "subsub",
+						Flags: []models.Flag{
+							{Name: "--verbose"}, // inherited
+							{Name: "--only"},    // own
+						},
+					},
+				},
+			},
+		},
+	}
+
+	models.MarkInheritedFlags(root)
+
+	// Root flags are never inherited.
+	for _, f := range root.Flags {
+		if f.Inherited {
+			t.Errorf("root flag %q should not be marked inherited", f.Name)
+		}
+	}
+
+	// sub: --verbose and --config should be inherited, --force should not.
+	sub := root.Children[0]
+	for _, f := range sub.Flags {
+		switch f.Name {
+		case "--verbose", "--config":
+			if !f.Inherited {
+				t.Errorf("sub flag %q should be inherited", f.Name)
+			}
+		case "--force":
+			if f.Inherited {
+				t.Errorf("sub flag %q should NOT be inherited", f.Name)
+			}
+		}
+	}
+
+	// subsub: --verbose should be inherited, --only should not.
+	subsub := sub.Children[0]
+	for _, f := range subsub.Flags {
+		switch f.Name {
+		case "--verbose":
+			if !f.Inherited {
+				t.Errorf("subsub flag %q should be inherited", f.Name)
+			}
+		case "--only":
+			if f.Inherited {
+				t.Errorf("subsub flag %q should NOT be inherited", f.Name)
+			}
+		}
+	}
+}

@@ -163,9 +163,16 @@ func (r *Renderer) renderNode(w io.Writer, node *models.Node, prefix string, isL
 				meta = append(meta, r.styles.pos.Render("["+p.Name+"]"))
 			}
 		}
-		if len(node.Flags) > 0 && len(node.Flags) <= 5 {
+		// Only count / show own (non-inherited) flags.
+		var ownFlags []models.Flag
+		for _, f := range node.Flags {
+			if !f.Inherited {
+				ownFlags = append(ownFlags, f)
+			}
+		}
+		if len(ownFlags) > 0 && len(ownFlags) <= 5 {
 			var flagStrs []string
-			for _, f := range node.Flags {
+			for _, f := range ownFlags {
 				fs := r.flagStyle(f.ValueType).Render(f.Name)
 				if f.ValueType != "" && f.ValueType != "bool" {
 					fs += "=" + r.styles.value.Render("<"+f.ValueType+">")
@@ -173,8 +180,8 @@ func (r *Renderer) renderNode(w io.Writer, node *models.Node, prefix string, isL
 				flagStrs = append(flagStrs, fs)
 			}
 			meta = append(meta, "["+strings.Join(flagStrs, ",")+"]")
-		} else if len(node.Flags) > 5 {
-			meta = append(meta, r.styles.dim.Render(fmt.Sprintf("[%d flags]", len(node.Flags))))
+		} else if len(ownFlags) > 5 {
+			meta = append(meta, r.styles.dim.Render(fmt.Sprintf("[%d flags]", len(ownFlags))))
 		}
 	}
 

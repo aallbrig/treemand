@@ -277,3 +277,44 @@ func containsStr(s, sub string) bool {
 	}
 	return false
 }
+
+func TestParseHelpOutput_manpageDescription(t *testing.T) {
+	input := `GIT-CLONE(1)                                          Git Manual                                         GIT-CLONE(1)
+
+NAME
+       git-clone - Clone a repository into a new directory
+
+SYNOPSIS
+       git clone [--template=<template-directory>] <repository>
+
+OPTIONS
+       --depth <depth>
+           Create a shallow clone.
+
+       --quiet
+           Operate quietly.
+`
+	parsed := discovery.ParseHelpOutput(input)
+	if parsed.Description != "Clone a repository into a new directory" {
+		t.Errorf("expected clean description from NAME section, got %q", parsed.Description)
+	}
+}
+
+func TestParseHelpOutput_manpageHeaderNotDescription(t *testing.T) {
+	input := `GIT-COMMIT(1)                  Git Manual                  GIT-COMMIT(1)
+
+NAME
+       git-commit - Record changes to the repository
+
+OPTIONS
+       --all
+           Stage all modified and deleted files.
+`
+	parsed := discovery.ParseHelpOutput(input)
+	if parsed.Description == "GIT-COMMIT(1)                  Git Manual                  GIT-COMMIT(1)" {
+		t.Error("manpage header line should not be captured as description")
+	}
+	if parsed.Description != "Record changes to the repository" {
+		t.Errorf("expected clean description, got %q", parsed.Description)
+	}
+}

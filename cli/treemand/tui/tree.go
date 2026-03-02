@@ -418,52 +418,57 @@ func (t *TreeModel) renderCommandRow(row treeRow, selected bool, maxW int) strin
 
 	name := nameStyle.Render(row.node.Name)
 
-	// Collapsed: show inline flag list like [--all,--clean,--config=<string>]
-	// Colors match the non-interactive output: per-type (bool=green, string=cyan,
-	// int=orange, other=purple); active flags are highlighted brighter.
-	// If more than 5 flags, show count instead to keep rows readable.
+	// Inline flag summary (collapsed only): show own (non-inherited) flags.
+	// If more than 5 own flags, show count instead to keep rows readable.
 	summary := ""
-	if !isExpanded && len(row.node.Flags) > 0 {
-		const maxInlineFlags = 5
-		bracketStyle := lipgloss.NewStyle().Faint(true)
-		dimStyle := lipgloss.NewStyle().Faint(true)
-		activeStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFB86C")).Bold(true)
-		if len(row.node.Flags) > maxInlineFlags {
-			// Check if any flags are active — show them regardless.
-			var activeParts []string
-			for _, f := range row.node.Flags {
-				if isFlagActive(f, t.cmdTokens) {
+	if !isExpanded {
+		var ownFlags []models.Flag
+		for _, f := range row.node.Flags {
+			if !f.Inherited {
+				ownFlags = append(ownFlags, f)
+			}
+		}
+		if len(ownFlags) > 0 {
+			const maxInlineFlags = 5
+			bracketStyle := lipgloss.NewStyle().Faint(true)
+			dimStyle := lipgloss.NewStyle().Faint(true)
+			activeStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFB86C")).Bold(true)
+			if len(ownFlags) > maxInlineFlags {
+				var activeParts []string
+				for _, f := range ownFlags {
+					if isFlagActive(f, t.cmdTokens) {
+						fs := f.Name
+						if f.ValueType != "" && f.ValueType != "bool" {
+							fs += "=<" + f.ValueType + ">"
+						}
+						activeParts = append(activeParts, activeStyle.Render(fs))
+					}
+				}
+				if len(activeParts) > 0 {
+					summary = " " + bracketStyle.Render("[") +
+						strings.Join(activeParts, bracketStyle.Render(",")) + bracketStyle.Render(",") +
+						dimStyle.Render(fmt.Sprintf("…+%d flags", len(ownFlags)-len(activeParts))) +
+						bracketStyle.Render("]")
+				} else {
+					summary = " " + dimStyle.Render(fmt.Sprintf("[%d flags]", len(ownFlags)))
+				}
+			} else {
+				var flagParts []string
+				for _, f := range ownFlags {
 					fs := f.Name
 					if f.ValueType != "" && f.ValueType != "bool" {
 						fs += "=<" + f.ValueType + ">"
 					}
-					activeParts = append(activeParts, activeStyle.Render(fs))
+					if isFlagActive(f, t.cmdTokens) {
+						flagParts = append(flagParts, activeStyle.Render(fs))
+					} else {
+						flagParts = append(flagParts, t.flagColorStyle(f.ValueType).Faint(true).Render(fs))
+					}
 				}
-			}
-			if len(activeParts) > 0 {
 				summary = " " + bracketStyle.Render("[") +
-					strings.Join(activeParts, bracketStyle.Render(",")) + bracketStyle.Render(",") +
-					dimStyle.Render(fmt.Sprintf("…+%d flags", len(row.node.Flags)-len(activeParts))) +
+					strings.Join(flagParts, bracketStyle.Render(",")) +
 					bracketStyle.Render("]")
-			} else {
-				summary = " " + dimStyle.Render(fmt.Sprintf("[%d flags]", len(row.node.Flags)))
 			}
-		} else {
-			var flagParts []string
-			for _, f := range row.node.Flags {
-				fs := f.Name
-				if f.ValueType != "" && f.ValueType != "bool" {
-					fs += "=<" + f.ValueType + ">"
-				}
-				if isFlagActive(f, t.cmdTokens) {
-					flagParts = append(flagParts, activeStyle.Render(fs))
-				} else {
-					flagParts = append(flagParts, t.flagColorStyle(f.ValueType).Faint(true).Render(fs))
-				}
-			}
-			summary = " " + bracketStyle.Render("[") +
-				strings.Join(flagParts, bracketStyle.Render(",")) +
-				bracketStyle.Render("]")
 		}
 	}
 
@@ -640,19 +645,50 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int) {
 		}
 	}
 
-	// Flags section.
-	if len(node.Flags) > 0 {
+	// Flags section — own (non-inherited) flags only.
+	var ownFlags, inheritedFlags []int // indices into node.Flags
+	for i := range node.Flags {
+		if node.Flags[i].Inherited {
+			inheritedFlags = append(inheritedFlags, i)
+		} else {
+			ownFlags = append(ownFlags, i)
+		}
+	}
+	if len(ownFlags) > 0 {
 		sKey := key + "/flags"
 		flagExpanded := t.isSectionExpanded(sKey, false)
 		t.rows = append(t.rows, treeRow{
 			kind:           rowKindSection,
 			depth:          depth + 1,
 			sectionKey:     sKey,
-			sectionLabel:   fmt.Sprintf("Flags (%d)", len(node.Flags)),
+			sectionLabel:   fmt.Sprintf("Flags (%d)", len(ownFlags)),
 			sectionDefault: false,
 		})
 		if flagExpanded {
-			for i := range node.Flags {
+			for _, i := range ownFlags {
+				t.rows = append(t.rows, treeRow{
+					kind:       rowKindFlag,
+					depth:      depth + 2,
+					flag:       &node.Flags[i],
+					owner:      node,
+					ownerDepth: depth,
+					sectionRef: sKey,
+				})
+			}
+		}
+	}
+	if len(inheritedFlags) > 0 {
+		sKey := key + "/inherited"
+		inhExpanded := t.isSectionExpanded(sKey, false)
+		t.rows = append(t.rows, treeRow{
+			kind:           rowKindSection,
+			depth:          depth + 1,
+			sectionKey:     sKey,
+			sectionLabel:   fmt.Sprintf("Inherited flags (%d)", len(inheritedFlags)),
+			sectionDefault: false,
+		})
+		if inhExpanded {
+			for _, i := range inheritedFlags {
 				t.rows = append(t.rows, treeRow{
 					kind:       rowKindFlag,
 					depth:      depth + 2,
