@@ -61,7 +61,7 @@ func (c *Cache) migrate() error {
 
 // cacheSchemaVersion is bumped whenever parsing logic changes significantly,
 // forcing old cached entries to be ignored.
-const cacheSchemaVersion = "v7"
+const cacheSchemaVersion = "v8"
 
 // Key produces a cache key from cli name, version string, and strategies list.
 func Key(cli, version string, strategies []string) string {
