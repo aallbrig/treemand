@@ -5,7 +5,7 @@
 │   └── • remove &lt;name&gt;
 ├── • commit [--message=&lt;string&gt;]
 └── • status
-</code></pre><h2 id=features>Features</h2><ul><li>🔍 <strong>Auto-discovery</strong> — discovers commands via <code>--help</code> recursion (no config needed)</li><li>🎨 <strong>Colored output</strong> — syntax-highlighted tree with configurable color schemes</li><li>🖥️ <strong>Interactive TUI</strong> (<code>-i</code>) — k9s-inspired explorer with live preview, keyboard + mouse</li><li>💾 <strong>Caching</strong> — SQLite cache for instant repeat lookups</li><li>📦 <strong>Zero config</strong> — works with any CLI out of the box</li><li>🔄 <strong>Self-dogfooding</strong> — <code>treemand treemand</code> works!</li></ul><h2 id=quick-start>Quick Start</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Non-interactive tree</span>
+</code></pre><h2 id=features>Features</h2><ul><li>🔍 <strong>Auto-discovery</strong> — discovers commands via <code>--help</code> recursion (no config needed)</li><li>🎨 <strong>Colored output</strong> — syntax-highlighted tree with configurable color schemes</li><li>🖥️ <strong>Interactive TUI</strong> (<code>-i</code>) — k9s-inspired explorer with live preview, keyboard + mouse</li><li>💾 <strong>Caching</strong> — SQLite cache for instant repeat lookups</li><li>🎭 <strong>Configurable icons</strong> — unicode (default), ASCII-safe, or Nerd Font icon sets</li><li>⚙️ <strong>Config file</strong> — <code>~/.config/treemand/config.yaml</code> for persistent settings</li><li>🔁 <strong>Shell completions</strong> — bash, zsh, fish, PowerShell (with cache-aware CLI suggestions)</li><li>📦 <strong>Zero config</strong> — works with any CLI out of the box</li><li>🔄 <strong>Self-dogfooding</strong> — <code>treemand treemand</code> works!</li></ul><h2 id=quick-start>Quick Start</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Non-interactive tree</span>
 </span></span><span style=display:flex><span>treemand git
 </span></span><span style=display:flex><span>
 </span></span><span style=display:flex><span><span style=color:#75715e># Interactive TUI</span>
@@ -13,6 +13,9 @@
 </span></span><span style=display:flex><span>
 </span></span><span style=display:flex><span><span style=color:#75715e># Limit depth</span>
 </span></span><span style=display:flex><span>treemand --depth<span style=color:#f92672>=</span><span style=color:#ae81ff>2</span> aws
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># ASCII-safe output (no Unicode)</span>
+</span></span><span style=display:flex><span>treemand --icons<span style=color:#f92672>=</span>ascii docker
 </span></span><span style=display:flex><span>
 </span></span><span style=display:flex><span><span style=color:#75715e># JSON output</span>
 </span></span><span style=display:flex><span>treemand --output<span style=color:#f92672>=</span>json docker
