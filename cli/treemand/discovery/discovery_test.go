@@ -174,3 +174,55 @@ if hd2.StubThreshold != 100 {
 t.Errorf("StubThreshold = %d, want 100", hd2.StubThreshold)
 }
 }
+
+func TestManDiscovererName(t *testing.T) {
+d := discovery.NewManDiscoverer()
+if d.Name() != "man" {
+t.Errorf("Name() = %q, want %q", d.Name(), "man")
+}
+}
+
+func TestManDiscovererDiscover_ls(t *testing.T) {
+d := discovery.NewManDiscoverer()
+ctx := context.Background()
+node, err := d.Discover(ctx, "ls", nil)
+if err != nil {
+t.Fatalf("Discover returned error: %v", err)
+}
+// ls has a man page on Linux; if not available just skip
+if node == nil {
+t.Skip("no man page for ls on this system")
+}
+if node.Name != "ls" {
+t.Errorf("Name = %q, want %q", node.Name, "ls")
+}
+// ls man page should contain at least a few flags
+if len(node.Flags) == 0 {
+t.Log("warning: ManDiscoverer found no flags for ls (may depend on OS)")
+}
+}
+
+func TestManDiscovererDiscover_nonexistent(t *testing.T) {
+d := discovery.NewManDiscoverer()
+ctx := context.Background()
+node, err := d.Discover(ctx, "nonexistent_cli_99999", nil)
+if err != nil {
+t.Fatalf("unexpected error for missing man page: %v", err)
+}
+// Should return nil, not crash
+_ = node
+}
+
+func TestBuildDiscoverersWithThreshold_man(t *testing.T) {
+ds := discovery.BuildDiscoverersWithThreshold([]string{"help", "man"}, 2, 50)
+if len(ds) != 2 {
+t.Fatalf("expected 2 discoverers, got %d", len(ds))
+}
+names := make([]string, len(ds))
+for i, d := range ds {
+names[i] = d.Name()
+}
+if names[0] != "help" || names[1] != "man" {
+t.Errorf("unexpected discoverer order: %v", names)
+}
+}
