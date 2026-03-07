@@ -59,7 +59,7 @@ func (h *HelpDiscoverer) discover(ctx context.Context, cliName string, args []st
 
 	helpText, err := h.runHelp(ctx, cliName, args)
 	if err != nil || helpText == "" {
-		node.Description = fmt.Sprintf("(could not get help: %v)", err)
+		node.DiscoveryErr = fmt.Sprintf("could not get help: %v", err)
 		return node, nil
 	}
 	node.HelpText = helpText
@@ -70,6 +70,25 @@ func (h *HelpDiscoverer) discover(ctx context.Context, cliName string, args []st
 	node.Positionals = parsed.Positionals
 
 	if depth < h.MaxDepth && len(parsed.Subcommands) > 0 {
+		// When a command has a very large number of subcommands (e.g. aws
+		// with 200+ services), eagerly running --help on every child would
+		// take minutes. Instead, create lightweight stub nodes that carry
+		// only the name and path. They can be expanded on demand by the
+		// caller (TUI toggle, or re-running discovery at a deeper depth).
+		const maxEagerChildren = 50
+		if len(parsed.Subcommands) > maxEagerChildren {
+			for _, sub := range parsed.Subcommands {
+				subFull := append(append([]string{}, fullPath...), sub)
+				node.Children = append(node.Children, &models.Node{
+					Name:       sub,
+					FullPath:   subFull,
+					Discovered: false,
+					Stub:       true,
+				})
+			}
+			return node, nil
+		}
+
 		const maxWorkers = 8
 		sem := make(chan struct{}, maxWorkers)
 		type result struct {
@@ -91,10 +110,10 @@ func (h *HelpDiscoverer) discover(ctx context.Context, cliName string, args []st
 				childHelp, err := h.runHelp(subCtx, cliName, subArgs)
 				if err != nil || childHelp == "" {
 					results[i] = result{i, &models.Node{
-						Name:        sub,
-						FullPath:    subFull,
-						Discovered:  true,
-						Description: fmt.Sprintf("(could not get help: %v)", err),
+						Name:         sub,
+						FullPath:     subFull,
+						Discovered:   true,
+						DiscoveryErr: fmt.Sprintf("could not get help: %v", err),
 					}}
 					return
 				}

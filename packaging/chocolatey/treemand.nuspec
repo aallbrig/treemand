@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Chocolatey package specification for treemand.
+     The release workflow injects __VERSION__ and __URL64__ before packing.
+     https://docs.chocolatey.org/en-us/create/create-packages -->
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>treemand</id>
+    <version>__VERSION__</version>
+    <title>treemand</title>
+    <authors>aallbrig</authors>
+    <projectUrl>https://aallbrig.github.io/treemand</projectUrl>
+    <licenseUrl>https://github.com/aallbrig/treemand/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <projectSourceUrl>https://github.com/aallbrig/treemand</projectSourceUrl>
+    <bugTrackerUrl>https://github.com/aallbrig/treemand/issues</bugTrackerUrl>
+    <tags>cli tui tree command-discovery kubectl aws git terminal</tags>
+    <summary>Visualize and interactively explore any CLI command hierarchy as a tree.</summary>
+    <description>
+treemand lets you explore CLI tools (git, aws, kubectl, docker, …) as an
+ASCII/Unicode tree. Run with -i for a k9s-inspired TUI with live preview,
+fuzzy filtering, flag/positional pickers, and command building.
+    </description>
+    <releaseNotes>https://github.com/aallbrig/treemand/releases/tag/v__VERSION__</releaseNotes>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

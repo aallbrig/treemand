@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/ScoopInstaller/Scoop/master/schema.json",
+  "version": "0.0.0",
+  "description": "Visualize and interactively explore any CLI command hierarchy as a tree.",
+  "homepage": "https://aallbrig.github.io/treemand",
+  "license": "MIT",
+  "url": "https://github.com/aallbrig/treemand/releases/download/v0.0.0/treemand_windows_amd64.zip",
+  "hash": "PLACEHOLDER",
+  "bin": "treemand.exe",
+  "checkver": {
+    "github": "https://github.com/aallbrig/treemand"
+  },
+  "autoupdate": {
+    "url": "https://github.com/aallbrig/treemand/releases/download/v$version/treemand_windows_amd64.zip"
+  }
+}

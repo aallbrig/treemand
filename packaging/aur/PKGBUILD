@@ -1,0 +1,26 @@
+# Maintainer: aallbrig
+#
+# This is a template — __VERSION__ and __SHA256__ are replaced by CI before
+# publishing.  To build locally:
+#   1. Replace __VERSION__ and __SHA256__ with real values.
+#   2. makepkg -si
+#
+pkgname=treemand-bin
+pkgver=__VERSION__
+pkgrel=1
+pkgdesc="Visualize and interactively explore any CLI command hierarchy as a tree"
+arch=('x86_64')
+url="https://github.com/aallbrig/treemand"
+license=('MIT')
+provides=('treemand')
+conflicts=('treemand')
+source=("treemand-${pkgver}-linux-amd64.tar.gz::https://github.com/aallbrig/treemand/releases/download/v${pkgver}/treemand_linux_amd64.tar.gz")
+sha256sums=('__SHA256__')
+
+package() {
+    install -Dm755 "${srcdir}/treemand_linux_amd64" "${pkgdir}/usr/bin/treemand"
+    # Man page is bundled in the tarball.
+    if [ -f "${srcdir}/treemand.1" ]; then
+        install -Dm644 "${srcdir}/treemand.1" "${pkgdir}/usr/share/man/man1/treemand.1"
+    fi
+}

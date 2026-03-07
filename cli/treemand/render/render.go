@@ -186,14 +186,21 @@ func (r *Renderer) renderNode(w io.Writer, node *models.Node, prefix string, isL
 	}
 
 	// Description (dimmed, truncated at 60 chars).
-	// Suppress internal discovery-error messages — they add noise for users.
 	desc := ""
-	if node.Description != "" && !strings.HasPrefix(node.Description, "(could not get help:") {
+	if node.Description != "" {
 		d := node.Description
 		if len([]rune(d)) > 60 {
 			d = string([]rune(d)[:60]) + "…"
 		}
 		desc = "  " + r.styles.dim.Render(d)
+	}
+
+	// Append a subtle indicator for stub or discovery-error nodes.
+	suffix := ""
+	if node.Stub {
+		suffix = "  " + r.styles.dim.Render("(…)")
+	} else if node.DiscoveryErr != "" {
+		suffix = "  " + r.styles.dim.Render("(?)")
 	}
 
 	line := prefix
@@ -204,7 +211,7 @@ func (r *Renderer) renderNode(w io.Writer, node *models.Node, prefix string, isL
 	if len(meta) > 0 {
 		line += " " + strings.Join(meta, " ")
 	}
-	line += desc
+	line += desc + suffix
 
 	fmt.Fprintln(w, line)
 

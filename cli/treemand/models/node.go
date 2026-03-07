@@ -31,6 +31,15 @@ type Node struct {
 	Children    []*Node      `json:"children,omitempty"`
 	HelpText    string       `json:"help_text,omitempty"`
 	Discovered  bool         `json:"discovered"`
+	// DiscoveryErr holds a non-fatal error from the discovery process
+	// (e.g. a subcommand whose --help timed out). It is intentionally
+	// separate from Description so renderers can display it differently
+	// (or suppress it entirely for cleaner output).
+	DiscoveryErr string `json:"discovery_err,omitempty"`
+	// Stub marks a node that was created without running discovery on it.
+	// This happens when a parent has too many subcommands to eagerly expand
+	// (e.g. aws with 200+ services). Stub nodes can be expanded on demand.
+	Stub bool `json:"stub,omitempty"`
 	// Virtual marks a display-only group node (e.g. a Godot flag section like
 	// "run-options"). Virtual nodes organise flags visually but do not
 	// produce command tokens in the preview bar.
@@ -88,11 +97,13 @@ func (n *Node) Walk(fn func(*Node)) {
 // Clone returns a deep copy of the node.
 func (n *Node) Clone() *Node {
 	c := &Node{
-		Name:        n.Name,
-		FullPath:    make([]string, len(n.FullPath)),
-		Description: n.Description,
-		HelpText:    n.HelpText,
-		Discovered:  n.Discovered,
+		Name:         n.Name,
+		FullPath:     make([]string, len(n.FullPath)),
+		Description:  n.Description,
+		HelpText:     n.HelpText,
+		Discovered:   n.Discovered,
+		DiscoveryErr: n.DiscoveryErr,
+		Stub:         n.Stub,
 	}
 	copy(c.FullPath, n.FullPath)
 	c.Flags = make([]Flag, len(n.Flags))

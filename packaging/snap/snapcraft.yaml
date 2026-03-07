@@ -1,0 +1,25 @@
+name: treemand
+version: __VERSION__
+summary: Visualize and interactively explore any CLI command hierarchy as a tree
+description: |
+  treemand lets you explore CLI tools (git, aws, kubectl, docker, …) as an
+  ASCII/Unicode tree.  Run with -i for a k9s-inspired TUI with live preview,
+  fuzzy filtering, flag/positional pickers, and command building.
+
+base: core22
+grade: stable
+confinement: classic   # needs access to arbitrary executables in PATH
+
+apps:
+  treemand:
+    command: bin/treemand
+    plugs:
+      - home
+      - network
+
+parts:
+  treemand:
+    plugin: nil
+    source: https://github.com/aallbrig/treemand/releases/download/v__VERSION__/treemand_linux_amd64.tar.gz
+    override-build: |
+      install -D -m755 treemand_linux_amd64 "$CRAFT_PART_INSTALL/bin/treemand"

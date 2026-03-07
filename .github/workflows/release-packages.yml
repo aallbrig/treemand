@@ -1,0 +1,267 @@
+name: Publish to Package Managers
+
+# Triggered automatically after the release workflow completes, or manually.
+# Each job is gated on its required secret — if the secret is absent the job
+# simply skips.  Add the secrets in Settings → Secrets & Variables → Actions
+# when you are ready to publish to that package manager.
+#
+# Required one-time setup per package manager:
+#   Homebrew  — Create repo "aallbrig/homebrew-tap", add the formula from
+#               packaging/homebrew/treemand.rb, and generate a PAT with
+#               repo scope stored as HOMEBREW_TAP_TOKEN.
+#   WinGet    — Register the package in microsoft/winget-pkgs first, then
+#               store a PAT as WINGET_TOKEN.
+#   Chocolatey— Create an account at https://community.chocolatey.org and
+#               store your API key as CHOCOLATEY_API_KEY.
+#   Scoop     — Create repo "aallbrig/scoop-bucket", add the manifest from
+#               packaging/scoop/treemand.json, and store a PAT as
+#               SCOOP_BUCKET_TOKEN.
+#   AUR       — Create an AUR account, add packaging/aur/PKGBUILD to an
+#               "aur/treemand-bin" package, and store an SSH private key as
+#               AUR_SSH_PRIVATE_KEY.
+#   Snap      — Create a Snapcraft account, register "treemand", and store
+#               credentials as SNAPCRAFT_STORE_CREDENTIALS.
+
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v0.2.0)"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ------------------------------------------------------------------ Homebrew
+  homebrew:
+    name: Bump Homebrew formula
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Check secret
+        id: check
+        run: |
+          if [ -z "${{ secrets.HOMEBREW_TAP_TOKEN }}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bump formula
+        if: steps.check.outputs.skip != 'true'
+        uses: mislav/bump-homebrew-formula-action@v3.6
+        with:
+          formula-name: treemand
+          formula-path: Formula/treemand.rb
+          homebrew-tap: aallbrig/homebrew-tap
+          tag-name: ${{ github.event.workflow_run.head_branch || inputs.tag }}
+          download-url: >
+            https://github.com/aallbrig/treemand/releases/download/${{ github.event.workflow_run.head_branch || inputs.tag }}/treemand_darwin_amd64.tar.gz
+        env:
+          COMMITTER_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+  # ------------------------------------------------------------------- WinGet
+  winget:
+    name: Update WinGet manifest
+    runs-on: windows-latest
+    if: |
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Check secret
+        id: check
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.WINGET_TOKEN }}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Submit to WinGet
+        if: steps.check.outputs.skip != 'true'
+        uses: vedantmgoyal9/winget-releaser@latest
+        with:
+          identifier: aallbrig.treemand
+          release-tag: ${{ github.event.workflow_run.head_branch || inputs.tag }}
+          token: ${{ secrets.WINGET_TOKEN }}
+
+  # ---------------------------------------------------------------- Chocolatey
+  chocolatey:
+    name: Push to Chocolatey
+    runs-on: windows-latest
+    if: |
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Check secret
+        id: check
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.CHOCOLATEY_API_KEY }}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.skip != 'true'
+
+      - name: Resolve tag
+        if: steps.check.outputs.skip != 'true'
+        id: tag
+        shell: bash
+        run: |
+          TAG="${{ github.event.workflow_run.head_branch || inputs.tag }}"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Pack & push
+        if: steps.check.outputs.skip != 'true'
+        shell: pwsh
+        run: |
+          $version = "${{ steps.tag.outputs.version }}"
+          $url64 = "https://github.com/aallbrig/treemand/releases/download/v$version/treemand_windows_amd64.zip"
+          # Inject version and URL into the nuspec template
+          (Get-Content packaging\chocolatey\treemand.nuspec) `
+            -replace '__VERSION__', $version `
+            -replace '__URL64__',   $url64 |
+            Set-Content packaging\chocolatey\treemand.nuspec
+          choco pack packaging\chocolatey\treemand.nuspec
+          choco push treemand.$version.nupkg `
+            --source "https://push.chocolatey.org/" `
+            --api-key $env:CHOCOLATEY_API_KEY
+        env:
+          CHOCOLATEY_API_KEY: ${{ secrets.CHOCOLATEY_API_KEY }}
+
+  # ---------------------------------------------------------------------- Scoop
+  scoop:
+    name: Update Scoop bucket
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Check secret
+        id: check
+        run: |
+          if [ -z "${{ secrets.SCOOP_BUCKET_TOKEN }}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.skip != 'true'
+
+      - name: Resolve tag and checksums
+        if: steps.check.outputs.skip != 'true'
+        id: meta
+        run: |
+          TAG="${{ github.event.workflow_run.head_branch || inputs.tag }}"
+          VERSION="${TAG#v}"
+          BASE="https://github.com/aallbrig/treemand/releases/download/$TAG"
+          curl -sSL "$BASE/checksums.txt" -o /tmp/checksums.txt
+          SHA64=$(grep "treemand_windows_amd64.zip" /tmp/checksums.txt | awk '{print $1}')
+          echo "version=$VERSION"       >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"               >> "$GITHUB_OUTPUT"
+          echo "sha64=$SHA64"           >> "$GITHUB_OUTPUT"
+
+      - name: Push updated manifest
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name  "GitHub Actions"
+          git clone "https://x-access-token:${{ secrets.SCOOP_BUCKET_TOKEN }}@github.com/aallbrig/scoop-bucket.git" /tmp/scoop-bucket
+          VERSION="${{ steps.meta.outputs.version }}"
+          TAG="${{ steps.meta.outputs.tag }}"
+          SHA64="${{ steps.meta.outputs.sha64 }}"
+          URL64="https://github.com/aallbrig/treemand/releases/download/$TAG/treemand_windows_amd64.zip"
+          jq --arg v "$VERSION" --arg u "$URL64" --arg s "$SHA64" \
+            '.version = $v | .url = $u | .hash = $s' \
+            packaging/scoop/treemand.json > /tmp/scoop-bucket/treemand.json
+          cd /tmp/scoop-bucket
+          git add treemand.json
+          git commit -m "treemand: update to $VERSION"
+          git push
+
+  # ----------------------------------------------------------------------- AUR
+  aur:
+    name: Publish to AUR
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Check secret
+        id: check
+        run: |
+          if [ -z "${{ secrets.AUR_SSH_PRIVATE_KEY }}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.skip != 'true'
+
+      - name: Resolve tag and checksum
+        if: steps.check.outputs.skip != 'true'
+        id: meta
+        run: |
+          TAG="${{ github.event.workflow_run.head_branch || inputs.tag }}"
+          VERSION="${TAG#v}"
+          BASE="https://github.com/aallbrig/treemand/releases/download/$TAG"
+          curl -sSL "$BASE/checksums.txt" -o /tmp/checksums.txt
+          # AUR uses SHA256 of the Linux amd64 tarball
+          SHA=$(grep "treemand_linux_amd64.tar.gz" /tmp/checksums.txt | awk '{print $1}')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA"         >> "$GITHUB_OUTPUT"
+
+      - name: Inject version into PKGBUILD
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          sed -i \
+            -e "s/__VERSION__/${{ steps.meta.outputs.version }}/g" \
+            -e "s/__SHA256__/${{ steps.meta.outputs.sha }}/g" \
+            packaging/aur/PKGBUILD
+
+      - name: Publish PKGBUILD to AUR
+        if: steps.check.outputs.skip != 'true'
+        uses: KSXGitHub/github-actions-deploy-aur@v4.1.1
+        with:
+          pkgname: treemand-bin
+          pkgbuild: packaging/aur/PKGBUILD
+          commit_username: aallbrig
+          commit_email: actions@github.com
+          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          commit_message: "Update to ${{ steps.meta.outputs.version }}"
+
+  # ----------------------------------------------------------------------- Snap
+  snap:
+    name: Publish to Snap Store
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Check secret
+        id: check
+        run: |
+          if [ -z "${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.skip != 'true'
+
+      - name: Inject version
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          TAG="${{ github.event.workflow_run.head_branch || inputs.tag }}"
+          VERSION="${TAG#v}"
+          sed -i "s/__VERSION__/$VERSION/g" packaging/snap/snapcraft.yaml
+
+      - name: Build and publish snap
+        if: steps.check.outputs.skip != 'true'
+        uses: snapcore/action-publish@v1
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        with:
+          snap: packaging/snap/snapcraft.yaml
+          release: stable
