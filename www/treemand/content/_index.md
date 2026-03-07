@@ -59,7 +59,12 @@ treemand --output=json docker
 ## Install
 
 ```bash
-go install github.com/aallbrig/treemand@latest
+# Homebrew (macOS / Linux)
+brew tap aallbrig/tap
+brew install treemand
+
+# go install
+go install github.com/aallbrig/treemand/cli/treemand@latest
 ```
 
 Or download a [pre-built binary](https://github.com/aallbrig/treemand/releases).

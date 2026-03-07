@@ -16,7 +16,7 @@ treemand cache [clear|list]
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--interactive` | `-i` | false | Launch interactive TUI explorer |
-| `--strategy` | `-s` | `help` | Discovery strategies: `help`, `completions` (comma-separated) |
+| `--strategy` | `-s` | `help` | Discovery strategies: `help`, `man`, `completions` (comma-separated) |
 | `--depth` | | `-1` | Max tree depth (-1 = unlimited) |
 | `--filter` | | | Only show nodes whose name matches pattern |
 | `--exclude` | | | Exclude nodes whose name matches pattern |
@@ -50,8 +50,9 @@ treemand --version
 Manage the discovery cache (`~/.treemand/cache.db`).
 
 ```bash
-treemand cache list    # List cached entries
-treemand cache clear   # Remove all cached entries
+treemand cache list           # List cached entries
+treemand cache clear <cli>    # Remove one CLI's cached entry
+treemand cache clear-all      # Remove all cached entries
 ```
 
 ## Non-Interactive Output
@@ -208,7 +209,12 @@ treemand cache clear
 Recursively runs `<cli> --help` / `<cli> <subcmd> --help` to build the tree.
 Falls back to `<cli> help <subcmd>`, man page lookup, and error output mining.
 
-### `completions` (coming soon)
+### `man`
+
+Parses the `man` page for the CLI (if available) using `man <cli>` and stripping
+groff formatting. Provides richer descriptions than `--help` for many Unix tools.
+
+### `completions`
 
 Uses shell completion output (`<cli> __complete`, `<cli> completion`) to
 enumerate subcommands without executing `--help` for every node.

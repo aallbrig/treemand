@@ -3,6 +3,11 @@ languageCode = "en-us"
 title = "Treemand"
 theme = "minimal"
 
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
+
 [params]
   description = "Visualize CLI command hierarchies as a tree"
   author = "aallbrig"
