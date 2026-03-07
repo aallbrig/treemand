@@ -23,8 +23,9 @@ type Discoverer interface {
 
 // HelpDiscoverer uses --help output to discover subcommands and flags.
 type HelpDiscoverer struct {
-	MaxDepth int
-	Timeout  time.Duration
+	MaxDepth      int
+	Timeout       time.Duration
+	StubThreshold int // max subcommands before creating stubs instead of eager discovery
 }
 
 // NewHelpDiscoverer creates a HelpDiscoverer with sensible defaults.
@@ -32,7 +33,7 @@ func NewHelpDiscoverer(maxDepth int) *HelpDiscoverer {
 	if maxDepth <= 0 {
 		maxDepth = 3
 	}
-	return &HelpDiscoverer{MaxDepth: maxDepth, Timeout: 5 * time.Second}
+	return &HelpDiscoverer{MaxDepth: maxDepth, Timeout: 5 * time.Second, StubThreshold: 50}
 }
 
 func (h *HelpDiscoverer) Name() string { return "help" }
@@ -75,8 +76,11 @@ func (h *HelpDiscoverer) discover(ctx context.Context, cliName string, args []st
 		// take minutes. Instead, create lightweight stub nodes that carry
 		// only the name and path. They can be expanded on demand by the
 		// caller (TUI toggle, or re-running discovery at a deeper depth).
-		const maxEagerChildren = 50
-		if len(parsed.Subcommands) > maxEagerChildren {
+		threshold := h.StubThreshold
+		if threshold <= 0 {
+			threshold = 50
+		}
+		if len(parsed.Subcommands) > threshold {
 			for _, sub := range parsed.Subcommands {
 				subFull := append(append([]string{}, fullPath...), sub)
 				node.Children = append(node.Children, &models.Node{

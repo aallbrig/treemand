@@ -15,22 +15,26 @@ import (
 
 // Options controls tree rendering behavior.
 type Options struct {
-	MaxDepth     int
-	Filter       string
-	Exclude      string
-	CommandsOnly bool
-	FullPath     bool
-	NoColor      bool
-	Output       string // text, json, yaml
-	Colors       config.ColorScheme
+	MaxDepth       int
+	Filter         string
+	Exclude        string
+	CommandsOnly   bool
+	FullPath       bool
+	NoColor        bool
+	Output         string // text, json, yaml
+	Colors         config.ColorScheme
+	Icons          config.IconSet
+	DescLineLength int // max runes in a description before truncation
 }
 
 // DefaultOptions returns rendering options with sensible defaults.
 func DefaultOptions() Options {
 	return Options{
-		MaxDepth: -1,
-		Output:   "text",
-		Colors:   config.DefaultColors(),
+		MaxDepth:       -1,
+		Output:         "text",
+		Colors:         config.DefaultColors(),
+		Icons:          config.DefaultIconSet(),
+		DescLineLength: 80,
 	}
 }
 
@@ -105,9 +109,6 @@ func (r *Renderer) Render(w io.Writer, root *models.Node) error {
 }
 
 const (
-	iconBranch  = "▼ "
-	iconVirtual = "◆ " // display-only group node (e.g. Godot flag sections)
-	iconLeaf    = "• "
 	connLast    = "└── "
 	connMid     = "├── "
 	connLastPad = "    "
@@ -133,11 +134,11 @@ func (r *Renderer) renderNode(w io.Writer, node *models.Node, prefix string, isL
 	}
 
 	// Choose icon
-	icon := iconLeaf
+	icon := r.opts.Icons.Leaf
 	if node.Virtual {
-		icon = iconVirtual
+		icon = r.opts.Icons.Virtual
 	} else if len(node.Children) > 0 {
-		icon = iconBranch
+		icon = r.opts.Icons.Branch
 	}
 
 	// Format the node name
@@ -185,12 +186,16 @@ func (r *Renderer) renderNode(w io.Writer, node *models.Node, prefix string, isL
 		}
 	}
 
-	// Description (dimmed, truncated at 60 chars).
+	// Description (dimmed, truncated at configured line length).
 	desc := ""
 	if node.Description != "" {
 		d := node.Description
-		if len([]rune(d)) > 60 {
-			d = string([]rune(d)[:60]) + "…"
+		limit := r.opts.DescLineLength
+		if limit <= 0 {
+			limit = 80
+		}
+		if len([]rune(d)) > limit {
+			d = string([]rune(d)[:limit]) + "…"
 		}
 		desc = "  " + r.styles.dim.Render(d)
 	}

@@ -149,3 +149,28 @@ Options:
 		t.Error("test data malformed")
 	}
 }
+
+func TestBuildDiscoverersWithThreshold(t *testing.T) {
+// Default threshold of 50 should be set.
+ds := discovery.BuildDiscoverers([]string{"help"}, 2)
+if len(ds) == 0 {
+t.Fatal("expected at least one discoverer")
+}
+hd, ok := ds[0].(*discovery.HelpDiscoverer)
+if !ok {
+t.Fatal("expected *discovery.HelpDiscoverer")
+}
+if hd.StubThreshold != 50 {
+t.Errorf("default StubThreshold = %d, want 50", hd.StubThreshold)
+}
+
+// Custom threshold.
+ds2 := discovery.BuildDiscoverersWithThreshold([]string{"help"}, 2, 100)
+hd2, ok := ds2[0].(*discovery.HelpDiscoverer)
+if !ok {
+t.Fatal("expected *discovery.HelpDiscoverer")
+}
+if hd2.StubThreshold != 100 {
+t.Errorf("StubThreshold = %d, want 100", hd2.StubThreshold)
+}
+}

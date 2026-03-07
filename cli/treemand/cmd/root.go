@@ -10,6 +10,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	"github.com/aallbrig/treemand/cache"
 	"github.com/aallbrig/treemand/config"
@@ -20,6 +21,7 @@ import (
 )
 
 var (
+	cfgFile         string
 	cfgInteractive  bool
 	cfgStrategy     string
 	cfgDepth        int
@@ -32,6 +34,9 @@ var (
 	cfgNoCache      bool
 	cfgTimeout      int
 	cfgDebug        bool
+	cfgIcons        string
+	cfgLineLength   int
+	cfgStubThreshold int
 )
 
 // rootCmd is the cobra root command.
@@ -81,6 +86,9 @@ Docs: https://aallbrig.github.io/treemand`,
 }
 
 func init() {
+	cobra.OnInitialize(initConfig)
+
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file (default: ~/.config/treemand/config.yaml)")
 	rootCmd.PersistentFlags().BoolVarP(&cfgInteractive, "interactive", "i", false, "Launch interactive TUI")
 	rootCmd.PersistentFlags().StringVarP(&cfgStrategy, "strategy", "s", "help", "Discovery strategies (comma-separated: help,completions)")
 	rootCmd.PersistentFlags().IntVar(&cfgDepth, "depth", -1, "Max tree depth (-1 = unlimited)")
@@ -93,6 +101,20 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&cfgNoCache, "no-cache", false, "Disable caching")
 	rootCmd.PersistentFlags().IntVar(&cfgTimeout, "timeout", 30, "Discovery timeout in seconds")
 	rootCmd.PersistentFlags().BoolVar(&cfgDebug, "debug", false, "Enable debug logging")
+	rootCmd.PersistentFlags().StringVar(&cfgIcons, "icons", "", "Icon preset: unicode (default), ascii, nerd")
+	rootCmd.PersistentFlags().IntVar(&cfgLineLength, "line-length", 0, "Max description chars before truncation (default 80)")
+	rootCmd.PersistentFlags().IntVar(&cfgStubThreshold, "stub-threshold", 0, "Max eager children before creating stubs (default 50)")
+
+	_ = viper.BindPFlag("icons", rootCmd.PersistentFlags().Lookup("icons"))
+	_ = viper.BindPFlag("desc_line_length", rootCmd.PersistentFlags().Lookup("line-length"))
+	_ = viper.BindPFlag("stub_threshold", rootCmd.PersistentFlags().Lookup("stub-threshold"))
+	_ = viper.BindPFlag("no_color", rootCmd.PersistentFlags().Lookup("no-color"))
+}
+
+func initConfig() {
+	if err := config.InitViper(cfgFile); err != nil {
+		fmt.Fprintln(os.Stderr, "Warning: could not read config file:", err)
+	}
 }
 
 func runRoot(cmd *cobra.Command, args []string) error {
@@ -113,6 +135,19 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	cfg.NoColor = cfgNoColor || cfg.NoColor
 	cfg.Depth = cfgDepth
 	cfg.NoCache = cfgNoCache
+	// Apply viper-loaded config file values (flags > env > file > defaults).
+	config.ApplyViper(cfg)
+	// CLI flags override config file values when explicitly set.
+	if cfgIcons != "" {
+		cfg.IconPreset = cfgIcons
+		cfg.Icons = config.IconSetForPreset(cfgIcons)
+	}
+	if cfgLineLength > 0 {
+		cfg.DescLineLength = cfgLineLength
+	}
+	if cfgStubThreshold > 0 {
+		cfg.StubThreshold = cfgStubThreshold
+	}
 	strategies := config.ParseStrategies(cfgStrategy)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfgTimeout)*time.Second)
@@ -144,7 +179,7 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	if maxDepth < 0 {
 		maxDepth = 3
 	}
-	discoverers := discovery.BuildDiscoverers(strategies, maxDepth)
+	discoverers := discovery.BuildDiscoverersWithThreshold(strategies, maxDepth, cfg.StubThreshold)
 	node, err := discovery.Run(ctx, discoverers, cliName)
 	if err != nil {
 		return fmt.Errorf("discovery failed: %w", err)
@@ -169,14 +204,16 @@ func output(cmd *cobra.Command, node *models.Node, cfg *config.Config) error {
 		return tui.Run(node, cfg)
 	}
 	opts := render.Options{
-		MaxDepth:     cfgDepth,
-		Filter:       cfgFilter,
-		Exclude:      cfgExclude,
-		CommandsOnly: cfgCommandsOnly,
-		FullPath:     cfgFullPath,
-		Output:       cfgOutput,
-		NoColor:      cfg.NoColor,
-		Colors:       cfg.Colors,
+		MaxDepth:       cfgDepth,
+		Filter:         cfgFilter,
+		Exclude:        cfgExclude,
+		CommandsOnly:   cfgCommandsOnly,
+		FullPath:       cfgFullPath,
+		Output:         cfgOutput,
+		NoColor:        cfg.NoColor,
+		Colors:         cfg.Colors,
+		Icons:          cfg.Icons,
+		DescLineLength: cfg.DescLineLength,
 	}
 	r := render.New(opts)
 	return r.Render(cmd.OutOrStdout(), node)
@@ -207,6 +244,7 @@ func NewRootCmd() *cobra.Command {
 		SilenceUsage:  true,
 		RunE:          runRoot,
 	}
+	c.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file")
 	c.PersistentFlags().BoolVarP(&cfgInteractive, "interactive", "i", false, "Launch interactive TUI")
 	c.PersistentFlags().StringVarP(&cfgStrategy, "strategy", "s", "help", "Discovery strategies")
 	c.PersistentFlags().IntVar(&cfgDepth, "depth", -1, "Max tree depth")
@@ -219,6 +257,9 @@ func NewRootCmd() *cobra.Command {
 	c.PersistentFlags().BoolVar(&cfgNoCache, "no-cache", false, "Disable cache")
 	c.PersistentFlags().IntVar(&cfgTimeout, "timeout", 5, "Discovery timeout")
 	c.PersistentFlags().BoolVar(&cfgDebug, "debug", false, "Debug logging")
+	c.PersistentFlags().StringVar(&cfgIcons, "icons", "", "Icon preset")
+	c.PersistentFlags().IntVar(&cfgLineLength, "line-length", 0, "Max description line length")
+	c.PersistentFlags().IntVar(&cfgStubThreshold, "stub-threshold", 0, "Stub threshold")
 	c.AddCommand(versionCmd)
 	return c
 }

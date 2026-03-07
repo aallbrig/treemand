@@ -94,16 +94,29 @@ func Run(ctx context.Context, discoverers []Discoverer, cliName string) (*models
 
 // BuildDiscoverers creates Discoverer instances from strategy names.
 func BuildDiscoverers(strategies []string, maxDepth int) []Discoverer {
+	return BuildDiscoverersWithThreshold(strategies, maxDepth, 50)
+}
+
+// BuildDiscoverersWithThreshold creates Discoverer instances with a configurable stub threshold.
+func BuildDiscoverersWithThreshold(strategies []string, maxDepth, stubThreshold int) []Discoverer {
 	var result []Discoverer
 	for _, s := range strategies {
 		switch s {
 		case "help":
-			result = append(result, NewHelpDiscoverer(maxDepth))
+			d := NewHelpDiscoverer(maxDepth)
+			if stubThreshold > 0 {
+				d.StubThreshold = stubThreshold
+			}
+			result = append(result, d)
 			// Future: case "completions": result = append(result, NewCompletionsDiscoverer())
 		}
 	}
 	if len(result) == 0 {
-		result = append(result, NewHelpDiscoverer(maxDepth))
+		d := NewHelpDiscoverer(maxDepth)
+		if stubThreshold > 0 {
+			d.StubThreshold = stubThreshold
+		}
+		result = append(result, d)
 	}
 	return result
 }

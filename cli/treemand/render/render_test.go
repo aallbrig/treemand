@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/aallbrig/treemand/config"
 	"github.com/aallbrig/treemand/models"
 	"github.com/aallbrig/treemand/render"
 )
@@ -245,5 +246,52 @@ t.Error("HasPositionals() should return true")
 n2 := &models.Node{Name: "cmd2", FullPath: []string{"cmd2"}}
 if n2.HasPositionals() {
 t.Error("HasPositionals() should return false when empty")
+}
+}
+
+func TestRenderNode_asciiIconSet(t *testing.T) {
+root := &models.Node{
+Name:     "git",
+FullPath: []string{"git"},
+Children: []*models.Node{
+{Name: "commit", FullPath: []string{"git", "commit"}},
+},
+}
+opts := render.DefaultOptions()
+opts.NoColor = true
+opts.Icons = config.IconSetForPreset(config.IconPresetASCII)
+got, err := render.ToString(root, opts)
+if err != nil {
+t.Fatalf("ToString error: %v", err)
+}
+if !strings.Contains(got, "v ") {
+t.Errorf("ascii branch icon 'v ' not found in output:\n%s", got)
+}
+// Should NOT contain unicode icons.
+if strings.Contains(got, "▼") || strings.Contains(got, "•") {
+t.Errorf("unicode icons should not appear with ascii preset:\n%s", got)
+}
+}
+
+func TestRenderNode_descLineLength(t *testing.T) {
+longDesc := strings.Repeat("x", 100)
+root := &models.Node{
+Name:        "cmd",
+FullPath:    []string{"cmd"},
+Description: longDesc,
+}
+opts := render.DefaultOptions()
+opts.NoColor = true
+opts.DescLineLength = 20
+got, err := render.ToString(root, opts)
+if err != nil {
+t.Fatalf("ToString error: %v", err)
+}
+// Description should be truncated at 20 chars + ellipsis.
+if strings.Contains(got, strings.Repeat("x", 21)) {
+t.Errorf("description was not truncated at 20 chars:\n%s", got)
+}
+if !strings.Contains(got, "…") {
+t.Errorf("truncation ellipsis not found:\n%s", got)
 }
 }

@@ -402,9 +402,9 @@ func (t *TreeModel) renderCommandRow(row treeRow, selected bool, maxW int) strin
 	icon := ""
 	if hasContent {
 		if isExpanded {
-			icon = "▼ "
+			icon = t.cfg.Icons.Branch
 		} else {
-			icon = "▶ "
+			icon = t.cfg.Icons.Collapsed
 		}
 	}
 
@@ -494,9 +494,9 @@ func (t *TreeModel) renderCommandRow(row treeRow, selected bool, maxW int) strin
 func (t *TreeModel) renderSectionRow(row treeRow) string {
 	indent := strings.Repeat("  ", row.depth)
 	expanded := t.isSectionExpanded(row.sectionKey, row.sectionDefault)
-	icon := "▷ "
+	icon := t.cfg.Icons.SectionCollapsed
 	if expanded {
-		icon = "▽ "
+		icon = t.cfg.Icons.SectionExpanded
 	}
 	dimStyle := lipgloss.NewStyle().Faint(true).Italic(true)
 	return dimStyle.Render(indent + icon + row.sectionLabel)
