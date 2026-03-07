@@ -1,9 +1,12 @@
 # 🌲 treemand — visualize and build CLI commands interactively
 
 [![Go version](https://img.shields.io/badge/go-1.22%2B-blue)](https://go.dev/dl/)
+[![CI](https://img.shields.io/github/actions/workflow/status/aallbrig/treemand/ci.yml?branch=main)](https://github.com/aallbrig/treemand/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 treemand introspects any CLI tool's `--help` output and renders its full command hierarchy as a navigable tree. Use it statically to explore unfamiliar CLIs, or interactively to build and execute commands with a keyboard-driven TUI.
+
+![treemand demo](https://aallbrig.github.io/treemand/demo.gif)
 
 ## Install
 

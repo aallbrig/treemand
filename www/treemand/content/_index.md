@@ -58,4 +58,6 @@ go install github.com/aallbrig/treemand@latest
 
 Or download a [pre-built binary](https://github.com/aallbrig/treemand/releases).
 
-<!-- TODO: Add GIF demo here -->
+## Demo
+
+<img src="/treemand/demo.gif" alt="treemand demo" width="100%">
