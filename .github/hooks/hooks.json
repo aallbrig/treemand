@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      { "type": "command", "bash": "bash ~/.claude/hooks/peon-ping/adapters/copilot.sh sessionStart" }
+    ],
+    "sessionEnd": [
+      { "type": "command", "bash": "bash ~/.claude/hooks/peon-ping/adapters/copilot.sh sessionEnd" }
+    ],
+    "userPromptSubmitted": [
+      { "type": "command", "bash": "bash ~/.claude/hooks/peon-ping/adapters/copilot.sh userPromptSubmitted" }
+    ],
+    "postToolUse": [
+      { "type": "command", "bash": "bash ~/.claude/hooks/peon-ping/adapters/copilot.sh postToolUse" }
+    ],
+    "errorOccurred": [
+      { "type": "command", "bash": "bash ~/.claude/hooks/peon-ping/adapters/copilot.sh errorOccurred" }
+    ]
+  }
+}
