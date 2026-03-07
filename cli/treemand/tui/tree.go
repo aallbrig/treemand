@@ -316,6 +316,38 @@ func (t *TreeModel) ToggleSectionAtY(y int) {
 	t.rebuild()
 }
 
+// PatchNode replaces a stub node's children with discovered children and clears
+// the Stub flag. The node is matched by pointer identity.
+func (t *TreeModel) PatchNode(stub *models.Node, discovered *models.Node) {
+	if stub == nil || discovered == nil {
+		return
+	}
+	stub.Stub = false
+	stub.Children = discovered.Children
+	if stub.Description == "" {
+		stub.Description = discovered.Description
+	}
+	if len(stub.Flags) == 0 {
+		stub.Flags = discovered.Flags
+	}
+	// Auto-expand the freshly-discovered node.
+	key := t.findNodeKey(stub)
+	if key != "" {
+		t.nodeExpanded[key] = true
+	}
+	t.rebuild()
+}
+
+// findNodeKey locates the nodeKey for a given node pointer within the current rows.
+func (t *TreeModel) findNodeKey(target *models.Node) string {
+	for _, row := range t.rows {
+		if row.kind == rowKindCommand && row.node == target {
+			return nodeKey(row.node, row.depth)
+		}
+	}
+	return ""
+}
+
 func (t *TreeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { return t, nil }
 func (t *TreeModel) Init() tea.Cmd                           { return nil }
 func (t *TreeModel) View() string                            { return t.ViewSized(t.width, t.height) }

@@ -2,7 +2,9 @@
 package tui
 
 import (
+	"context"
 	"fmt"
+	"time"
 	"os"
 	"os/exec"
 	"strings"
@@ -13,6 +15,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/aallbrig/treemand/config"
+	"github.com/aallbrig/treemand/discovery"
 	"github.com/aallbrig/treemand/models"
 	"github.com/aallbrig/treemand/render"
 )
@@ -35,6 +38,13 @@ const (
 	panePreview pane = 2
 	paneCount        = 3
 )
+
+// LazyExpandMsg carries the result of an async discovery run for a stub node.
+type LazyExpandMsg struct {
+	Stub       *models.Node // original stub node (pointer identity for patching)
+	Discovered *models.Node // freshly-discovered tree rooted at that node
+	Err        error
+}
 
 // executeModal is the Ctrl+E dialog for running or copying the built command.
 type executeModal struct {
@@ -125,6 +135,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
+	case LazyExpandMsg:
+		if msg.Err == nil && msg.Discovered != nil {
+			m.tree.PatchNode(msg.Stub, msg.Discovered)
+			m.statusMsg = "expanded: " + msg.Stub.Name
+		} else if msg.Err != nil {
+			m.statusMsg = "expand failed: " + msg.Err.Error()
+		}
+		return m, nil
+
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -814,7 +833,7 @@ func (m *Model) handleArrows(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 	m.syncSelected()
-	return m, nil
+	return m, m.lazyExpandIfStub()
 }
 
 func (m *Model) handleVim(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -855,7 +874,7 @@ func (m *Model) handleVim(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 	m.syncSelected()
-	return m, nil
+	return m, m.lazyExpandIfStub()
 }
 
 func (m *Model) handleWASD(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -898,7 +917,7 @@ func (m *Model) handleWASD(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 	m.syncSelected()
-	return m, nil
+	return m, m.lazyExpandIfStub()
 }
 
 func (m *Model) updateFilter(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -981,6 +1000,31 @@ func (m *Model) syncSelected() {
 		m.helpPane.SetFlagContext(sel.Flag, sel.Owner)
 	case SelPositional:
 		m.helpPane.SetPositionalContext(sel.Positional, sel.Owner)
+	}
+}
+
+// lazyExpandIfStub checks whether the currently selected node is a stub and,
+// if so, returns a tea.Cmd that discovers its children asynchronously.
+func (m *Model) lazyExpandIfStub() tea.Cmd {
+	sel := m.tree.SelectedItem()
+	if sel == nil || sel.Kind != SelCommand || !sel.Node.Stub {
+		return nil
+	}
+	stub := sel.Node
+	stubThreshold := m.cfg.StubThreshold
+	cliName := m.root.Name
+	args := stub.FullPath[1:] // subcommand path below root
+
+	m.statusMsg = "discovering " + stub.Name + "…"
+
+	return func() tea.Msg {
+		d := discovery.NewHelpDiscoverer(1) // one level deep for the stub
+		d.StubThreshold = stubThreshold
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		result, err := d.Discover(ctx, cliName, args)
+		return LazyExpandMsg{Stub: stub, Discovered: result, Err: err}
 	}
 }
 
