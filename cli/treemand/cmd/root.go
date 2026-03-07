@@ -227,6 +227,8 @@ func Execute() {
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(cacheCmd)
 	rootCmd.AddCommand(genDocsCmd)
+	rootCmd.AddCommand(completionCmd)
+	rootCmd.ValidArgsFunction = completeCLIName
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		os.Exit(1)
