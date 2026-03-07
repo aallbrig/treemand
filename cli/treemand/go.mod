@@ -1,6 +1,6 @@
 module github.com/aallbrig/treemand
 
-go 1.25.5
+go 1.22
 
 require (
 	github.com/atotto/clipboard v0.1.4 // indirect
