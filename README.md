@@ -11,8 +11,15 @@ treemand introspects any CLI tool's `--help` output and renders its full command
 ## Install
 
 ```bash
+# Homebrew (macOS / Linux)
+brew tap aallbrig/tap
+brew install treemand
+
 # Via go install
 go install github.com/aallbrig/treemand/cli/treemand@latest
+
+# Download pre-built binary
+# https://github.com/aallbrig/treemand/releases/latest
 
 # From source
 git clone https://github.com/aallbrig/treemand.git
