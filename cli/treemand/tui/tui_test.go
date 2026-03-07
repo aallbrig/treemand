@@ -513,3 +513,112 @@ func TestHelpPaneModel_positionalContext(t *testing.T) {
 		t.Errorf("expected positional name 'msg' in help pane positional context, got: %q", v)
 	}
 }
+
+// --- Fuzzy filter ---
+
+func deepFilterTree() *models.Node {
+	// root -> alpha -> beta -> gamma (leaf)
+	//
+	//	         -> delta (leaf)
+	//	-> epsilon (leaf)
+	gamma := &models.Node{Name: "gamma", FullPath: []string{"root", "alpha", "beta", "gamma"}}
+	delta := &models.Node{Name: "delta", FullPath: []string{"root", "alpha", "delta"}}
+	beta := &models.Node{Name: "beta", FullPath: []string{"root", "alpha", "beta"}, Children: []*models.Node{gamma}}
+	alpha := &models.Node{Name: "alpha", FullPath: []string{"root", "alpha"}, Children: []*models.Node{beta, delta}}
+	epsilon := &models.Node{Name: "epsilon", FullPath: []string{"root", "epsilon"}}
+	return &models.Node{
+		Name:     "root",
+		FullPath: []string{"root"},
+		Children: []*models.Node{alpha, epsilon},
+	}
+}
+
+func newTreeModel(root *models.Node) *tui.TreeModel {
+	cfg := config.DefaultConfig()
+	tm := tui.NewTreeModel(root, cfg)
+	tm.SetSize(80, 40)
+	return tm
+}
+
+func TestTreeModel_FilterEmpty_ShowsOnlyRoot(t *testing.T) {
+	// Root is auto-expanded; just verify root node is visible with no filter.
+	tm := newTreeModel(deepFilterTree())
+	if tm.RowCount() == 0 {
+		t.Error("expected at least 1 row, got 0")
+	}
+	if !strings.Contains(tm.ViewSized(80, 40), "root") {
+		t.Error("root node should be visible when no filter is active")
+	}
+}
+
+func TestTreeModel_Filter_MatchingNodeVisible(t *testing.T) {
+	tm := newTreeModel(deepFilterTree())
+	tm.SetFilter("gamma")
+	// gamma matches; its ancestors root/alpha/beta should also appear as breadcrumbs.
+	view := tm.ViewSized(80, 40)
+	if !strings.Contains(view, "gamma") {
+		t.Error("filtered tree should contain 'gamma'")
+	}
+}
+
+func TestTreeModel_Filter_AncestorsVisibleAsBreadcrumbs(t *testing.T) {
+	tm := newTreeModel(deepFilterTree())
+	tm.SetFilter("gamma")
+	view := tm.ViewSized(80, 40)
+	for _, ancestor := range []string{"root", "alpha", "beta"} {
+		if !strings.Contains(view, ancestor) {
+			t.Errorf("ancestor %q should be visible as breadcrumb when filtering for 'gamma'", ancestor)
+		}
+	}
+}
+
+func TestTreeModel_Filter_NonMatchingNodeHidden(t *testing.T) {
+	tm := newTreeModel(deepFilterTree())
+	tm.SetFilter("gamma")
+	view := tm.ViewSized(80, 40)
+	// epsilon doesn't match and has no matching descendants
+	if strings.Contains(view, "epsilon") {
+		t.Error("'epsilon' should be hidden when filter is 'gamma'")
+	}
+	// delta doesn't match
+	if strings.Contains(view, "delta") {
+		t.Error("'delta' should be hidden when filter is 'gamma'")
+	}
+}
+
+func TestTreeModel_Filter_CaseInsensitive(t *testing.T) {
+	tm := newTreeModel(deepFilterTree())
+	tm.SetFilter("GAMMA")
+	view := tm.ViewSized(80, 40)
+	if !strings.Contains(view, "gamma") {
+		t.Error("filter should be case-insensitive")
+	}
+}
+
+func TestTreeModel_Filter_ClearedRestoresFull(t *testing.T) {
+	tm := newTreeModel(deepFilterTree())
+	rowsBefore := tm.RowCount()
+	tm.SetFilter("gamma")
+	tm.SetFilter("") // clear
+	// Row count should return to the same as before filtering.
+	if tm.RowCount() != rowsBefore {
+		t.Errorf("after clearing filter expected %d rows, got %d", rowsBefore, tm.RowCount())
+	}
+}
+
+func TestTreeModel_Filter_PartialMatch(t *testing.T) {
+	tm := newTreeModel(deepFilterTree())
+	tm.SetFilter("lph") // partial match for "alpha"
+	view := tm.ViewSized(80, 40)
+	if !strings.Contains(view, "alpha") {
+		t.Error("partial filter 'lph' should match 'alpha'")
+	}
+}
+
+func TestTreeModel_Filter_NoMatch_EmptyView(t *testing.T) {
+	tm := newTreeModel(deepFilterTree())
+	tm.SetFilter("zzznomatch")
+	if tm.RowCount() != 0 {
+		t.Errorf("no-match filter should produce 0 rows, got %d", tm.RowCount())
+	}
+}

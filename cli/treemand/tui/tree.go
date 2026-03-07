@@ -320,6 +320,10 @@ func (t *TreeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { return t, nil }
 func (t *TreeModel) Init() tea.Cmd                           { return nil }
 func (t *TreeModel) View() string                            { return t.ViewSized(t.width, t.height) }
 
+// RowCount returns the number of tree rows currently visible (after filtering).
+// Exported for testing.
+func (t *TreeModel) RowCount() int { return len(t.rows) }
+
 func (t *TreeModel) ViewSized(w, h int) string {
 	t.width = w
 	t.height = h
@@ -597,20 +601,7 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int) {
 	key := nodeKey(node, depth)
 	expanded := t.nodeExpanded[key]
 
-	// Add command row (filtered).
-	if t.filter == "" || matchesFilter(node, t.filter) {
-		t.rows = append(t.rows, treeRow{
-			kind:  rowKindCommand,
-			depth: depth,
-			node:  node,
-		})
-	}
-
-	if !expanded {
-		return
-	}
-
-	// Collect visible (non-virtual) children.
+	// Collect visible (non-virtual) children up front — needed by filter logic.
 	var visChildren []*models.Node
 	for _, c := range node.Children {
 		if !c.Virtual {
@@ -618,11 +609,33 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int) {
 		}
 	}
 
-	// When a filter is active, skip section rows and just recurse into children.
-	if t.filter != "" {
+	filtering := t.filter != ""
+
+	// When filtering: show this node if it directly matches OR any descendant
+	// matches (so ancestors act as context breadcrumbs). Always recurse into
+	// children regardless of expanded state so the full tree is searched.
+	if filtering {
+		if matchesFilter(node, t.filter) || nodeOrDescendantMatchesFilter(node, t.filter) {
+			t.rows = append(t.rows, treeRow{
+				kind:  rowKindCommand,
+				depth: depth,
+				node:  node,
+			})
+		}
 		for _, c := range visChildren {
 			t.flattenNode(c, depth+1)
 		}
+		return
+	}
+
+	// Normal (non-filtered) path: add row then stop if not expanded.
+	t.rows = append(t.rows, treeRow{
+		kind:  rowKindCommand,
+		depth: depth,
+		node:  node,
+	})
+
+	if !expanded {
 		return
 	}
 
@@ -812,6 +825,20 @@ func isFlagActive(f models.Flag, tokens []string) bool {
 
 func matchesFilter(node *models.Node, filter string) bool {
 	return strings.Contains(strings.ToLower(node.Name), strings.ToLower(filter))
+}
+
+// nodeOrDescendantMatchesFilter returns true if any non-virtual descendant of
+// node matches the filter. Used to keep ancestor rows visible as breadcrumbs.
+func nodeOrDescendantMatchesFilter(node *models.Node, filter string) bool {
+	for _, c := range node.Children {
+		if c.Virtual {
+			continue
+		}
+		if matchesFilter(c, filter) || nodeOrDescendantMatchesFilter(c, filter) {
+			return true
+		}
+	}
+	return false
 }
 
 func (t *TreeModel) matchesTokenPrefix(node *models.Node) bool {
