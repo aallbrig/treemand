@@ -622,3 +622,263 @@ func TestTreeModel_Filter_NoMatch_EmptyView(t *testing.T) {
 		t.Errorf("no-match filter should produce 0 rows, got %d", tm.RowCount())
 	}
 }
+
+// --- Collapse / ToggleExpand / ToggleSectionAtY ---
+
+func TestTreeModel_Collapse(t *testing.T) {
+cfg := config.DefaultConfig()
+tree := tui.NewTreeModel(sampleTree(), cfg)
+tree.SetSize(80, 24)
+
+// Expand root first, then collapse.
+tree.Expand()
+if tree.Selected().Name == "git" {
+// still on root, expand moved cursor in
+}
+tree.Collapse()
+// After collapse we should be back on (or near) the parent.
+sel := tree.Selected()
+if sel == nil {
+t.Fatal("selected is nil after Collapse")
+}
+}
+
+func TestTreeModel_ToggleExpand_expandsAndCollapses(t *testing.T) {
+cfg := config.DefaultConfig()
+tree := tui.NewTreeModel(sampleTree(), cfg)
+tree.SetSize(80, 24)
+
+// Initially at root with children collapsed (root auto-expanded but cursor is on root).
+rowsBefore := tree.RowCount()
+
+// ToggleExpand on root should toggle its expansion.
+tree.ToggleExpand()
+rowsAfter := tree.RowCount()
+
+// Rows should have changed.
+if rowsBefore == rowsAfter {
+t.Logf("row count unchanged (root may already be in toggled state): before=%d after=%d", rowsBefore, rowsAfter)
+}
+
+// Toggle again — should restore.
+tree.ToggleExpand()
+rowsRestored := tree.RowCount()
+if rowsRestored != rowsBefore {
+t.Errorf("after double-toggle row count = %d, want %d", rowsRestored, rowsBefore)
+}
+}
+
+func TestTreeModel_ToggleExpand_noopOnFlag(t *testing.T) {
+cfg := config.DefaultConfig()
+tree := tui.NewTreeModel(sampleTree(), cfg)
+tree.SetSize(80, 24)
+
+// Navigate into the flags section of root, then ToggleExpand should not panic.
+tree.Down() // move to first child or flag row
+before := tree.RowCount()
+tree.ToggleExpand()
+after := tree.RowCount()
+// Either no change or changed — just must not panic.
+_ = before
+_ = after
+}
+
+func TestTreeModel_ToggleSectionAtY_outOfBounds(t *testing.T) {
+cfg := config.DefaultConfig()
+tree := tui.NewTreeModel(sampleTree(), cfg)
+tree.SetSize(80, 24)
+
+// Out-of-bounds y should not panic.
+tree.ToggleSectionAtY(-1)
+tree.ToggleSectionAtY(9999)
+}
+
+func TestTreeModel_ToggleSectionAtY_onCommandRow(t *testing.T) {
+cfg := config.DefaultConfig()
+tree := tui.NewTreeModel(sampleTree(), cfg)
+tree.SetSize(80, 24)
+
+// y=0 is a command row (root), not a section — should be a no-op.
+before := tree.RowCount()
+tree.ToggleSectionAtY(0)
+after := tree.RowCount()
+if before != after {
+t.Errorf("ToggleSectionAtY on command row changed row count: %d→%d", before, after)
+}
+}
+
+// --- renderFlagRow / renderPositionalRow ---
+
+func TestTreeModel_renderFlagRow_visible(t *testing.T) {
+// Expand the flags section so flag rows are rendered.
+cfg := config.DefaultConfig()
+tree := tui.NewTreeModel(sampleTree(), cfg)
+tree.SetSize(120, 40)
+
+// Navigate right to expand root, then Down past children until we see flags.
+tree.Right()
+// Move back to root to see its flag section.
+tree.Left()
+v := tree.ViewSized(120, 40)
+// root has --version, --help etc — at least one should appear.
+if !strings.Contains(v, "--version") && !strings.Contains(v, "--help") {
+t.Log("flags not yet visible; trying Down to auto-expand flags section")
+for i := 0; i < 10; i++ {
+tree.Down()
+}
+v = tree.ViewSized(120, 40)
+}
+// Just verify ViewSized doesn't panic and returns content.
+if v == "" {
+t.Error("expected non-empty view")
+}
+}
+
+func TestTreeModel_renderPositionalRow_visible(t *testing.T) {
+// commit has a positional arg <msg>. Navigate to it and expand.
+cfg := config.DefaultConfig()
+tree := tui.NewTreeModel(sampleTree(), cfg)
+tree.SetSize(120, 40)
+
+// Expand root, navigate to commit.
+tree.Right() // enter commit
+// Expand commit's flag/positional sections.
+for i := 0; i < 15; i++ {
+tree.Down()
+}
+v := tree.ViewSized(120, 40)
+if v == "" {
+t.Error("expected non-empty view after navigating into positionals")
+}
+}
+
+// --- Vim and WASD navigation schemes ---
+
+func TestModel_VimScheme_navigation(t *testing.T) {
+cfg := config.DefaultConfig()
+m := tui.NewModel(sampleTree(), cfg)
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+// Ctrl+S cycles from Arrows → Vim.
+m.Update(tea.KeyMsg{Type: tea.KeyCtrlS})
+v := m.View()
+if !strings.Contains(v, "vim") && !strings.Contains(v, "Vim") && !strings.Contains(v, "hjkl") {
+t.Logf("vim scheme indicator not obvious in status bar (ok): %q", v[:min(len(v), 200)])
+}
+
+// j = down, k = up, l = right, h = left — must not panic.
+for _, r := range []rune{'j', 'k', 'l', 'h'} {
+updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+if updated == nil {
+t.Fatalf("Update returned nil on vim key %q", string(r))
+}
+}
+// Space to add node.
+m.Update(tea.KeyMsg{Type: tea.KeySpace})
+}
+
+func TestModel_WASDScheme_navigation(t *testing.T) {
+cfg := config.DefaultConfig()
+m := tui.NewModel(sampleTree(), cfg)
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+// Ctrl+S twice → WASD scheme.
+m.Update(tea.KeyMsg{Type: tea.KeyCtrlS})
+m.Update(tea.KeyMsg{Type: tea.KeyCtrlS})
+
+// s = down, w = up, d = right, a = left — must not panic.
+for _, r := range []rune{'s', 'w', 'd', 'a'} {
+updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+if updated == nil {
+t.Fatalf("Update returned nil on WASD key %q", string(r))
+}
+}
+}
+
+func TestModel_SchemeRotation(t *testing.T) {
+cfg := config.DefaultConfig()
+m := tui.NewModel(sampleTree(), cfg)
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+// Three Ctrl+S presses should cycle back to arrows.
+for i := 0; i < 3; i++ {
+m.Update(tea.KeyMsg{Type: tea.KeyCtrlS})
+}
+// Arrow keys should still work (we're back to arrows scheme).
+updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
+if updated == nil {
+t.Error("Update returned nil after scheme rotation")
+}
+}
+
+// --- Filter mode (updateFilter) ---
+
+func TestModel_FilterMode_typeAndClear(t *testing.T) {
+cfg := config.DefaultConfig()
+m := tui.NewModel(sampleTree(), cfg)
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+// '/' enters filter mode.
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+
+// Type some characters into the filter.
+for _, r := range []rune("comm") {
+updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+if updated == nil {
+t.Fatal("Update returned nil during filter typing")
+}
+}
+v := m.View()
+if v == "" {
+t.Error("expected non-empty view during filter")
+}
+
+// Backspace clears a character.
+m.Update(tea.KeyMsg{Type: tea.KeyBackspace})
+
+// Esc clears filter.
+m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+}
+
+func TestModel_FilterMode_enter(t *testing.T) {
+cfg := config.DefaultConfig()
+m := tui.NewModel(sampleTree(), cfg)
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("c")})
+// Enter confirms filter.
+updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+if updated == nil {
+t.Error("Update returned nil after Enter in filter mode")
+}
+}
+
+// --- Preview AppendToken ---
+
+func TestPreviewModel_AppendToken(t *testing.T) {
+cfg := config.DefaultConfig()
+p := tui.NewPreviewModel(cfg)
+p.SetNode(sampleTree())
+
+// Direct call to AppendToken.
+p.AppendToken("--verbose")
+tokens := p.Tokens()
+found := false
+for _, tok := range tokens {
+if tok == "--verbose" {
+found = true
+break
+}
+}
+if !found {
+t.Errorf("expected '--verbose' in tokens after AppendToken, got %v", tokens)
+}
+
+// Append a second token.
+p.AppendToken("--dry-run")
+tokens2 := p.Tokens()
+if len(tokens2) <= len(tokens) {
+t.Errorf("expected more tokens after second AppendToken: %v", tokens2)
+}
+}

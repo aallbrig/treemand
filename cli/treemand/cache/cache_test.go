@@ -156,6 +156,80 @@ func TestCLIVersion(t *testing.T) {
 	}
 }
 
+func TestCacheClearCLI(t *testing.T) {
+	dir := t.TempDir()
+	c, err := cache.Open(dir)
+	if err != nil {
+		t.Fatalf("Open() error: %v", err)
+	}
+	defer c.Close()
+
+	node := &models.Node{Name: "git"}
+	for _, ver := range []string{"1.0", "2.0"} {
+		k := cache.Key("git", ver, []string{"help"})
+		_ = c.Put(k, "git", ver, "help", node)
+	}
+	// Put an entry for a different CLI too.
+	kGo := cache.Key("go", "1.22", []string{"help"})
+	_ = c.Put(kGo, "go", "1.22", "help", &models.Node{Name: "go"})
+
+	if err := c.ClearCLI("git"); err != nil {
+		t.Fatalf("ClearCLI() error: %v", err)
+	}
+
+	// git entries should be gone.
+	k := cache.Key("git", "1.0", []string{"help"})
+	got, _ := c.Get(k, 0)
+	if got != nil {
+		t.Error("expected nil for cleared CLI 'git'")
+	}
+
+	// go entry should still exist.
+	gotGo, _ := c.Get(kGo, 0)
+	if gotGo == nil {
+		t.Error("expected 'go' entry to survive ClearCLI('git')")
+	}
+}
+
+func TestCacheListCLIs(t *testing.T) {
+	dir := t.TempDir()
+	c, err := cache.Open(dir)
+	if err != nil {
+		t.Fatalf("Open() error: %v", err)
+	}
+	defer c.Close()
+
+	// Empty cache should return empty list.
+	clis, err := c.ListCLIs()
+	if err != nil {
+		t.Fatalf("ListCLIs() error: %v", err)
+	}
+	if len(clis) != 0 {
+		t.Errorf("expected 0 CLIs, got %v", clis)
+	}
+
+	// Add two distinct CLIs.
+	for _, name := range []string{"aws", "git"} {
+		k := cache.Key(name, "1.0", []string{"help"})
+		_ = c.Put(k, name, "1.0", "help", &models.Node{Name: name})
+		// Second version for git — should not duplicate in list.
+		k2 := cache.Key(name, "2.0", []string{"help"})
+		_ = c.Put(k2, name, "2.0", "help", &models.Node{Name: name})
+	}
+
+	clis, err = c.ListCLIs()
+	if err != nil {
+		t.Fatalf("ListCLIs() error: %v", err)
+	}
+	if len(clis) != 2 {
+		t.Errorf("expected 2 distinct CLIs, got %v", clis)
+	}
+	// Should be sorted.
+	if clis[0] != "aws" || clis[1] != "git" {
+		t.Errorf("expected [aws git], got %v", clis)
+	}
+}
+
 func TestMain(m *testing.M) {
-	os.Exit(m.Run())
+os.Exit(m.Run())
 }

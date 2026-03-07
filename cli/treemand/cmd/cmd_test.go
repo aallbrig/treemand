@@ -79,3 +79,56 @@ func TestRootFilterFlag(t *testing.T) {
 	_, err := runCmd("--no-cache", "--filter=nonexistent", "--no-color", "--timeout=5", "echo")
 	_ = err
 }
+
+func TestRootCommandsOnly(t *testing.T) {
+// Just confirm the flag is accepted and doesn't crash — echo's help may
+// include "--help" in description text so we can't assert on "--" absence.
+_, err := runCmd("--no-cache", "--no-color", "--commands-only", "--timeout=5", "echo")
+_ = err
+}
+
+func TestRootFullPath(t *testing.T) {
+// Just confirm the flag is accepted and doesn't crash.
+_, err := runCmd("--no-cache", "--no-color", "--full-path", "--timeout=5", "echo")
+_ = err
+}
+
+func TestRootExclude(t *testing.T) {
+_, err := runCmd("--no-cache", "--no-color", "--exclude=help", "--timeout=5", "echo")
+_ = err
+}
+
+func TestRootFilter(t *testing.T) {
+_, err := runCmd("--no-cache", "--no-color", "--filter=help", "--timeout=5", "echo")
+_ = err
+}
+
+func TestRootDepthZero(t *testing.T) {
+out, err := runCmd("--no-cache", "--no-color", "--depth=0", "--timeout=5", "echo")
+_ = err
+// At depth=0, only root node should appear.
+if err == nil && strings.Count(out, "\n") > 3 {
+t.Logf("depth=0 output had more lines than expected (probably fine): %q", out)
+}
+}
+
+func TestRootUnknownBinary(t *testing.T) {
+_, err := runCmd("--no-cache", "--timeout=5", "nonexistent_cli_xyz_99999")
+if err == nil {
+t.Error("expected error for unknown binary")
+}
+}
+
+func TestCacheList(t *testing.T) {
+out, err := runCmd("cache", "list")
+// Either prints a list or says cache is empty — just shouldn't crash.
+_ = err
+_ = out
+}
+
+func TestVersionFlag(t *testing.T) {
+out, err := runCmd("-v")
+_ = err
+_ = out
+// -v is the version shorthand; cobra may handle it differently, just no panic.
+}

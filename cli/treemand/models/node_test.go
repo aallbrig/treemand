@@ -159,3 +159,17 @@ func TestMarkInheritedFlags(t *testing.T) {
 		}
 	}
 }
+
+func TestNode_HasPositionals(t *testing.T) {
+n := &models.Node{
+Name:        "cmd",
+Positionals: []models.Positional{{Name: "arg", Required: true}},
+}
+if !n.HasPositionals() {
+t.Error("HasPositionals() should be true")
+}
+n2 := &models.Node{Name: "cmd2"}
+if n2.HasPositionals() {
+t.Error("HasPositionals() should be false when empty")
+}
+}

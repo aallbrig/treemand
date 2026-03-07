@@ -134,3 +134,116 @@ func TestRenderToString_icons(t *testing.T) {
 		t.Error("expected leaf icon • in output")
 	}
 }
+
+func TestRenderNode_flagStyles(t *testing.T) {
+// Exercise flagStyle branches: bool, string, int, other.
+root := &models.Node{
+Name:     "tool",
+FullPath: []string{"tool"},
+Flags: []models.Flag{
+{Name: "--flag-bool", ValueType: "bool"},
+{Name: "--flag-str", ValueType: "string"},
+{Name: "--flag-int", ValueType: "int"},
+{Name: "--flag-other", ValueType: "duration"},
+{Name: "--flag-empty", ValueType: ""},
+},
+}
+opts := render.DefaultOptions()
+opts.NoColor = true
+got, err := render.ToString(root, opts)
+if err != nil {
+t.Fatalf("ToString error: %v", err)
+}
+for _, name := range []string{"--flag-bool", "--flag-str", "--flag-int", "--flag-other"} {
+if !strings.Contains(got, name) {
+t.Errorf("expected flag %q in output", name)
+}
+}
+}
+
+func TestRenderNode_discoveryErr(t *testing.T) {
+root := &models.Node{
+Name:     "aws",
+FullPath: []string{"aws"},
+Children: []*models.Node{
+{
+Name:         "s3",
+FullPath:     []string{"aws", "s3"},
+DiscoveryErr: "could not get help: timeout",
+},
+},
+}
+opts := render.DefaultOptions()
+opts.NoColor = true
+got, err := render.ToString(root, opts)
+if err != nil {
+t.Fatalf("ToString error: %v", err)
+}
+// Should show subtle (?) indicator, NOT the full error text.
+if strings.Contains(got, "could not get help") {
+t.Error("full error text should not appear in rendered output")
+}
+if !strings.Contains(got, "(?)") {
+t.Error("expected (?) indicator for discovery error node")
+}
+}
+
+func TestRenderNode_stub(t *testing.T) {
+root := &models.Node{
+Name:     "aws",
+FullPath: []string{"aws"},
+Children: []*models.Node{
+{Name: "s3", FullPath: []string{"aws", "s3"}, Stub: true},
+},
+}
+opts := render.DefaultOptions()
+opts.NoColor = true
+got, err := render.ToString(root, opts)
+if err != nil {
+t.Fatalf("ToString error: %v", err)
+}
+if !strings.Contains(got, "(…)") {
+t.Error("expected (…) indicator for stub node")
+}
+}
+
+func TestRenderNode_commandsOnly_noPositionals(t *testing.T) {
+root := &models.Node{
+Name:     "tool",
+FullPath: []string{"tool"},
+Children: []*models.Node{
+{
+Name:        "run",
+FullPath:    []string{"tool", "run"},
+Flags:       []models.Flag{{Name: "--verbose", ValueType: "bool"}},
+Positionals: []models.Positional{{Name: "file", Required: true}},
+},
+},
+}
+opts := render.DefaultOptions()
+opts.NoColor = true
+opts.CommandsOnly = true
+got, err := render.ToString(root, opts)
+if err != nil {
+t.Fatalf("ToString error: %v", err)
+}
+// Positionals and flags should be absent.
+if strings.Contains(got, "<file>") || strings.Contains(got, "--verbose") {
+t.Error("commands-only mode should not show flags or positionals")
+}
+}
+
+func TestRenderNode_hasPositionals(t *testing.T) {
+n := &models.Node{
+Name:        "cmd",
+FullPath:    []string{"cmd"},
+Positionals: []models.Positional{{Name: "arg", Required: true}},
+}
+if !n.HasPositionals() {
+t.Error("HasPositionals() should return true")
+}
+n2 := &models.Node{Name: "cmd2", FullPath: []string{"cmd2"}}
+if n2.HasPositionals() {
+t.Error("HasPositionals() should return false when empty")
+}
+}
