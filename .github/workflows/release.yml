@@ -41,6 +41,11 @@ jobs:
             -X github.com/aallbrig/treemand/cmd.BuildDate=${BUILD_DATE}"
 
           mkdir -p dist
+
+          # Generate docs using a native linux/amd64 build first
+          CGO_ENABLED=0 go build -ldflags="${LDFLAGS}" -o dist/treemand_linux_amd64 .
+          ./dist/treemand_linux_amd64 gendocs --output-dir dist/docs
+
           for target in \
             "linux/amd64" "linux/arm64" \
             "darwin/amd64" "darwin/arm64" \
@@ -53,11 +58,13 @@ jobs:
             CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH \
               go build -ldflags="${LDFLAGS}" \
               -o dist/$outname .
-            # Create archive
+            # Create archive (include man page for non-Windows)
             if [ "$GOOS" = "windows" ]; then
               (cd dist && zip ${outname%.exe}.zip $outname)
             else
-              tar czf dist/treemand_${GOOS}_${GOARCH}.tar.gz -C dist $outname
+              tar czf dist/treemand_${GOOS}_${GOARCH}.tar.gz \
+                -C dist $outname \
+                -C docs/man treemand.1
             fi
           done
 

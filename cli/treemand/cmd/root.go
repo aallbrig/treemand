@@ -160,6 +160,7 @@ func Execute() {
 	rootCmd.SetVersionTemplate("{{.Version}}\n")
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(cacheCmd)
+	rootCmd.AddCommand(genDocsCmd)
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		os.Exit(1)

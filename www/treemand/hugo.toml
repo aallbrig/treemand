@@ -23,3 +23,8 @@ theme = "minimal"
     name = "Getting Started"
     url = "/getting-started/"
     weight = 3
+  [[menu.main]]
+    identifier = "reference"
+    name = "Reference"
+    url = "/reference/"
+    weight = 4
