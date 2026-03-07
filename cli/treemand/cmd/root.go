@@ -263,5 +263,9 @@ func NewRootCmd() *cobra.Command {
 	c.PersistentFlags().IntVar(&cfgLineLength, "line-length", 0, "Max description line length")
 	c.PersistentFlags().IntVar(&cfgStubThreshold, "stub-threshold", 0, "Stub threshold")
 	c.AddCommand(versionCmd)
+	c.AddCommand(cacheCmd)
+	c.AddCommand(genDocsCmd)
+	c.AddCommand(completionCmd)
+	c.ValidArgsFunction = completeCLIName
 	return c
 }

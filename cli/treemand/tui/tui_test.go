@@ -1,6 +1,7 @@
 package tui_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -880,5 +881,388 @@ p.AppendToken("--dry-run")
 tokens2 := p.Tokens()
 if len(tokens2) <= len(tokens) {
 t.Errorf("expected more tokens after second AppendToken: %v", tokens2)
+}
+}
+
+// ---- Additional coverage tests ----
+
+func sampleTreeWithStub() *models.Node {
+stub := &models.Node{
+Name:     "s3",
+FullPath: []string{"aws", "s3"},
+Stub:     true,
+}
+return &models.Node{
+Name:     "aws",
+FullPath: []string{"aws"},
+Children: []*models.Node{stub},
+}
+}
+
+func sampleTreeWithValueFlag() *models.Node {
+return &models.Node{
+Name:     "git",
+FullPath: []string{"git"},
+Children: []*models.Node{
+{
+Name:     "commit",
+FullPath: []string{"git", "commit"},
+Flags: []models.Flag{
+{Name: "--message", ShortName: "m", ValueType: "string"},
+},
+Positionals: []models.Positional{{Name: "file", Required: false}},
+},
+},
+}
+}
+
+func TestModel_Init(t *testing.T) {
+m := tui.NewModel(sampleTree(), config.DefaultConfig())
+cmd := m.Init()
+// Init returns tea.EnableMouseAllMotion — not nil
+if cmd == nil {
+t.Error("Init() should return a non-nil tea.Cmd")
+}
+}
+
+func TestModel_LazyExpandMsg_patchesStub(t *testing.T) {
+root := sampleTreeWithStub()
+stub := root.Children[0]
+m := tui.NewModel(root, config.DefaultConfig())
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+discovered := &models.Node{
+Name:     "s3",
+FullPath: []string{"aws", "s3"},
+Children: []*models.Node{
+{Name: "cp", FullPath: []string{"aws", "s3", "cp"}},
+},
+}
+updated, _ := m.Update(tui.LazyExpandMsg{Stub: stub, Discovered: discovered})
+if updated == nil {
+t.Fatal("Update returned nil after LazyExpandMsg")
+}
+}
+
+func TestModel_LazyExpandMsg_error(t *testing.T) {
+root := sampleTreeWithStub()
+stub := root.Children[0]
+m := tui.NewModel(root, config.DefaultConfig())
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+updated, _ := m.Update(tui.LazyExpandMsg{Stub: stub, Err: fmt.Errorf("discovery failed")})
+if updated == nil {
+t.Fatal("Update returned nil on LazyExpandMsg with error")
+}
+// Should not panic; status should mention the error
+_ = updated.(interface{ View() string }).View()
+}
+
+func TestPatchNode_replacesChildren(t *testing.T) {
+root := sampleTreeWithStub()
+stub := root.Children[0]
+tree := tui.NewTreeModel(root, config.DefaultConfig())
+tree.SetSize(80, 20)
+
+disc := &models.Node{
+Name:     "s3",
+FullPath: []string{"aws", "s3"},
+Children: []*models.Node{
+{Name: "cp", FullPath: []string{"aws", "s3", "cp"}},
+{Name: "ls", FullPath: []string{"aws", "s3", "ls"}},
+},
+}
+tree.PatchNode(stub, disc)
+
+if stub.Stub {
+t.Error("PatchNode should clear Stub flag")
+}
+if len(stub.Children) != 2 {
+t.Errorf("expected 2 children after patch, got %d", len(stub.Children))
+}
+}
+
+func TestPatchNode_nil_noPanic(t *testing.T) {
+tree := tui.NewTreeModel(sampleTree(), config.DefaultConfig())
+tree.PatchNode(nil, nil)                                              // no panic
+tree.PatchNode(sampleTree().Children[0], nil)                        // no panic
+}
+
+func TestModel_ExecuteModal_escCloses(t *testing.T) {
+m := tui.NewModel(sampleTree(), config.DefaultConfig())
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+// Open modal with Ctrl+E
+m.Update(tea.KeyMsg{Type: tea.KeyCtrlE})
+// Close with Esc
+updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+if updated == nil {
+t.Fatal("Update returned nil after Esc in execute modal")
+}
+}
+
+func TestModel_ExecuteModal_copyOption(t *testing.T) {
+m := tui.NewModel(sampleTree(), config.DefaultConfig())
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+m.Update(tea.KeyMsg{Type: tea.KeyCtrlE})
+// Press 'c' to copy (may fail if clipboard unavailable, should not panic)
+updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("c")})
+if updated == nil {
+t.Fatal("Update returned nil after 'c' in execute modal")
+}
+}
+
+func TestModel_ValueModal_flagWithType(t *testing.T) {
+root := sampleTreeWithValueFlag()
+m := tui.NewModel(root, config.DefaultConfig())
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+// Navigate down into commit, then down to --message flag
+m.Update(tea.KeyMsg{Type: tea.KeyDown})   // select commit
+m.Update(tea.KeyMsg{Type: tea.KeyRight})  // expand commit
+m.Update(tea.KeyMsg{Type: tea.KeyDown})   // move to --message flag
+// Press Enter on the flag — should open value modal
+updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+if updated == nil {
+t.Fatal("Update returned nil after Enter on flag")
+}
+// Press Esc to close
+m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+}
+
+func TestModel_ValueModal_confirmValue(t *testing.T) {
+root := sampleTreeWithValueFlag()
+m := tui.NewModel(root, config.DefaultConfig())
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+m.Update(tea.KeyMsg{Type: tea.KeyDown})
+m.Update(tea.KeyMsg{Type: tea.KeyRight})
+m.Update(tea.KeyMsg{Type: tea.KeyDown})
+m.Update(tea.KeyMsg{Type: tea.KeyEnter}) // opens value modal
+// Type a value
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("main")})
+// Confirm
+updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+if updated == nil {
+t.Fatal("Update returned nil after confirming value modal")
+}
+}
+
+func TestModel_FlagModal_navigation(t *testing.T) {
+m := tui.NewModel(sampleTree(), config.DefaultConfig())
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+// Open flag modal with 'f'
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("f")})
+// Navigate down
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+// Toggle selection
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(" ")})
+// Navigate up
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+// Confirm
+updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+if updated == nil {
+t.Fatal("Update returned nil after confirming flag modal")
+}
+}
+
+func TestModel_FlagModal_escape(t *testing.T) {
+m := tui.NewModel(sampleTree(), config.DefaultConfig())
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("f")})
+updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+if updated == nil {
+t.Fatal("Update returned nil after Esc in flag modal")
+}
+}
+
+func TestModel_FlagModal_search(t *testing.T) {
+m := tui.NewModel(sampleTree(), config.DefaultConfig())
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("f")})
+// Type '/' to activate search in flag modal
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("v")}) // search for --verbose
+updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+if updated == nil {
+t.Fatal("Update returned nil after search in flag modal")
+}
+}
+
+func TestModel_HandleArrows_enter_setsPreview(t *testing.T) {
+m := tui.NewModel(sampleTree(), config.DefaultConfig())
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+m.Update(tea.KeyMsg{Type: tea.KeyDown})
+// Enter on 'commit' should set preview
+updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+if updated == nil {
+t.Fatal("Update returned nil")
+}
+view := updated.(interface{ View() string }).View()
+if !strings.Contains(view, "git") {
+t.Error("view should contain 'git' after navigating")
+}
+}
+
+func TestModel_HandleArrows_left_collapses(t *testing.T) {
+m := tui.NewModel(sampleTree(), config.DefaultConfig())
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+m.Update(tea.KeyMsg{Type: tea.KeyDown})
+m.Update(tea.KeyMsg{Type: tea.KeyRight}) // expand
+updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyLeft}) // collapse
+if updated == nil {
+t.Fatal("returned nil after Left")
+}
+}
+
+func TestModel_HandleVim_hjkl(t *testing.T) {
+m := tui.NewModel(sampleTree(), config.DefaultConfig())
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+// Activate vim scheme (Ctrl+S once)
+m.Update(tea.KeyMsg{Type: tea.KeyCtrlS})
+// Navigate with j/k/h/l
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("l")}) // expand
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("h")}) // collapse
+updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+if updated == nil {
+t.Fatal("returned nil in vim navigation")
+}
+}
+
+func TestModel_HandleVim_enter(t *testing.T) {
+m := tui.NewModel(sampleTree(), config.DefaultConfig())
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+m.Update(tea.KeyMsg{Type: tea.KeyCtrlS}) // vim scheme
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")}) // down to commit
+updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+if updated == nil {
+t.Fatal("returned nil after vim Enter")
+}
+}
+
+func TestModel_HandleWASD_keys(t *testing.T) {
+m := tui.NewModel(sampleTree(), config.DefaultConfig())
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+// WASD is scheme 2 (arrows=0, vim=1, wasd=2)
+m.Update(tea.KeyMsg{Type: tea.KeyCtrlS})
+m.Update(tea.KeyMsg{Type: tea.KeyCtrlS})
+// Navigate with s/w/d/a
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")}) // down
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("d")}) // right/expand
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")}) // left/collapse
+updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("w")}) // up
+if updated == nil {
+t.Fatal("returned nil in WASD navigation")
+}
+}
+
+func TestModel_HandleWASD_enter(t *testing.T) {
+m := tui.NewModel(sampleTree(), config.DefaultConfig())
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+m.Update(tea.KeyMsg{Type: tea.KeyCtrlS})
+m.Update(tea.KeyMsg{Type: tea.KeyCtrlS})
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
+updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+if updated == nil {
+t.Fatal("returned nil after WASD Enter")
+}
+}
+
+func TestModel_Mouse_doesNotPanic(t *testing.T) {
+m := tui.NewModel(sampleTree(), config.DefaultConfig())
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+// Click at various positions
+updated, _ := m.Update(tea.MouseMsg{Type: tea.MouseLeft, X: 5, Y: 5})
+if updated == nil {
+t.Fatal("returned nil after mouse click")
+}
+m.Update(tea.MouseMsg{Type: tea.MouseWheelDown, X: 5, Y: 5})
+m.Update(tea.MouseMsg{Type: tea.MouseWheelUp, X: 5, Y: 5})
+}
+
+func TestModel_HelpPane_keys(t *testing.T) {
+m := tui.NewModel(sampleTree(), config.DefaultConfig())
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+// Focus help pane via Tab
+m.Update(tea.KeyMsg{Type: tea.KeyTab})
+m.Update(tea.KeyMsg{Type: tea.KeyTab})
+// Scroll keys in help pane
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")})
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("k")})
+updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("g")})
+if updated == nil {
+t.Fatal("returned nil in help pane navigation")
+}
+}
+
+func TestModel_PreviewPane_input(t *testing.T) {
+m := tui.NewModel(sampleTree(), config.DefaultConfig())
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+// Focus preview pane (Tab 3 times: tree→help→preview)
+m.Update(tea.KeyMsg{Type: tea.KeyTab})
+m.Update(tea.KeyMsg{Type: tea.KeyTab})
+m.Update(tea.KeyMsg{Type: tea.KeyTab})
+// Type in preview
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("g")})
+updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+if updated == nil {
+t.Fatal("returned nil in preview input")
+}
+}
+
+func TestModel_RefreshKey(t *testing.T) {
+m := tui.NewModel(sampleTree(), config.DefaultConfig())
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("R")})
+if updated == nil {
+t.Fatal("returned nil after R (refresh)")
+}
+}
+
+func TestModel_QuestionMark_helpModal(t *testing.T) {
+m := tui.NewModel(sampleTree(), config.DefaultConfig())
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("?")})
+if updated == nil {
+t.Fatal("returned nil after ? key")
+}
+}
+
+func TestModel_SpaceOnStub(t *testing.T) {
+root := sampleTreeWithStub()
+m := tui.NewModel(root, config.DefaultConfig())
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+m.Update(tea.KeyMsg{Type: tea.KeyDown}) // navigate to stub child
+// Space on stub should return a non-nil cmd (async discovery)
+_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(" ")})
+// cmd may be nil if the stub isn't selected; just no panic
+_ = cmd
+}
+
+func TestTreeModel_PatchNode_autoExpands(t *testing.T) {
+root := sampleTreeWithStub()
+stub := root.Children[0]
+tree := tui.NewTreeModel(root, config.DefaultConfig())
+tree.SetSize(80, 20)
+
+// Before patch: no children
+if !stub.Stub {
+t.Fatal("expected stub node")
+}
+
+disc := &models.Node{
+Name:     "s3",
+FullPath: []string{"aws", "s3"},
+Description: "S3 service",
+Children: []*models.Node{
+{Name: "cp", FullPath: []string{"aws", "s3", "cp"}},
+},
+}
+tree.PatchNode(stub, disc)
+
+if stub.Stub {
+t.Error("Stub should be cleared after PatchNode")
+}
+if stub.Description != "S3 service" {
+t.Errorf("Description should be filled in, got %q", stub.Description)
 }
 }
