@@ -38,13 +38,42 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "treemand <cli>",
 	Short: "Visualize CLI command hierarchies as a tree",
-	Long: `treemand discovers and visualizes CLI command hierarchies.
+	Long: `treemand discovers and visualizes any CLI tool as a command tree.
+
+Point it at any binary and it maps out subcommands, flags, and positionals
+by probing the tool's own --help output — no plugins, no config files.
+
+  treemand git            prints a colored ASCII tree of git's commands
+  treemand -i aws         opens an interactive TUI to explore aws
+
+Non-interactive output includes inline flags, positional arguments, and
+short descriptions. Large CLIs (aws, kubectl) create stub nodes on first
+run — use -i to expand them on demand, or increase --depth.
+
+Interactive TUI controls (press ? inside TUI for full help):
+  ↑↓ / j k    navigate tree        Space / Enter  add node to command
+  h H          toggle help pane     f              pick a flag
+  /            fuzzy filter         Ctrl+E         copy / execute
+  Esc          quit
+
+Discovery strategies (--strategy):
+  help          parse --help output (default, works on nearly every CLI)
+  completions   use shell completion data (richer flag metadata)
+
+Output formats (--output):
+  text          colored tree (default)
+  json          machine-readable full tree with flags and descriptions
 
 Examples:
-  treemand git                  # Non-interactive tree for git
-  treemand -i aws               # Interactive TUI for aws
-  treemand --depth=2 kubectl    # Tree limited to 2 levels
-  treemand --output=json git    # JSON output`,
+  treemand git                        # full git tree
+  treemand -i aws                     # interactive aws explorer
+  treemand --depth=2 kubectl          # kubectl tree, 2 levels deep
+  treemand --commands-only docker     # subcommands only, no flags
+  treemand --output=json gh | jq .    # pipe JSON to jq
+  treemand --filter=remote git        # only show nodes matching "remote"
+  treemand treemand                   # introspect treemand itself
+
+Docs: https://aallbrig.github.io/treemand`,
 	Args:          cobra.ExactArgs(1),
 	SilenceErrors: true,
 	SilenceUsage:  true,
