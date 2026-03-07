@@ -7,52 +7,50 @@ title: "Getting Started"
 Discover and visualize any CLI command hierarchy:
 
 ```bash
-# Explore git
-treemand git
-
-# Explore kubectl
-treemand kubectl
-
-# Explore the AWS CLI
-treemand aws
-
-# Explore treemand itself
-treemand treemand
+treemand git          # explore git
+treemand kubectl      # explore kubectl
+treemand aws          # explore the AWS CLI
+treemand treemand     # introspect treemand itself
 ```
 
-## Non-Interactive Mode
+## Non-Interactive Output
 
 ```
-▼ git  the version control system
+▼ git  [--version --verbose]
 ├── ▼ remote
 │   ├── • add <name> <url>
 │   ├── • remove <name>
 │   └── • get-url <name>
-├── • commit [-m <message>] [file]
+├── • commit [--message=<string>]
 ├── • status
 └── • push [--force]
 ```
 
-### Flags
+### Useful Flags
 
 ```bash
-# Limit tree depth
-treemand --depth=2 git
+treemand --depth=2 kubectl          # limit tree depth
+treemand --filter=remote git        # only show matching nodes
+treemand --exclude=help git         # exclude nodes by name
+treemand --commands-only kubectl    # subcommands only, no flags
+treemand --output=json git          # machine-readable JSON
+treemand --no-color git             # disable color
+treemand --icons=ascii git          # ASCII-safe icon set (no Unicode)
+treemand --icons=nerd git           # Nerd Font icons (requires patched font)
+```
 
-# Filter to matching nodes
-treemand --filter=remote git
+### Stub Nodes
 
-# Exclude certain nodes
-treemand --exclude=help git
+Large CLIs (aws: 400+ services, gcloud: 300+ groups) would take minutes to
+fully explore. treemand creates **stub nodes** `(…)` for commands with many
+children, then discovers them lazily.
 
-# Show commands only (no flags/positionals)
-treemand --commands-only kubectl
+```bash
+# Explore a specific service directly instead of the full tree
+treemand aws s3
 
-# Output as JSON
-treemand --output=json git > git-tree.json
-
-# Disable color
-treemand --no-color git
+# Force full eager discovery (slow — use with care)
+treemand --stub-threshold=500 aws
 ```
 
 ## Interactive TUI (`-i`)
@@ -61,61 +59,57 @@ treemand --no-color git
 treemand -i git
 ```
 
-The TUI gives you a full explorer:
-
-```
-┌─ Preview ─────────────────────────────────────────────┐
-│ git remote add <name> <url>                           │
-└───────────────────────────────────────────────────────┘
-┌─ Tree: git ──────────────┐ ┌─ Help: remote ──────────┐
-│ ▼ git                    │ │ Manage remotes           │
-│   ▼ remote               │ │                          │
-│ ▶ ● add <name> <url>     │ │ Subcommands:             │
-│   • remove <name>        │ │   add, remove, get-url   │
-└──────────────────────────┘ └─────────────────────────┘
-  git remote add  nav:arrows  ?:help  /:filter  q:quit
-```
+The TUI gives you a live explorer with a preview bar, tree pane, and help pane.
 
 ### Keyboard Controls
 
 | Key | Action |
 |-----|--------|
-| `↑`/`↓` | Navigate tree |
-| `→`/`Space`/`Enter` | Expand node |
-| `←` | Collapse node |
+| `↑`/`↓` or `j`/`k` | Navigate tree |
+| `→`/`Space`/`Enter` | Expand / add to command |
+| `←` | Collapse |
 | `Ctrl+S` | Cycle nav scheme (arrows → vim → WASD) |
 | `/` | Fuzzy filter |
 | `H` | Toggle help pane |
-| `?` | Show key bindings |
-| `Ctrl+P` | Toggle panes |
-| `R` | Refresh node |
-| `q`/`Esc` | Quit |
+| `f` / `F` | Open flags modal |
+| `p` / `P` | Open positionals modal |
+| `Ctrl+E` | Copy or execute command |
+| `?` | Show all key bindings |
+| `q` / `Esc` | Quit |
 
-### Navigation Schemes
+## Configuration
 
-Toggle between three schemes with **Ctrl+S**:
-- **Arrows** — `↑↓←→`
-- **Vim** — `hjkl`
-- **WASD** — `wasd`
+treemand reads `~/.config/treemand/config.yaml` (XDG standard) or
+`~/.treemand/config.yaml` as a fallback.
+
+```yaml
+# ~/.config/treemand/config.yaml
+icons: ascii          # unicode (default) | ascii | nerd
+desc_line_length: 80  # max chars before description is truncated
+stub_threshold: 50    # subcommand count before switching to stub nodes
+
+colors:
+  subcmd: "#5EA4F5"
+  flag: "#50FA7B"
+```
+
+Precedence: **CLI flags > environment variables > config file > defaults**
 
 ## Caching
 
-Discovery results are cached in `~/.treemand/cache.db` for 24 hours.
+Results are cached in `~/.treemand/cache.db` for 24 hours.
 
 ```bash
-# Bypass cache
-treemand --no-cache git
-
-# Cache location can be changed via environment variable
-TREEMAND_CACHE_DIR=/tmp/treemand treemand git
+treemand --no-cache git                        # bypass cache
+TREEMAND_CACHE_DIR=/tmp/treemand treemand git  # custom cache dir
+treemand cache list                            # show cached CLIs
+treemand cache clear git                       # clear one entry
 ```
 
 ## Discovery Strategies
 
 ```bash
-# Default: --help recursion
-treemand -s help git
-
-# Future: shell completions (coming soon)
-treemand -s completions kubectl
+treemand -s help git          # default: --help recursion
+treemand -s man git           # man page parser (richer descriptions)
+treemand -s help,man git      # combine strategies, merge results
 ```

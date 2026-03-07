@@ -31,6 +31,9 @@ title: "Treemand"
 - 🎨 **Colored output** — syntax-highlighted tree with configurable color schemes
 - 🖥️ **Interactive TUI** (`-i`) — k9s-inspired explorer with live preview, keyboard + mouse
 - 💾 **Caching** — SQLite cache for instant repeat lookups
+- 🎭 **Configurable icons** — unicode (default), ASCII-safe, or Nerd Font icon sets
+- ⚙️ **Config file** — `~/.config/treemand/config.yaml` for persistent settings
+- 🔁 **Shell completions** — bash, zsh, fish, PowerShell (with cache-aware CLI suggestions)
 - 📦 **Zero config** — works with any CLI out of the box
 - 🔄 **Self-dogfooding** — `treemand treemand` works!
 
@@ -45,6 +48,9 @@ treemand -i kubectl
 
 # Limit depth
 treemand --depth=2 aws
+
+# ASCII-safe output (no Unicode)
+treemand --icons=ascii docker
 
 # JSON output
 treemand --output=json docker
