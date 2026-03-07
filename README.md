@@ -13,7 +13,7 @@ treemand introspects any CLI tool's `--help` output and renders its full command
 ## Install
 
 ```bash
-# Homebrew (macOS / Linux)
+# Homebrew (macOS / Linux) — tap: https://github.com/aallbrig/homebrew-tap
 brew tap aallbrig/tap
 brew install treemand
 
