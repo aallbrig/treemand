@@ -2,10 +2,17 @@
 title: "Installation"
 ---
 
-## Go Install (recommended)
+## Homebrew (macOS / Linux)
 
 ```bash
-go install github.com/aallbrig/treemand@latest
+brew tap aallbrig/tap
+brew install treemand
+```
+
+## Go Install
+
+```bash
+go install github.com/aallbrig/treemand/cli/treemand@latest
 ```
 
 Requires Go 1.22+. The binary is placed in `$GOPATH/bin` (usually `~/go/bin`).
