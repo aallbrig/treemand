@@ -318,3 +318,115 @@ OPTIONS
 		t.Errorf("expected clean description, got %q", parsed.Description)
 	}
 }
+
+// mockGoHelp mimics `go --help` output (tab-indented subcommand list).
+const mockGoHelp = `Go is a tool for managing Go source code.
+
+Usage:
+
+	go <command> [arguments]
+
+The commands are:
+
+	bug         start a bug report
+	build       compile packages and dependencies
+	clean       remove object files and cached files
+	doc         show documentation for package or symbol
+	env         print Go environment information
+	fmt         gofmt (reformat) package sources
+	get         add dependencies to current module and install them
+	install     compile and install packages and dependencies
+	mod         module maintenance
+	run         compile and run Go program
+	test        test packages
+	vet         report likely mistakes in packages
+
+Use "go help <command>" for more information about a command.
+`
+
+func TestParseHelpOutput_go_tab_subcommands(t *testing.T) {
+	p := discovery.ParseHelpOutput(mockGoHelp)
+	wantSubs := []string{"bug", "build", "clean", "doc", "env", "fmt", "get", "install", "mod", "run", "test", "vet"}
+	found := map[string]bool{}
+	for _, s := range p.Subcommands {
+		found[s] = true
+	}
+	for _, want := range wantSubs {
+		if !found[want] {
+			t.Errorf("expected subcommand %q in go help, got %v", want, p.Subcommands)
+		}
+	}
+	if p.Description == "" {
+		t.Error("expected non-empty description for go")
+	}
+}
+
+// mockNpmHelp mimics `npm --help` output (comma-separated command list).
+const mockNpmHelp = `npm <command>
+
+Usage:
+
+npm install        install all the dependencies in your project
+npm test           run this project's tests
+
+All commands:
+
+    access, adduser, audit, bugs, cache, ci, completion,
+    config, dedupe, diff, dist-tag, docs, exec,
+    help, init, install, link, login, logout, ls,
+    outdated, publish, run, search, start, stop, test,
+    uninstall, update, version, view, whoami
+`
+
+func TestParseHelpOutput_npm_comma_subcommands(t *testing.T) {
+	p := discovery.ParseHelpOutput(mockNpmHelp)
+	wantSubs := []string{"access", "audit", "ci", "config", "diff", "dist-tag", "exec", "install", "publish", "version"}
+	found := map[string]bool{}
+	for _, s := range p.Subcommands {
+		found[s] = true
+	}
+	for _, want := range wantSubs {
+		if !found[want] {
+			t.Errorf("expected subcommand %q in npm help, got %v", want, p.Subcommands)
+		}
+	}
+}
+
+// mockOpensslHelp mimics `openssl help` / `openssl --help` output (multi-column grid).
+const mockOpensslHelp = `help:
+
+Standard commands
+asn1parse         ca                ciphers           cmp               
+cms               crl               crl2pkcs7         dgst              
+enc               genpkey           genrsa            help              
+list              pkcs12            pkcs7             pkcs8             
+req               rsa               s_client          s_server          
+verify            version           x509              
+
+Message Digest commands (see the 'dgst' command for more details)
+blake2b512        md5               sha1              sha256            
+sha512            
+
+Cipher commands (see the 'enc' command for more details)
+aes-128-cbc       aes-256-cbc       des3              rc4               
+`
+
+func TestParseHelpOutput_openssl_grid_subcommands(t *testing.T) {
+	p := discovery.ParseHelpOutput(mockOpensslHelp)
+	wantSubs := []string{"asn1parse", "ca", "ciphers", "cmp", "enc", "genrsa", "pkcs12", "req", "rsa", "s_client", "verify", "x509"}
+	found := map[string]bool{}
+	for _, s := range p.Subcommands {
+		found[s] = true
+	}
+	for _, want := range wantSubs {
+		if !found[want] {
+			t.Errorf("expected subcommand %q in openssl help, got %v", want, p.Subcommands)
+		}
+	}
+	// Digest and cipher commands should also be found
+	for _, want := range []string{"md5", "sha256", "aes-128-cbc", "des3"} {
+		if !found[want] {
+			t.Errorf("expected subcommand %q (digest/cipher section), got %v", want, p.Subcommands)
+		}
+	}
+}

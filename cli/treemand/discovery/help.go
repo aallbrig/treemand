@@ -200,7 +200,7 @@ func (h *HelpDiscoverer) runHelp(ctx context.Context, cliName string, args []str
 	for _, flag := range []string{"--help", "-h"} {
 		cmdArgs := append(append([]string{}, args...), flag)
 		s := run(cmdArgs)
-		if s == "" {
+		if s == "" || isErrorOutput(s) {
 			continue
 		}
 		// Detect truncated help (e.g. curl) and retry with --help all.
@@ -215,15 +215,12 @@ func (h *HelpDiscoverer) runHelp(ctx context.Context, cliName string, args []str
 		}
 	}
 
-	// Fallback: some CLIs (aws, man-page wrappers) use `<cli> [sub...] help`
+	// Fallback: some CLIs (aws, go-style, man-page wrappers) use `<cli> [sub...] help`
 	// as a positional rather than a flag.
 	if firstOut == "" {
 		helpArgs := append(append([]string{}, args...), "help")
-		if s := run(helpArgs); s != "" {
-			// Avoid returning the parent's "how to get help" message as content.
-			if !strings.Contains(strings.ToLower(s), "aws help\n  aws") {
-				firstOut = s
-			}
+		if s := run(helpArgs); s != "" && !isErrorOutput(s) {
+			firstOut = s
 		}
 	}
 
@@ -274,6 +271,11 @@ var sectionHeaders = map[string]string{
 	"management command":  secCommands,
 	"commands":            secCommands,
 	"subcommands":         secCommands,
+	"the commands are":    secCommands, // Go toolchain style: "The commands are:"
+	"all commands":        secCommands, // npm style: "All commands:"
+	"standard commands":        secCommands, // openssl style: "Standard commands"
+	"message digest commands":  secCommands, // openssl: "Message Digest commands"
+	"cipher commands":          secCommands, // openssl: "Cipher commands"
 	"flags":               secFlags,
 	"options":             secFlags,
 	"global flags":        secFlags,
@@ -289,8 +291,10 @@ var sectionHeaders = map[string]string{
 	"aliases":             secAliases,
 }
 
-// awsBulletRe matches AWS man-page bullet list items: "       +o word"
-var awsBulletRe = regexp.MustCompile(`^\s{2,}\+o\s+([a-z][a-z0-9_-]*)$`)
+// awsBulletRe matches AWS man-page bullet list items.
+// After stripping man-page bold formatting, "+o word" bullets appear as either
+// "+o word" (plain text) or "o word" (when the "o" was rendered bold via backspace).
+var awsBulletRe = regexp.MustCompile(`^\s{2,}(?:\+o|o)\s+([a-z][a-z0-9_-]*)$`)
 
 // awsFlagRe matches AWS man-page flag lines: "       --flag (type)"
 var awsFlagRe = regexp.MustCompile(`^\s{2,}(--[A-Za-z][A-Za-z0-9_-]*)\s+\(([^)]+)\)\s*$`)
@@ -326,18 +330,57 @@ var (
 	optArgRe = regexp.MustCompile(`\[([A-Za-z][A-Za-z0-9_.-]*)(?:\.{3})?\]`)
 	// URL in help text
 	urlRe = regexp.MustCompile(`https?://[^\s]+`)
-	// ANSI escape codes (colors, etc.)
-	ansiRe = regexp.MustCompile(`\x1b\[[0-9;]*[mGKHF]`)
 )
+
+// ansiRe matches ANSI terminal escape codes (colors, etc.)
+var ansiRe = regexp.MustCompile(`\x1b\[[0-9;]*[mGKHF]`)
+
+// manpageBoldRe matches man-page backspace-based bold/underline sequences.
+// Man pages encode bold as "char\bchar" and underline as "_\bchar".
+// Replacing "char\b" with "" leaves only the visible character.
+var manpageBoldRe = regexp.MustCompile(`.\x08`)
 
 // buildMarkerRe matches Godot-style build-availability markers at the start of
 // a flag description: a single uppercase letter (R/D/X/E) followed by 2+ spaces.
 // e.g. "R  Display this help message." → "Display this help message."
 var buildMarkerRe = regexp.MustCompile(`^[A-Z]\s{2,}`)
 
+// goTabSubcmdRe matches Go toolchain style tab-indented subcommand lines:
+//
+//	\tbug         start a bug report
+var goTabSubcmdRe = regexp.MustCompile(`^\t([a-z][a-z0-9_-]*)(?:\s{2,}(.+))?$`)
+
+// validCmdNameRe matches a bare command name (npm comma-separated list entries).
+var validCmdNameRe = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
+
+// gridCmdRe matches a multi-column grid entry (openssl style): lowercase word, min 2 chars.
+var gridCmdRe = regexp.MustCompile(`^[a-z][a-z0-9_-]+$`)
+
 // stripBuildMarker removes a leading build-availability marker if present.
 func stripBuildMarker(s string) string {
 	return strings.TrimSpace(buildMarkerRe.ReplaceAllString(s, ""))
+}
+
+// allGridEntries reports whether every token in parts looks like a command name.
+// Used to detect openssl-style multi-column grids of subcommands.
+func allGridEntries(parts []string) bool {
+	for _, p := range parts {
+		if !gridCmdRe.MatchString(p) {
+			return false
+		}
+	}
+	return true
+}
+
+// isErrorOutput reports whether s looks like a CLI error message rather than
+// help text. Used to skip error output from CLIs (e.g. aws) that print an
+// error instead of help when --help is passed without a required argument.
+func isErrorOutput(s string) bool {
+	first := strings.ToLower(strings.SplitN(strings.TrimSpace(s), "\n", 2)[0])
+	return strings.Contains(first, "[error]") ||
+		strings.HasPrefix(first, "error:") ||
+		strings.HasPrefix(first, "unknown command") ||
+		strings.HasPrefix(first, "invalid command")
 }
 
 // skipSubcmdWords are words that look like subcommands but aren't.
@@ -352,10 +395,17 @@ func stripANSI(s string) string {
 	return ansiRe.ReplaceAllString(s, "")
 }
 
+// stripManpageFormatting removes backspace-based bold/underline sequences used
+// by groff/man output. Example: "+\bo" (bold o rendered on top of +) → "o".
+func stripManpageFormatting(s string) string {
+	return manpageBoldRe.ReplaceAllString(s, "")
+}
+
 // ParseHelpOutput parses --help output into structured ParsedHelp.
 // Exported so it can be tested directly.
 func ParseHelpOutput(text string) ParsedHelp {
 	text = stripANSI(text)
+	text = stripManpageFormatting(text)
 	var result ParsedHelp
 	lines := strings.Split(text, "\n")
 	section := secNone
@@ -425,6 +475,23 @@ func ParseHelpOutput(text string) ParsedHelp {
 			inNameSection = (sec == secName)
 			continue
 		}
+		// Multi-column command grid (openssl style): when already inside a commands
+		// section, non-indented lines may be whitespace-separated columns of command
+		// names. Handle these BEFORE the section-reset check so they don't incorrectly
+		// reset the section.
+		if section == secCommands && trimmed != "" &&
+			!strings.HasPrefix(rawLine, " ") && !strings.HasPrefix(rawLine, "\t") {
+			parts := strings.Fields(rawLine)
+			if len(parts) >= 2 && allGridEntries(parts) {
+				for _, p := range parts {
+					if !seenSubs[p] && !skipSubcmdWords[p] {
+						seenSubs[p] = true
+						result.Subcommands = append(result.Subcommands, p)
+					}
+				}
+				continue
+			}
+		}
 		// A non-indented non-empty line resets the section — EXCEPT for
 		// man-page headers that are themselves section detectors (handled above).
 		// We only reset when it's clearly not a section header.
@@ -489,6 +556,44 @@ func ParseHelpOutput(text string) ParsedHelp {
 				addFlag(f)
 			}
 		case secCommands:
+			// Tab-indented subcommand (Go toolchain style): "\tbug  start a bug report"
+			if m := goTabSubcmdRe.FindStringSubmatch(rawLine); m != nil {
+				name := m[1]
+				if !seenSubs[name] && !skipSubcmdWords[name] {
+					seenSubs[name] = true
+					result.Subcommands = append(result.Subcommands, name)
+				}
+				continue
+			}
+			// Comma-separated command list (npm style): "  access, adduser, audit, ..."
+			// Only fire when every comma-delimited token is a valid bare command name.
+			// This prevents matching description text like "by file names, stdin, resources".
+			if strings.Contains(rawLine, ",") && !strings.HasPrefix(trimmed, "-") {
+				parts := strings.Split(rawLine, ",")
+				var names []string
+				allValid := true
+				for _, part := range parts {
+					name := strings.TrimSpace(part)
+					if name == "" {
+						continue
+					}
+					if validCmdNameRe.MatchString(name) {
+						names = append(names, name)
+					} else {
+						allValid = false
+						break
+					}
+				}
+				if allValid && len(names) > 0 {
+					for _, name := range names {
+						if !seenSubs[name] && !skipSubcmdWords[name] {
+							seenSubs[name] = true
+							result.Subcommands = append(result.Subcommands, name)
+						}
+					}
+					continue
+				}
+			}
 			// AWS man-page bullet: "       +o subcmd"
 			if m := awsBulletRe.FindStringSubmatch(rawLine); m != nil {
 				name := m[1]
@@ -557,6 +662,16 @@ func detectSection(lower string) string {
 	// Exact match handles most cases ("flags", "commands", "global options", etc.)
 	if s, ok := sectionHeaders[candidate]; ok {
 		return s
+	}
+
+	// Handle headers with parenthetical suffixes, e.g. openssl's
+	// "Cipher commands (see the 'enc' command for more details)".
+	// Strip everything from " (" onward and re-check.
+	if idx := strings.Index(candidate, " ("); idx > 0 {
+		prefix := strings.TrimSpace(candidate[:idx])
+		if s, ok := sectionHeaders[prefix]; ok {
+			return s
+		}
 	}
 
 	// Prefix/suffix match for compound headers like "general options:",
