@@ -81,6 +81,112 @@ jobs:
             cli/treemand/dist/checksums.txt
           generate_release_notes: true
 
+  update-homebrew:
+    name: Update Homebrew Tap
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+      - name: Download checksums from release
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          BASE="https://github.com/aallbrig/treemand/releases/download/${VERSION}"
+          curl -sL "${BASE}/checksums.txt" -o checksums.txt
+          cat checksums.txt
+
+      - name: Parse checksums
+        id: sums
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          get_sha() { grep "$1" checksums.txt | awk '{print $1}'; }
+          echo "darwin_amd64=$(get_sha treemand_darwin_amd64.tar.gz)" >> $GITHUB_OUTPUT
+          echo "darwin_arm64=$(get_sha treemand_darwin_arm64.tar.gz)" >> $GITHUB_OUTPUT
+          echo "linux_amd64=$(get_sha  treemand_linux_amd64.tar.gz)"  >> $GITHUB_OUTPUT
+          echo "linux_arm64=$(get_sha  treemand_linux_arm64.tar.gz)"  >> $GITHUB_OUTPUT
+          echo "version=${VERSION#v}" >> $GITHUB_OUTPUT
+
+      - name: Checkout homebrew-tap
+        uses: actions/checkout@v4
+        with:
+          repository: aallbrig/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Update formula
+        env:
+          VERSION: ${{ steps.sums.outputs.version }}
+          SHA_DARWIN_AMD64: ${{ steps.sums.outputs.darwin_amd64 }}
+          SHA_DARWIN_ARM64: ${{ steps.sums.outputs.darwin_arm64 }}
+          SHA_LINUX_AMD64:  ${{ steps.sums.outputs.linux_amd64 }}
+          SHA_LINUX_ARM64:  ${{ steps.sums.outputs.linux_arm64 }}
+        run: |
+          cat > homebrew-tap/Formula/treemand.rb << FORMULA
+          class Treemand < Formula
+            desc "Visualize and interact with any CLI tool's command hierarchy as a tree"
+            homepage "https://aallbrig.github.io/treemand"
+            version "${VERSION}"
+            license "MIT"
+
+            on_macos do
+              on_intel do
+                url "https://github.com/aallbrig/treemand/releases/download/v${VERSION}/treemand_darwin_amd64.tar.gz"
+                sha256 "${SHA_DARWIN_AMD64}"
+
+                def install
+                  bin.install "treemand_darwin_amd64" => "treemand"
+                  man1.install "treemand.1"
+                end
+              end
+              on_arm do
+                url "https://github.com/aallbrig/treemand/releases/download/v${VERSION}/treemand_darwin_arm64.tar.gz"
+                sha256 "${SHA_DARWIN_ARM64}"
+
+                def install
+                  bin.install "treemand_darwin_arm64" => "treemand"
+                  man1.install "treemand.1"
+                end
+              end
+            end
+
+            on_linux do
+              on_intel do
+                url "https://github.com/aallbrig/treemand/releases/download/v${VERSION}/treemand_linux_amd64.tar.gz"
+                sha256 "${SHA_LINUX_AMD64}"
+
+                def install
+                  bin.install "treemand_linux_amd64" => "treemand"
+                  man1.install "treemand.1"
+                end
+              end
+              on_arm do
+                url "https://github.com/aallbrig/treemand/releases/download/v${VERSION}/treemand_linux_arm64.tar.gz"
+                sha256 "${SHA_LINUX_ARM64}"
+
+                def install
+                  bin.install "treemand_linux_arm64" => "treemand"
+                  man1.install "treemand.1"
+                end
+              end
+            end
+
+            test do
+              assert_match version.to_s, shell_output("#{bin}/treemand version")
+            end
+          end
+          FORMULA
+
+      - name: Commit and push formula update
+        env:
+          VERSION: ${{ steps.sums.outputs.version }}
+        run: |
+          cd homebrew-tap
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/treemand.rb
+          git commit -m "chore: update treemand formula to v${VERSION}"
+          git push
+
   deploy-site:
     name: Deploy Hugo Site
     runs-on: ubuntu-latest
