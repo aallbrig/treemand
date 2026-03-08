@@ -383,6 +383,9 @@ func (m *Model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "f", "F":
 		m.openFlagModal()
 		return m, nil
+
+	case "d", "D":
+		return m, m.openDocsURL()
 	}
 
 	// Help pane specific keys.
@@ -1064,6 +1067,64 @@ func (m *Model) helpWidth() int {
 	return m.width - m.treeWidth()
 }
 
+// openDocsURL attempts to open a documentation URL for the currently selected
+// node. It looks for https:// URLs in the node's description and opens them
+// with the system browser. Returns a status message command.
+func (m *Model) openDocsURL() tea.Cmd {
+	node := m.tree.Selected()
+	if node == nil {
+		m.statusMsg = "no node selected"
+		return nil
+	}
+	url := extractURL(node.Description)
+	if url == "" {
+		m.statusMsg = "no docs URL found for " + node.Name
+		return nil
+	}
+	var cmd *exec.Cmd
+	switch {
+	case isWSL():
+		cmd = exec.Command("wslview", url) //nolint:gosec
+	case isMacOS():
+		cmd = exec.Command("open", url) //nolint:gosec
+	default:
+		cmd = exec.Command("xdg-open", url) //nolint:gosec
+	}
+	if err := cmd.Start(); err != nil {
+		m.statusMsg = "failed to open browser: " + err.Error()
+		return nil
+	}
+	m.statusMsg = "opened: " + url
+	return nil
+}
+
+// extractURL returns the first https:// URL found in s, or "".
+func extractURL(s string) string {
+	const prefix = "https://"
+	idx := strings.Index(s, prefix)
+	if idx < 0 {
+		return ""
+	}
+	rest := s[idx:]
+	// trim at any whitespace or punctuation that terminates a URL
+	end := strings.IndexAny(rest, " \t\n\r\"'<>)")
+	if end < 0 {
+		return rest
+	}
+	return rest[:end]
+}
+
+func isMacOS() bool {
+	_, err := exec.LookPath("open")
+	_, errX := exec.LookPath("xdg-open")
+	return err == nil && errX != nil
+}
+
+func isWSL() bool {
+	_, err := exec.LookPath("wslview")
+	return err == nil
+}
+
 // ---------- view ----------
 
 func (m *Model) View() string {
@@ -1142,7 +1203,7 @@ func (m *Model) renderStatusBar() string {
 	case m.focusedPane == paneHelp:
 		hint = "↑↓:scroll  PgUp/PgDn  g/G:top/bottom  Tab:switch"
 	default:
-		hint = schemeIndicator + "↑↓:nav  ←→:level  Enter:pick  f:flags  /:filter  h:help  Ctrl+E:exec  q:quit"
+		hint = schemeIndicator + "↑↓:nav  ←→:level  Enter:pick  f:flags  d:docs  /:filter  h:help  Ctrl+E:exec  q:quit"
 	}
 	right := lipgloss.NewStyle().Faint(true).Render(hint)
 

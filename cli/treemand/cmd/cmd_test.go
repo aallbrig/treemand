@@ -121,10 +121,14 @@ t.Error("expected error for unknown binary")
 }
 
 func TestCacheList(t *testing.T) {
-out, err := runCmd("cache", "list")
-// Either prints a list or says cache is empty — just shouldn't crash.
-_ = err
-_ = out
+	out, err := runCmd("cache", "list")
+	if err != nil {
+		t.Logf("cache list error: %v", err)
+	}
+	// Should print either the table header or empty message.
+	if !strings.Contains(out, "(cache is empty)") && !strings.Contains(out, "CLI") {
+		t.Errorf("unexpected cache list output: %q", out)
+	}
 }
 
 func TestVersionFlag(t *testing.T) {

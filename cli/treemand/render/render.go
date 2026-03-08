@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"go.yaml.in/yaml/v3"
 
 	"github.com/aallbrig/treemand/config"
 	"github.com/aallbrig/treemand/models"
@@ -99,6 +100,10 @@ func (r *Renderer) Render(w io.Writer, root *models.Node) error {
 	case "json":
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
+		return enc.Encode(root)
+	case "yaml":
+		enc := yaml.NewEncoder(w)
+		enc.SetIndent(2)
 		return enc.Encode(root)
 	case "text", "":
 		r.renderNode(w, root, "", true, 0)

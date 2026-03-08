@@ -68,6 +68,7 @@ Discovery strategies (--strategy):
 Output formats (--output):
   text          colored tree (default)
   json          machine-readable full tree with flags and descriptions
+  yaml          YAML output (same structure as JSON)
 
 Examples:
   treemand git                        # full git tree
@@ -96,7 +97,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgExclude, "exclude", "", "Exclude nodes matching pattern")
 	rootCmd.PersistentFlags().BoolVar(&cfgCommandsOnly, "commands-only", false, "Hide flags and positionals")
 	rootCmd.PersistentFlags().BoolVar(&cfgFullPath, "full-path", false, "Show full command paths")
-	rootCmd.PersistentFlags().StringVar(&cfgOutput, "output", "text", "Output format: text, json")
+	rootCmd.PersistentFlags().StringVar(&cfgOutput, "output", "text", "Output format: text, json, yaml")
 	rootCmd.PersistentFlags().BoolVar(&cfgNoColor, "no-color", false, "Disable color output")
 	rootCmd.PersistentFlags().BoolVar(&cfgNoCache, "no-cache", false, "Disable caching")
 	rootCmd.PersistentFlags().IntVar(&cfgTimeout, "timeout", 30, "Discovery timeout in seconds")

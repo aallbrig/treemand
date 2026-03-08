@@ -139,6 +139,38 @@ func (c *Cache) ListCLIs() ([]string, error) {
 	return names, rows.Err()
 }
 
+// CacheEntry holds display information for a cached tree entry.
+type CacheEntry struct {
+	CLI       string
+	Version   string
+	Strategy  string
+	CachedAt  time.Time
+	SizeBytes int
+}
+
+// ListEntries returns all cache entries with metadata for display.
+func (c *Cache) ListEntries() ([]CacheEntry, error) {
+	rows, err := c.db.Query(`
+		SELECT cli, version, strategy, cached_at, length(data)
+		FROM trees
+		ORDER BY cli, cached_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var entries []CacheEntry
+	for rows.Next() {
+		var e CacheEntry
+		var ts int64
+		if err := rows.Scan(&e.CLI, &e.Version, &e.Strategy, &ts, &e.SizeBytes); err != nil {
+			return nil, err
+		}
+		e.CachedAt = time.Unix(ts, 0)
+		entries = append(entries, e)
+	}
+	return entries, rows.Err()
+}
+
 // CLIVersion attempts to get the version string for a CLI by running <cli> --version.
 func CLIVersion(cli string) string {
 	cmd := exec.Command(cli, "--version") //nolint:gosec

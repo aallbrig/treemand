@@ -104,10 +104,22 @@ func TestRenderToString_filter(t *testing.T) {
 
 func TestRenderToString_unknownFormat(t *testing.T) {
 	opts := render.DefaultOptions()
-	opts.Output = "yaml"
+	opts.Output = "toml"
 	_, err := render.ToString(sampleTree(), opts)
 	if err == nil {
 		t.Error("expected error for unknown output format")
+	}
+}
+
+func TestRenderToString_yaml(t *testing.T) {
+	opts := render.DefaultOptions()
+	opts.Output = "yaml"
+	out, err := render.ToString(sampleTree(), opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "name:") {
+		t.Errorf("expected YAML output to contain 'name:', got: %s", out)
 	}
 }
 

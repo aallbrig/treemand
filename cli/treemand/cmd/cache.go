@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"text/tabwriter"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -62,22 +64,54 @@ var cacheListCmd = &cobra.Command{
 		}
 		defer c.Close()
 
-		names, err := c.ListCLIs()
+		entries, err := c.ListEntries()
 		if err != nil {
 			return fmt.Errorf("list cache: %w", err)
 		}
-		if len(names) == 0 {
+		if len(entries) == 0 {
 			fmt.Fprintln(cmd.OutOrStdout(), "(cache is empty)")
 			return nil
 		}
-		for _, name := range names {
-			fmt.Fprintln(cmd.OutOrStdout(), name)
+
+		w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
+		fmt.Fprintln(w, "CLI\tVERSION\tSTRATEGY\tCACHED AT\tSIZE")
+		fmt.Fprintln(w, "---\t-------\t--------\t---------\t----")
+		for _, e := range entries {
+			age := formatAge(time.Since(e.CachedAt))
+			size := formatBytes(e.SizeBytes)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+				e.CLI, e.Version, e.Strategy, age, size)
 		}
-		return nil
+		return w.Flush()
 	},
+}
+
+func formatAge(d time.Duration) string {
+	switch {
+	case d < time.Minute:
+		return "just now"
+	case d < time.Hour:
+		return fmt.Sprintf("%dm ago", int(d.Minutes()))
+	case d < 24*time.Hour:
+		return fmt.Sprintf("%dh ago", int(d.Hours()))
+	default:
+		return fmt.Sprintf("%dd ago", int(d.Hours()/24))
+	}
+}
+
+func formatBytes(n int) string {
+	switch {
+	case n < 1024:
+		return fmt.Sprintf("%dB", n)
+	case n < 1024*1024:
+		return fmt.Sprintf("%.1fKB", float64(n)/1024)
+	default:
+		return fmt.Sprintf("%.1fMB", float64(n)/(1024*1024))
+	}
 }
 
 func init() {
 	cacheCmd.AddCommand(cacheClearCmd)
 	cacheCmd.AddCommand(cacheListCmd)
 }
+
