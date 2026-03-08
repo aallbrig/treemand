@@ -633,9 +633,6 @@ tree.SetSize(80, 24)
 
 // Expand root first, then collapse.
 tree.Expand()
-if tree.Selected().Name == "git" {
-// still on root, expand moved cursor in
-}
 tree.Collapse()
 // After collapse we should be back on (or near) the parent.
 sel := tree.Selected()
@@ -1175,8 +1172,8 @@ updated, _ := m.Update(tea.MouseMsg{Type: tea.MouseLeft, X: 5, Y: 5})
 if updated == nil {
 t.Fatal("returned nil after mouse click")
 }
-m.Update(tea.MouseMsg{Type: tea.MouseWheelDown, X: 5, Y: 5})
-m.Update(tea.MouseMsg{Type: tea.MouseWheelUp, X: 5, Y: 5})
+m.Update(tea.MouseMsg{Action: tea.MouseActionPress, Button: tea.MouseButtonWheelDown, X: 5, Y: 5})
+m.Update(tea.MouseMsg{Action: tea.MouseActionPress, Button: tea.MouseButtonWheelUp, X: 5, Y: 5})
 }
 
 func TestModel_HelpPane_keys(t *testing.T) {
