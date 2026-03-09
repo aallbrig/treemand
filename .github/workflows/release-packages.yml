@@ -82,7 +82,7 @@ jobs:
 
       - name: Submit to WinGet
         if: steps.check.outputs.skip != 'true'
-        uses: vedantmgoyal9/winget-releaser@latest
+        uses: vedantmgoyal9/winget-releaser@v2
         with:
           identifier: aallbrig.treemand
           release-tag: ${{ github.event.workflow_run.head_branch || inputs.tag }}
