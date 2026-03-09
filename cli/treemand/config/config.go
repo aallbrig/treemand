@@ -108,6 +108,23 @@ func DefaultIconSet() IconSet {
 	}
 }
 
+// DisplayStyle controls how the tree is rendered in the TUI.
+type DisplayStyle int
+
+const (
+	// StyleDefault renders collapsible nodes with inline flag pills (baseline).
+	StyleDefault DisplayStyle = iota
+	// StyleColumns renders name on the left and description right-aligned after a · separator.
+	StyleColumns
+	// StyleCompact renders nodes with no icons and no inline flags — maximum density.
+	StyleCompact
+	// StyleGraph renders classic tree connectors (├── / └──) like the `tree` command.
+	StyleGraph
+)
+
+// DisplayStyleNames maps each style to a short display name for the status bar.
+var DisplayStyleNames = []string{"default", "columns", "compact", "graph"}
+
 // Config holds all treemand runtime configuration.
 type Config struct {
 	Colors         ColorScheme
@@ -120,6 +137,7 @@ type Config struct {
 	NoCache        bool
 	CacheDir       string
 	Strategies     []string
+	TreeStyle      DisplayStyle // controls TUI tree presentation variant
 }
 
 // DefaultConfig returns config with sensible defaults.
@@ -140,6 +158,7 @@ func DefaultConfig() *Config {
 		NoCache:        false,
 		CacheDir:       cacheDir,
 		Strategies:     defaultStrategies(),
+		TreeStyle:      StyleDefault,
 	}
 }
 

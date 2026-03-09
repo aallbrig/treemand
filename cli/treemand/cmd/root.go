@@ -21,22 +21,23 @@ import (
 )
 
 var (
-	cfgFile         string
-	cfgInteractive  bool
-	cfgStrategy     string
-	cfgDepth        int
-	cfgFilter       string
-	cfgExclude      string
-	cfgCommandsOnly bool
-	cfgFullPath     bool
-	cfgOutput       string
-	cfgNoColor      bool
-	cfgNoCache      bool
-	cfgTimeout      int
-	cfgDebug        bool
-	cfgIcons        string
-	cfgLineLength   int
+	cfgFile          string
+	cfgInteractive   bool
+	cfgStrategy      string
+	cfgDepth         int
+	cfgFilter        string
+	cfgExclude       string
+	cfgCommandsOnly  bool
+	cfgFullPath      bool
+	cfgOutput        string
+	cfgNoColor       bool
+	cfgNoCache       bool
+	cfgTimeout       int
+	cfgDebug         bool
+	cfgIcons         string
+	cfgLineLength    int
 	cfgStubThreshold int
+	cfgTreeStyle     string
 )
 
 // rootCmd is the cobra root command.
@@ -105,6 +106,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgIcons, "icons", "", "Icon preset: unicode (default), ascii, nerd")
 	rootCmd.PersistentFlags().IntVar(&cfgLineLength, "line-length", 0, "Max description chars before truncation (default 80)")
 	rootCmd.PersistentFlags().IntVar(&cfgStubThreshold, "stub-threshold", 0, "Max eager children before creating stubs (default 50)")
+	rootCmd.PersistentFlags().StringVar(&cfgTreeStyle, "tree-style", "default", "TUI tree presentation style: default, columns, compact, graph")
 
 	_ = viper.BindPFlag("icons", rootCmd.PersistentFlags().Lookup("icons"))
 	_ = viper.BindPFlag("desc_line_length", rootCmd.PersistentFlags().Lookup("line-length"))
@@ -148,6 +150,9 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	}
 	if cfgStubThreshold > 0 {
 		cfg.StubThreshold = cfgStubThreshold
+	}
+	if cfgTreeStyle != "" && cfgTreeStyle != "default" {
+		cfg.TreeStyle = parseTreeStyle(cfgTreeStyle)
 	}
 	strategies := config.ParseStrategies(cfgStrategy)
 
@@ -269,4 +274,17 @@ func NewRootCmd() *cobra.Command {
 	c.AddCommand(completionCmd)
 	c.ValidArgsFunction = completeCLIName
 	return c
+}
+
+func parseTreeStyle(s string) config.DisplayStyle {
+switch s {
+case "columns":
+return config.StyleColumns
+case "compact":
+return config.StyleCompact
+case "graph":
+return config.StyleGraph
+default:
+return config.StyleDefault
+}
 }

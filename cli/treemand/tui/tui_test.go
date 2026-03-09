@@ -1263,3 +1263,130 @@ if stub.Description != "S3 service" {
 t.Errorf("Description should be filled in, got %q", stub.Description)
 }
 }
+
+func TestDisplayStyle_cycleViaKey(t *testing.T) {
+cfg := config.DefaultConfig()
+root := &models.Node{
+Name:        "git",
+Description: "the stupid content tracker",
+Children: []*models.Node{
+{Name: "commit", Description: "Record changes"},
+{Name: "log", Description: "Show commit logs"},
+},
+}
+m := tui.NewModel(root, cfg)
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+// Default style should render something.
+v0 := m.View()
+if v0 == "" {
+t.Fatal("empty view in default style")
+}
+
+// Press T three times to cycle through all styles; model is mutated in-place.
+styleNames := []string{"columns", "compact", "graph"}
+for i, styleName := range styleNames {
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("t")})
+v := m.View()
+if v == "" {
+t.Errorf("style %q (cycle %d) produced empty view", styleName, i+1)
+}
+}
+
+// After 3 cycles we are on "graph". Expand root and check connectors.
+m.Update(tea.KeyMsg{Type: tea.KeyRight})
+vGraph := m.View()
+if !strings.Contains(vGraph, "git") {
+t.Error("graph style: root node 'git' should be in view")
+}
+}
+
+func TestDisplayStyle_setDirectly(t *testing.T) {
+	root := &models.Node{
+		Name:        "aws",
+		Description: "AWS CLI https://aws.amazon.com/cli",
+		Children: []*models.Node{
+			{Name: "s3", Description: "S3 service"},
+			{Name: "ec2", Description: "EC2 service"},
+		},
+	}
+
+	for _, style := range []config.DisplayStyle{
+		config.StyleDefault,
+		config.StyleColumns,
+		config.StyleCompact,
+		config.StyleGraph,
+	} {
+cfg2 := config.DefaultConfig()
+cfg2.TreeStyle = style
+tree := tui.NewTreeModel(root, cfg2)
+tree.SetSize(100, 30)
+v := tree.View()
+if v == "" {
+t.Errorf("style %d produced empty view", style)
+}
+if !strings.Contains(v, "aws") {
+t.Errorf("style %d: root node 'aws' not in view", style)
+}
+}
+}
+
+func TestDisplayStyle_graphConnectors(t *testing.T) {
+cfg := config.DefaultConfig()
+cfg.TreeStyle = config.StyleGraph
+root := &models.Node{
+Name: "git",
+Children: []*models.Node{
+{Name: "commit"},
+{Name: "log"},
+{Name: "push"},
+},
+}
+tree := tui.NewTreeModel(root, cfg)
+tree.SetSize(100, 30)
+// Expand root to show children.
+tree.Right()
+v := tree.View()
+// Should contain graph connectors now that children are visible.
+if !strings.Contains(v, "──") {
+t.Error("graph style: expected '──' connectors after expanding root")
+}
+}
+
+func TestDisplayStyle_compactNoPills(t *testing.T) {
+cfg := config.DefaultConfig()
+cfg.TreeStyle = config.StyleCompact
+root := &models.Node{
+Name: "git",
+Flags: []models.Flag{
+{Name: "--verbose", ValueType: "bool"},
+{Name: "--output", ValueType: "string"},
+},
+}
+tree := tui.NewTreeModel(root, cfg)
+tree.SetSize(100, 30)
+v := tree.View()
+// Compact style should not show inline flag pills.
+if strings.Contains(v, "[--") {
+t.Error("compact style should not show inline flag pills")
+}
+}
+
+func TestDisplayStyle_columnsShowsDescription(t *testing.T) {
+cfg := config.DefaultConfig()
+cfg.TreeStyle = config.StyleColumns
+root := &models.Node{
+Name:        "kubectl",
+Description: "Kubernetes control plane",
+Children: []*models.Node{
+{Name: "get", Description: "Display resources"},
+},
+}
+tree := tui.NewTreeModel(root, cfg)
+tree.SetSize(120, 30)
+v := tree.View()
+// Columns style should show description with separator.
+if !strings.Contains(v, "·") {
+t.Error("columns style: expected '·' separator with description")
+}
+}

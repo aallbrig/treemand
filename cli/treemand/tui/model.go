@@ -349,6 +349,13 @@ func (m *Model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.statusMsg = "nav: " + schemeName(m.scheme)
 		return m, nil
 
+	case "t", "T":
+		next := config.DisplayStyle((int(m.cfg.TreeStyle) + 1) % len(config.DisplayStyleNames))
+		m.cfg.TreeStyle = next
+		m.tree.SetDisplayStyle(next)
+		m.statusMsg = "style: " + config.DisplayStyleNames[next]
+		return m, nil
+
 	case "h", "H", "ctrl+p":
 		m.showHelpPane = !m.showHelpPane
 		m.applyLayout()
@@ -1203,7 +1210,7 @@ func (m *Model) renderStatusBar() string {
 	case m.focusedPane == paneHelp:
 		hint = "↑↓:scroll  PgUp/PgDn  g/G:top/bottom  Tab:switch"
 	default:
-		hint = schemeIndicator + "↑↓:nav  ←→:level  Enter:pick  f:flags  d:docs  /:filter  h:help  Ctrl+E:exec  q:quit"
+		hint = schemeIndicator + "↑↓:nav  ←→:level  Enter:pick  f:flags  d:docs  t:style  /:filter  h:help  Ctrl+E:exec  q:quit"
 	}
 	right := lipgloss.NewStyle().Faint(true).Render(hint)
 
