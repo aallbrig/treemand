@@ -20,6 +20,7 @@ package config
 import (
 	"os"
 	"strings"
+	"time"
 )
 
 // ColorScheme defines the color palette for tree rendering.
@@ -137,7 +138,8 @@ type Config struct {
 	NoCache        bool
 	CacheDir       string
 	Strategies     []string
-	TreeStyle      DisplayStyle // controls TUI tree presentation variant
+	TreeStyle         DisplayStyle  // controls TUI tree presentation variant
+	StatusMsgTimeout  time.Duration // how long a timed status message is shown (default 3s)
 }
 
 // DefaultConfig returns config with sensible defaults.
@@ -157,8 +159,9 @@ func DefaultConfig() *Config {
 		Depth:          -1, // unlimited
 		NoCache:        false,
 		CacheDir:       cacheDir,
-		Strategies:     defaultStrategies(),
-		TreeStyle:      StyleDefault,
+		Strategies:        defaultStrategies(),
+		TreeStyle:         StyleDefault,
+		StatusMsgTimeout:  3 * time.Second,
 	}
 }
 

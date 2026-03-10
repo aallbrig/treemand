@@ -73,6 +73,7 @@ type TreeModel struct {
 	filter          string
 	nodeExpanded    map[string]bool
 	sectionExpanded map[string]bool
+	hideSections    bool // when true, section headers are hidden and all items shown flat
 	cmdTokens       []string
 	focused         bool
 	cfg             *config.Config
@@ -346,6 +347,16 @@ func (t *TreeModel) CollapseAll() {
 	t.offset = 0
 	t.rebuild()
 }
+
+// ToggleSections shows or hides section header rows (Sub commands, Flags, Inherited flags).
+// When hidden, all child items are shown flat without grouping headers.
+func (t *TreeModel) ToggleSections() {
+	t.hideSections = !t.hideSections
+	t.rebuild()
+}
+
+// SectionsHidden reports whether section headers are currently hidden.
+func (t *TreeModel) SectionsHidden() bool { return t.hideSections }
 
 // ToggleSectionAtY toggles the section row at content y-coordinate y (0-based inside content area).
 func (t *TreeModel) ToggleSectionAtY(y int) {
@@ -843,14 +854,16 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int, graphPrefix string
 	if len(visChildren) > 0 {
 		sKey := key + "/subcommands"
 		subDefault := len(visChildren) <= 6
-		subExpanded := t.isSectionExpanded(sKey, subDefault)
-		t.rows = append(t.rows, treeRow{
-			kind:           rowKindSection,
-			depth:          depth + 1,
-			sectionKey:     sKey,
-			sectionLabel:   fmt.Sprintf("Sub commands (%d)", len(visChildren)),
-			sectionDefault: subDefault,
-		})
+		subExpanded := t.hideSections || t.isSectionExpanded(sKey, subDefault)
+		if !t.hideSections {
+			t.rows = append(t.rows, treeRow{
+				kind:           rowKindSection,
+				depth:          depth + 1,
+				sectionKey:     sKey,
+				sectionLabel:   fmt.Sprintf("Sub commands (%d)", len(visChildren)),
+				sectionDefault: subDefault,
+			})
+		}
 		if subExpanded {
 			childGraphPrefix := graphPrefix
 			if depth == 0 {
@@ -877,14 +890,16 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int, graphPrefix string
 	}
 	if len(ownFlags) > 0 {
 		sKey := key + "/flags"
-		flagExpanded := t.isSectionExpanded(sKey, false)
-		t.rows = append(t.rows, treeRow{
-			kind:           rowKindSection,
-			depth:          depth + 1,
-			sectionKey:     sKey,
-			sectionLabel:   fmt.Sprintf("Flags (%d)", len(ownFlags)),
-			sectionDefault: false,
-		})
+		flagExpanded := t.hideSections || t.isSectionExpanded(sKey, false)
+		if !t.hideSections {
+			t.rows = append(t.rows, treeRow{
+				kind:           rowKindSection,
+				depth:          depth + 1,
+				sectionKey:     sKey,
+				sectionLabel:   fmt.Sprintf("Flags (%d)", len(ownFlags)),
+				sectionDefault: false,
+			})
+		}
 		if flagExpanded {
 			for _, i := range ownFlags {
 				t.rows = append(t.rows, treeRow{
@@ -900,14 +915,16 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int, graphPrefix string
 	}
 	if len(inheritedFlags) > 0 {
 		sKey := key + "/inherited"
-		inhExpanded := t.isSectionExpanded(sKey, false)
-		t.rows = append(t.rows, treeRow{
-			kind:           rowKindSection,
-			depth:          depth + 1,
-			sectionKey:     sKey,
-			sectionLabel:   fmt.Sprintf("Inherited flags (%d)", len(inheritedFlags)),
-			sectionDefault: false,
-		})
+		inhExpanded := t.hideSections || t.isSectionExpanded(sKey, false)
+		if !t.hideSections {
+			t.rows = append(t.rows, treeRow{
+				kind:           rowKindSection,
+				depth:          depth + 1,
+				sectionKey:     sKey,
+				sectionLabel:   fmt.Sprintf("Inherited flags (%d)", len(inheritedFlags)),
+				sectionDefault: false,
+			})
+		}
 		if inhExpanded {
 			for _, i := range inheritedFlags {
 				t.rows = append(t.rows, treeRow{
@@ -925,14 +942,16 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int, graphPrefix string
 	// Positionals section.
 	if len(node.Positionals) > 0 {
 		sKey := key + "/positionals"
-		posExpanded := t.isSectionExpanded(sKey, false)
-		t.rows = append(t.rows, treeRow{
-			kind:           rowKindSection,
-			depth:          depth + 1,
-			sectionKey:     sKey,
-			sectionLabel:   fmt.Sprintf("Positional arguments (%d)", len(node.Positionals)),
-			sectionDefault: false,
-		})
+		posExpanded := t.hideSections || t.isSectionExpanded(sKey, false)
+		if !t.hideSections {
+			t.rows = append(t.rows, treeRow{
+				kind:           rowKindSection,
+				depth:          depth + 1,
+				sectionKey:     sKey,
+				sectionLabel:   fmt.Sprintf("Positional arguments (%d)", len(node.Positionals)),
+				sectionDefault: false,
+			})
+		}
 		if posExpanded {
 			for i := range node.Positionals {
 				t.rows = append(t.rows, treeRow{

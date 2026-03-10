@@ -1543,3 +1543,51 @@ if v == "" {
 t.Error("view should not be empty after expand-all key")
 }
 }
+
+func TestToggleSections_hidesAndShowsHeaders(t *testing.T) {
+cfg := config.DefaultConfig()
+root := &models.Node{
+Name: "git",
+Children: []*models.Node{
+{Name: "commit"},
+{Name: "log"},
+},
+Flags: []models.Flag{
+{Name: "--verbose"},
+},
+}
+tree := tui.NewTreeModel(root, cfg)
+tree.SetSize(100, 40)
+
+// Expand so we can see sections.
+tree.ExpandAll()
+withSections := tree.RowCount()
+
+tree.ToggleSections()
+if !tree.SectionsHidden() {
+t.Error("SectionsHidden should be true after first toggle")
+}
+
+// With sections hidden, row count should be lower (no header rows).
+withoutSections := tree.RowCount()
+if withoutSections >= withSections {
+t.Errorf("hiding sections should reduce row count: with=%d without=%d", withSections, withoutSections)
+}
+
+// Toggle back — sections should reappear.
+tree.ToggleSections()
+if tree.SectionsHidden() {
+t.Error("SectionsHidden should be false after second toggle")
+}
+restored := tree.RowCount()
+if restored != withSections {
+t.Errorf("restoring sections should return to original row count: want=%d got=%d", withSections, restored)
+}
+}
+
+func TestConfigStatusMsgTimeout_default(t *testing.T) {
+cfg := config.DefaultConfig()
+if cfg.StatusMsgTimeout <= 0 {
+t.Errorf("StatusMsgTimeout should have a positive default, got %v", cfg.StatusMsgTimeout)
+}
+}

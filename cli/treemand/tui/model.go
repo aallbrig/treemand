@@ -75,12 +75,17 @@ type Model struct {
 	width        int
 	height       int
 	statusMsg    string
+	timedMsg     string    // shown for a fixed duration (e.g. style name on T press)
+	timedMsgExp  time.Time // when timedMsg should clear
 	quitting     bool
 	modal        *executeModal
 	commandToRun string // set when user picks "Run" in the modal
 	fm           flagModal
 	vm           valueInputModal
 }
+
+// clearTimedMsgMsg is fired by a tea.Tick to clear a timed status message.
+type clearTimedMsgMsg struct{ expiry time.Time }
 
 // NewModel creates a new root TUI model.
 func NewModel(root *models.Node, cfg *config.Config) *Model {
@@ -161,6 +166,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.MouseMsg:
 		return m.updateMouse(msg)
+
+	case clearTimedMsgMsg:
+		// Only clear if this tick corresponds to the current expiry (prevents
+		// a rapid re-press of T from clearing the new message early).
+		if !msg.expiry.Before(m.timedMsgExp) {
+			m.timedMsg = ""
+		}
+		return m, nil
 	}
 	return m, nil
 }
@@ -353,7 +366,16 @@ func (m *Model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		next := config.DisplayStyle((int(m.cfg.TreeStyle) + 1) % len(config.DisplayStyleNames))
 		m.cfg.TreeStyle = next
 		m.tree.SetDisplayStyle(next)
-		m.statusMsg = "style: " + config.DisplayStyleNames[next]
+		m.setTimedMsg("style: " + config.DisplayStyleNames[next])
+		return m, m.timedMsgCmd()
+
+	case "S":
+		m.tree.ToggleSections()
+		if m.tree.SectionsHidden() {
+			m.statusMsg = "sections: hidden"
+		} else {
+			m.statusMsg = "sections: visible"
+		}
 		return m, nil
 
 	case "h", "H", "ctrl+p":
@@ -1011,6 +1033,21 @@ func (m *Model) cycleFocus(delta int) {
 	m.statusMsg = "focus: " + paneName(pane(next))
 }
 
+// setTimedMsg sets a status message that is shown for cfg.StatusMsgTimeout,
+// after which the status bar reverts to the normal key-hint text.
+func (m *Model) setTimedMsg(msg string) {
+	m.timedMsg = msg
+	m.timedMsgExp = time.Now().Add(m.cfg.StatusMsgTimeout)
+}
+
+// timedMsgCmd returns a tea.Cmd that fires clearTimedMsgMsg after the timeout.
+func (m *Model) timedMsgCmd() tea.Cmd {
+	exp := m.timedMsgExp
+	return tea.Tick(m.cfg.StatusMsgTimeout, func(_ time.Time) tea.Msg {
+		return clearTimedMsgMsg{expiry: exp}
+	})
+}
+
 func (m *Model) setFocus(p pane) {
 	m.focusedPane = p
 	m.tree.SetFocused(p == paneTree)
@@ -1217,22 +1254,32 @@ func (m *Model) renderStatusBar() string {
 	left := leftStyle.Render(selected)
 
 	// Right side: context-sensitive key hints.
+	// Priority: one-shot statusMsg > timed message (e.g. style name) > contextual hints.
 	var hint string
+	var hintStyle lipgloss.Style
 	schemeIndicator := "[" + schemeName(m.scheme) + "] "
 	switch {
 	case m.statusMsg != "":
 		hint = m.statusMsg
 		m.statusMsg = ""
+		hintStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFB86C"))
+	case m.timedMsg != "":
+		hint = m.timedMsg
+		hintStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#BD93F9"))
 	case m.filtering:
 		hint = "type to filter  Enter/Esc:done"
+		hintStyle = lipgloss.NewStyle().Faint(true)
 	case m.focusedPane == panePreview:
 		hint = "Esc:back  Ctrl+E:exec/copy  Tab:switch"
+		hintStyle = lipgloss.NewStyle().Faint(true)
 	case m.focusedPane == paneHelp:
 		hint = "↑↓:scroll  PgUp/PgDn  g/G:top/bottom  Tab:switch"
+		hintStyle = lipgloss.NewStyle().Faint(true)
 	default:
-		hint = schemeIndicator + "↑↓:nav  ←→:level  Shift+←→:collapse/expand all  Enter:pick  f:flags  d:docs  t:style  /:filter  h:help  Ctrl+E:exec  q:quit"
+		hint = schemeIndicator + "↑↓:nav  ←→:level  Shift+←→:collapse/expand all  Enter:pick  f:flags  S:sections  t:style  /:filter  h:help  Ctrl+E:exec  q:quit"
+		hintStyle = lipgloss.NewStyle().Faint(true)
 	}
-	right := lipgloss.NewStyle().Faint(true).Render(hint)
+	right := hintStyle.Render(hint)
 
 	gap := m.width - lipgloss.Width(left) - lipgloss.Width(right) - 2
 	if gap < 1 {
