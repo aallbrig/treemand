@@ -378,7 +378,9 @@ func (m *Model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case "h", "H", "ctrl+p":
+	// Help pane toggle: H (uppercase) and ctrl+p only.
+	// Lowercase h is reserved for Left navigation in vim mode.
+	case "H", "ctrl+p":
 		m.showHelpPane = !m.showHelpPane
 		m.applyLayout()
 		return m, nil
@@ -416,23 +418,31 @@ func (m *Model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "d", "D":
 		return m, m.openDocsURL()
 
-	// Expand/collapse all (Shift modifier variants).
+	// Shift+Right/Left: expand/collapse the current node's subtree.
+	// When the cursor is at the root, this is equivalent to expand/collapse all.
 	case "shift+right", "shift+l", "shift+d":
-		m.tree.ExpandAll()
-		m.statusMsg = "expanded all"
+		if node := m.tree.Selected(); node != nil {
+			if m.tree.IsAtRoot() {
+				m.tree.ExpandAll()
+				m.statusMsg = "expanded all"
+			} else {
+				m.tree.ExpandAllFrom(node, m.tree.SelectedDepth())
+				m.tree.Rebuild()
+				m.statusMsg = "expanded: " + node.Name
+			}
+		}
 		return m, nil
 
 	case "shift+left", "shift+h", "shift+a":
-		m.tree.CollapseAll()
-		m.statusMsg = "collapsed all"
-		return m, nil
-
-	case "shift+ ":
-		// Shift+Space: expand all from the currently selected node only.
 		if node := m.tree.Selected(); node != nil {
-			m.tree.ExpandAllFrom(node, m.tree.SelectedDepth())
-			m.tree.Rebuild()
-			m.statusMsg = "expanded: " + node.Name
+			if m.tree.IsAtRoot() {
+				m.tree.CollapseAll()
+				m.statusMsg = "collapsed all"
+			} else {
+				m.tree.CollapseSubtree(node, m.tree.SelectedDepth())
+				m.tree.Rebuild()
+				m.statusMsg = "collapsed: " + node.Name
+			}
 		}
 		return m, nil
 	}
@@ -894,6 +904,8 @@ func (m *Model) handleVim(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.tree.Up()
 	case "j":
 		m.tree.Down()
+	case "h":
+		m.tree.Left()
 	case "l":
 		m.tree.Right()
 	case " ":
@@ -1276,7 +1288,7 @@ func (m *Model) renderStatusBar() string {
 		hint = "↑↓:scroll  PgUp/PgDn  g/G:top/bottom  Tab:switch"
 		hintStyle = lipgloss.NewStyle().Faint(true)
 	default:
-		hint = schemeIndicator + "↑↓:nav  ←→:level  Shift+←→:collapse/expand all  Enter:pick  f:flags  S:sections  t:style  /:filter  h:help  Ctrl+E:exec  q:quit"
+		hint = schemeIndicator + "↑↓:nav  ←:collapse  →:expand/enter  Shift+←→:subtree  Enter:pick  f:flags  S:sections  t:style  /:filter  H:help  Ctrl+E:exec  q:quit"
 		hintStyle = lipgloss.NewStyle().Faint(true)
 	}
 	right := hintStyle.Render(hint)
