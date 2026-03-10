@@ -430,3 +430,86 @@ func TestParseHelpOutput_openssl_grid_subcommands(t *testing.T) {
 		}
 	}
 }
+
+func TestParseHelpOutputFor_treemand_self(t *testing.T) {
+// This is the actual output of `treemand --help`. Previously, the parser
+// incorrectly inferred bogus subcommands from the free-text sections in this
+// output (h, text, json, yaml, completions, treemand).
+helpText := `treemand discovers and visualizes any CLI tool as a command tree.
+
+Point it at any binary and it maps out subcommands, flags, and positionals
+by probing the tool's own --help output — no plugins, no config files.
+
+  treemand git            prints a colored ASCII tree of git's commands
+  treemand -i aws         opens an interactive TUI to explore aws
+
+Non-interactive output includes inline flags, positional arguments, and
+short descriptions. Large CLIs (aws, kubectl) create stub nodes on first
+run — use -i to expand them on demand, or increase --depth.
+
+Interactive TUI controls (press ? inside TUI for full help):
+  ↑↓ / j k    navigate tree        Space / Enter  add node to command
+  h H          toggle help pane     f              pick a flag
+  /            fuzzy filter         Ctrl+E         copy / execute
+  Esc          quit
+
+Discovery strategies (--strategy):
+  help          parse --help output (default, works on nearly every CLI)
+  completions   use shell completion data (richer flag metadata)
+
+Output formats (--output):
+  text          colored tree (default)
+  json          machine-readable full tree with flags and descriptions
+  yaml          YAML output (same structure as JSON)
+
+Examples:
+  treemand git                        # full git tree
+  treemand -i aws                     # interactive aws explorer
+  treemand --depth=2 kubectl          # kubectl tree, 2 levels deep
+  treemand --commands-only docker     # subcommands only, no flags
+  treemand --output=json gh | jq .    # pipe JSON to jq
+  treemand --filter=remote git        # only show nodes matching "remote"
+  treemand treemand                   # introspect treemand itself
+
+Docs: https://aallbrig.github.io/treemand
+
+Usage:
+  treemand <cli> [flags]
+  treemand [command]
+
+Available Commands:
+  cache       Manage the treemand discovery cache
+  completion  Generate shell completion scripts
+  help        Help about any command
+  version     Print version information
+
+Flags:
+      --commands-only        Hide flags and positionals
+  -i, --interactive          Launch interactive TUI
+  -h, --help                 help for treemand
+`
+
+p := discovery.ParseHelpOutputFor(helpText, "treemand")
+
+bogus := []string{"text", "json", "yaml", "h", "completions", "treemand"}
+for _, word := range bogus {
+for _, sub := range p.Subcommands {
+if sub == word {
+t.Errorf("bogus subcommand %q should not appear; got subcommands: %v", word, p.Subcommands)
+}
+}
+}
+
+// The real subcommands must still be present.
+want := map[string]bool{"cache": false, "completion": false, "version": false}
+for _, sub := range p.Subcommands {
+if _, ok := want[sub]; ok {
+want[sub] = true
+}
+}
+for name, found := range want {
+if !found {
+t.Errorf("expected real subcommand %q not found; got: %v", name, p.Subcommands)
+}
+}
+}

@@ -1390,3 +1390,156 @@ if !strings.Contains(v, "·") {
 t.Error("columns style: expected '·' separator with description")
 }
 }
+
+func TestExpandAll_expandsAllNodes(t *testing.T) {
+cfg := config.DefaultConfig()
+root := &models.Node{
+Name: "git",
+Children: []*models.Node{
+{
+Name: "remote",
+Children: []*models.Node{
+{Name: "add"},
+{Name: "remove"},
+},
+},
+{Name: "commit"},
+},
+}
+tree := tui.NewTreeModel(root, cfg)
+tree.SetSize(100, 40)
+
+rowsBefore := tree.RowCount()
+tree.ExpandAll()
+rowsAfter := tree.RowCount()
+
+if rowsAfter <= rowsBefore {
+t.Errorf("ExpandAll should show more rows: before=%d after=%d", rowsBefore, rowsAfter)
+}
+}
+
+func TestCollapseAll_collapsesToRoot(t *testing.T) {
+cfg := config.DefaultConfig()
+root := &models.Node{
+Name: "git",
+Children: []*models.Node{
+{Name: "commit"},
+{Name: "log"},
+{Name: "push"},
+},
+}
+tree := tui.NewTreeModel(root, cfg)
+tree.SetSize(100, 40)
+
+// Expand everything first.
+tree.ExpandAll()
+rowsExpanded := tree.RowCount()
+
+// Collapse all — only root + its section header should remain visible.
+tree.CollapseAll()
+rowsCollapsed := tree.RowCount()
+
+if rowsCollapsed >= rowsExpanded {
+t.Errorf("CollapseAll should reduce rows: expanded=%d collapsed=%d", rowsExpanded, rowsCollapsed)
+}
+// Root should still be selected and visible.
+if tree.Selected() == nil {
+t.Error("CollapseAll: selected node should not be nil after collapse")
+}
+if tree.Selected().Name != "git" {
+t.Errorf("CollapseAll: expected root 'git' selected, got %q", tree.Selected().Name)
+}
+}
+
+func TestExpandAllFrom_expandsSubtree(t *testing.T) {
+cfg := config.DefaultConfig()
+remote := &models.Node{
+Name: "remote",
+Children: []*models.Node{
+{Name: "add"},
+{Name: "remove"},
+},
+}
+root := &models.Node{
+Name:     "git",
+Children: []*models.Node{remote, {Name: "commit"}},
+}
+tree := tui.NewTreeModel(root, cfg)
+tree.SetSize(100, 40)
+
+// Only expand the 'remote' subtree, not the whole tree.
+tree.ExpandAllFrom(remote, 1)
+tree.Rebuild()
+
+v := tree.ViewSized(100, 40)
+// remote's children should now be visible since root is already expanded
+// and we expanded remote's subtree.
+if !strings.Contains(v, "git") {
+t.Error("root should be visible")
+}
+}
+
+func TestModel_ShiftRight_expandsAll(t *testing.T) {
+cfg := config.DefaultConfig()
+root := &models.Node{
+Name: "aws",
+Children: []*models.Node{
+{Name: "s3", Children: []*models.Node{{Name: "cp"}, {Name: "ls"}}},
+{Name: "ec2"},
+},
+}
+// Test via TreeModel directly (simpler, no Model wrapper needed).
+tree := tui.NewTreeModel(root, cfg)
+tree.SetSize(120, 40)
+
+rowsBefore := tree.RowCount()
+tree.ExpandAll()
+rowsAfter := tree.RowCount()
+
+if rowsAfter <= rowsBefore {
+t.Errorf("ExpandAll should show more rows: before=%d after=%d", rowsBefore, rowsAfter)
+}
+}
+
+func TestModel_ShiftLeft_collapsesAll(t *testing.T) {
+cfg := config.DefaultConfig()
+root := &models.Node{
+Name: "aws",
+Children: []*models.Node{
+{Name: "s3", Children: []*models.Node{{Name: "cp"}}},
+{Name: "ec2"},
+},
+}
+tree := tui.NewTreeModel(root, cfg)
+tree.SetSize(120, 40)
+
+tree.ExpandAll()
+rowsExpanded := tree.RowCount()
+tree.CollapseAll()
+rowsCollapsed := tree.RowCount()
+
+if rowsCollapsed >= rowsExpanded {
+t.Errorf("CollapseAll should reduce rows: expanded=%d collapsed=%d", rowsExpanded, rowsCollapsed)
+}
+}
+
+func TestModel_ExpandCollapseAll_viaKeyMsg(t *testing.T) {
+cfg := config.DefaultConfig()
+root := &models.Node{
+Name: "git",
+Children: []*models.Node{
+{Name: "remote", Children: []*models.Node{{Name: "add"}}},
+{Name: "commit"},
+},
+}
+m := tui.NewModel(root, cfg)
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+// Shift+Right should expand all.
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("shift+right")})
+// Use View to confirm the model still renders without panicking.
+v := m.View()
+if v == "" {
+t.Error("view should not be empty after expand-all key")
+}
+}

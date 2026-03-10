@@ -393,6 +393,26 @@ func (m *Model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "d", "D":
 		return m, m.openDocsURL()
+
+	// Expand/collapse all (Shift modifier variants).
+	case "shift+right", "shift+l", "shift+d":
+		m.tree.ExpandAll()
+		m.statusMsg = "expanded all"
+		return m, nil
+
+	case "shift+left", "shift+h", "shift+a":
+		m.tree.CollapseAll()
+		m.statusMsg = "collapsed all"
+		return m, nil
+
+	case "shift+ ":
+		// Shift+Space: expand all from the currently selected node only.
+		if node := m.tree.Selected(); node != nil {
+			m.tree.ExpandAllFrom(node, m.tree.SelectedDepth())
+			m.tree.Rebuild()
+			m.statusMsg = "expanded: " + node.Name
+		}
+		return m, nil
 	}
 
 	// Help pane specific keys.
@@ -1210,7 +1230,7 @@ func (m *Model) renderStatusBar() string {
 	case m.focusedPane == paneHelp:
 		hint = "↑↓:scroll  PgUp/PgDn  g/G:top/bottom  Tab:switch"
 	default:
-		hint = schemeIndicator + "↑↓:nav  ←→:level  Enter:pick  f:flags  d:docs  t:style  /:filter  h:help  Ctrl+E:exec  q:quit"
+		hint = schemeIndicator + "↑↓:nav  ←→:level  Shift+←→:collapse/expand all  Enter:pick  f:flags  d:docs  t:style  /:filter  h:help  Ctrl+E:exec  q:quit"
 	}
 	right := lipgloss.NewStyle().Faint(true).Render(hint)
 

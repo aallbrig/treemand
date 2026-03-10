@@ -143,6 +143,17 @@ func (t *TreeModel) Selected() *models.Node {
 	return nil
 }
 
+// SelectedDepth returns the depth of the currently selected command row.
+func (t *TreeModel) SelectedDepth() int {
+	if t.cursor >= len(t.rows) {
+		return 0
+	}
+	return t.rows[t.cursor].depth
+}
+
+// Rebuild is a public alias for rebuild, used when callers mutate state externally.
+func (t *TreeModel) Rebuild() { t.rebuild() }
+
 func (t *TreeModel) Up() {
 	pos := t.cursor - 1
 	for pos >= 0 && t.rows[pos].kind == rowKindSection {
@@ -308,6 +319,31 @@ func (t *TreeModel) ToggleExpand() {
 	} else {
 		t.nodeExpanded[key] = true
 	}
+	t.rebuild()
+}
+
+// ExpandAllFrom recursively expands the given node and all its descendants.
+func (t *TreeModel) ExpandAllFrom(node *models.Node, depth int) {
+	t.nodeExpanded[nodeKey(node, depth)] = true
+	for _, c := range node.Children {
+		if !c.Virtual {
+			t.ExpandAllFrom(c, depth+1)
+		}
+	}
+}
+
+// ExpandAll expands every node in the tree starting from the root.
+func (t *TreeModel) ExpandAll() {
+	t.ExpandAllFrom(t.root, 0)
+	t.rebuild()
+}
+
+// CollapseAll collapses every node in the tree, leaving only the root row visible.
+func (t *TreeModel) CollapseAll() {
+	t.nodeExpanded = make(map[string]bool)
+	t.sectionExpanded = make(map[string]bool)
+	t.cursor = 0
+	t.offset = 0
 	t.rebuild()
 }
 

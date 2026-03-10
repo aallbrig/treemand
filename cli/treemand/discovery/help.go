@@ -65,7 +65,7 @@ func (h *HelpDiscoverer) discover(ctx context.Context, cliName string, args []st
 	}
 	node.HelpText = helpText
 
-	parsed := ParseHelpOutput(helpText)
+	parsed := ParseHelpOutputFor(helpText, cliName)
 	node.Description = parsed.Description
 	node.Flags = parsed.Flags
 	node.Positionals = parsed.Positionals
@@ -123,7 +123,7 @@ func (h *HelpDiscoverer) discover(ctx context.Context, cliName string, args []st
 				}
 				var child *models.Node
 				if childHelp == helpText {
-					childParsed := ParseHelpOutput(childHelp)
+					childParsed := ParseHelpOutputFor(childHelp, cliName)
 					child = &models.Node{
 						Name:        sub,
 						FullPath:    subFull,
@@ -312,6 +312,22 @@ var sectionHeaders = map[string]string{
 	"examples":            secExamples,
 	"example":             secExamples,
 	"aliases":             secAliases,
+	// free-text sections that contain non-command content
+	"output formats":       secDesc,
+	"discovery strategies": secDesc,
+	"interactive tui controls": secDesc,
+	"tui controls":        secDesc,
+	"interactive":         secDesc,
+	"output":              secDesc,
+	"notes":               secDesc,
+	"note":                secDesc,
+	"see also":            secDesc,
+	"environment variables": secDesc,
+	"environment":         secDesc,
+	"configuration":       secDesc,
+	"config":              secDesc,
+	"caching":             secDesc,
+	"cache":               secDesc,
 }
 
 // awsBulletRe matches AWS man-page bullet list items.
@@ -411,6 +427,12 @@ var skipSubcmdWords = map[string]bool{
 	"true": true, "false": true,
 	"none": true, "all": true, "on": true, "off": true,
 	"yes": true, "no": true, "default": true,
+	// Single-letter "commands" are almost always hotkey hints in help text, not subcommands.
+	"a": true, "b": true, "c": true, "d": true, "e": true, "f": true,
+	"g": true, "h": true, "i": true, "j": true, "k": true, "l": true,
+	"m": true, "n": true, "o": true, "p": true, "q": true, "r": true,
+	"s": true, "t": true, "u": true, "v": true, "w": true, "x": true,
+	"y": true, "z": true,
 }
 
 // stripANSI removes ANSI terminal escape codes from a string.
@@ -427,6 +449,12 @@ func stripManpageFormatting(s string) string {
 // ParseHelpOutput parses --help output into structured ParsedHelp.
 // Exported so it can be tested directly.
 func ParseHelpOutput(text string) ParsedHelp {
+	return ParseHelpOutputFor(text, "")
+}
+
+// ParseHelpOutputFor parses --help output with knowledge of the CLI name being
+// introspected, so self-referential example lines don't create bogus subcommands.
+func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 	text = stripANSI(text)
 	text = stripManpageFormatting(text)
 	var result ParsedHelp
@@ -582,7 +610,7 @@ func ParseHelpOutput(text string) ParsedHelp {
 			// Tab-indented subcommand (Go toolchain style): "\tbug  start a bug report"
 			if m := goTabSubcmdRe.FindStringSubmatch(rawLine); m != nil {
 				name := m[1]
-				if !seenSubs[name] && !skipSubcmdWords[name] {
+				if !seenSubs[name] && !skipSubcmdWords[name] && name != selfName {
 					seenSubs[name] = true
 					result.Subcommands = append(result.Subcommands, name)
 				}
@@ -609,7 +637,7 @@ func ParseHelpOutput(text string) ParsedHelp {
 				}
 				if allValid && len(names) > 0 {
 					for _, name := range names {
-						if !seenSubs[name] && !skipSubcmdWords[name] {
+						if !seenSubs[name] && !skipSubcmdWords[name] && name != selfName {
 							seenSubs[name] = true
 							result.Subcommands = append(result.Subcommands, name)
 						}
@@ -620,7 +648,7 @@ func ParseHelpOutput(text string) ParsedHelp {
 			// AWS man-page bullet: "       +o subcmd"
 			if m := awsBulletRe.FindStringSubmatch(rawLine); m != nil {
 				name := m[1]
-				if !seenSubs[name] && !skipSubcmdWords[name] {
+				if !seenSubs[name] && !skipSubcmdWords[name] && name != selfName {
 					seenSubs[name] = true
 					result.Subcommands = append(result.Subcommands, name)
 				}
@@ -628,10 +656,17 @@ func ParseHelpOutput(text string) ParsedHelp {
 			}
 			if m := subcmdRe.FindStringSubmatch(rawLine); m != nil {
 				name := m[1]
-				if !seenSubs[name] && !skipSubcmdWords[name] {
+				if !seenSubs[name] && !skipSubcmdWords[name] && name != selfName {
 					seenSubs[name] = true
 					result.Subcommands = append(result.Subcommands, name)
 				}
+			}
+		case secExamples, secAliases, secDesc:
+			// These sections contain narrative text, examples, or aliases —
+			// not subcommand lists. Parse flags only (e.g. example usage may
+			// reference flags we want to surface), but never infer subcommands.
+			if f, ok := parseFlag(rawLine); ok {
+				addFlag(f)
 			}
 		case secNone, secUsage:
 			// Outside named sections: pick up flags and subcommands with stricter checks.
@@ -641,7 +676,7 @@ func ParseHelpOutput(text string) ParsedHelp {
 			// Git-style free-form subcommand lists: indented word + required description.
 			if m2 := subcmdRe.FindStringSubmatch(rawLine); m2 != nil && m2[2] != "" {
 				name := m2[1]
-				if !seenSubs[name] && !skipSubcmdWords[name] {
+				if !seenSubs[name] && !skipSubcmdWords[name] && name != selfName {
 					seenSubs[name] = true
 					result.Subcommands = append(result.Subcommands, name)
 				}
