@@ -8,7 +8,9 @@ LDFLAGS := -X '$(MODULE).Version=$(VERSION)' \
 
 .PHONY: build install test lint clean
 
-## build: compile treemand binary into ./treemand
+## dev: run tests and install locally (fast dev loop)
+dev: test install
+
 build:
 	go build -ldflags "$(LDFLAGS)" -o treemand ./cli/treemand
 
