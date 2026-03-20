@@ -4,10 +4,10 @@ package tui
 import (
 	"context"
 	"fmt"
-	"time"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -1059,6 +1059,9 @@ func (m *Model) timedMsgCmd() tea.Cmd {
 		return clearTimedMsgMsg{expiry: exp}
 	})
 }
+
+// TreeModel returns the underlying TreeModel for testing.
+func (m *Model) TreeModel() *TreeModel { return m.tree }
 
 func (m *Model) setFocus(p pane) {
 	m.focusedPane = p

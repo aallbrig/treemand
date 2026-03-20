@@ -475,240 +475,240 @@ func (t *TreeModel) renderRow(row treeRow, selected bool, maxW int) string {
 }
 
 func (t *TreeModel) renderCommandRow(row treeRow, selected bool, maxW int) string {
-switch t.cfg.TreeStyle {
-case config.StyleColumns:
-return t.renderCommandRowColumns(row, selected, maxW)
-case config.StyleCompact:
-return t.renderCommandRowCompact(row, selected, maxW)
-case config.StyleGraph:
-return t.renderCommandRowGraph(row, selected, maxW)
-default:
-return t.renderCommandRowDefault(row, selected, maxW)
-}
+	switch t.cfg.TreeStyle {
+	case config.StyleColumns:
+		return t.renderCommandRowColumns(row, selected, maxW)
+	case config.StyleCompact:
+		return t.renderCommandRowCompact(row, selected, maxW)
+	case config.StyleGraph:
+		return t.renderCommandRowGraph(row, selected, maxW)
+	default:
+		return t.renderCommandRowDefault(row, selected, maxW)
+	}
 }
 
 // renderCommandRowDefault is the baseline: icon + name + inline flag pills.
 func (t *TreeModel) renderCommandRowDefault(row treeRow, selected bool, maxW int) string {
-indent := strings.Repeat("  ", row.depth)
-key := nodeKey(row.node, row.depth)
-isExpanded := t.nodeExpanded[key]
+	indent := strings.Repeat("  ", row.depth)
+	key := nodeKey(row.node, row.depth)
+	isExpanded := t.nodeExpanded[key]
 
-hasContent := len(row.node.Flags) > 0 || len(row.node.Positionals) > 0
-for _, c := range row.node.Children {
-if !c.Virtual {
-hasContent = true
-break
-}
-}
+	hasContent := len(row.node.Flags) > 0 || len(row.node.Positionals) > 0
+	for _, c := range row.node.Children {
+		if !c.Virtual {
+			hasContent = true
+			break
+		}
+	}
 
-icon := ""
-if hasContent {
-if isExpanded {
-icon = t.cfg.Icons.Branch
-} else {
-icon = t.cfg.Icons.Collapsed
-}
-}
+	icon := ""
+	if hasContent {
+		if isExpanded {
+			icon = t.cfg.Icons.Branch
+		} else {
+			icon = t.cfg.Icons.Collapsed
+		}
+	}
 
-nameColor := lipgloss.Color(t.cfg.Colors.Base)
-if row.depth > 0 {
-nameColor = lipgloss.Color(t.cfg.Colors.Subcmd)
-}
-nameStyle := lipgloss.NewStyle().Foreground(nameColor)
-if row.depth == 0 {
-nameStyle = nameStyle.Bold(true)
-}
-if t.matchesTokenPrefix(row.node) {
-nameStyle = nameStyle.Foreground(lipgloss.Color("#50FA7B")).Bold(true)
-}
-name := nameStyle.Render(row.node.Name)
-summary := t.buildFlagSummary(row, isExpanded)
-line := indent + icon + name + summary
-return t.applySelection(line, selected, maxW)
+	nameColor := lipgloss.Color(t.cfg.Colors.Base)
+	if row.depth > 0 {
+		nameColor = lipgloss.Color(t.cfg.Colors.Subcmd)
+	}
+	nameStyle := lipgloss.NewStyle().Foreground(nameColor)
+	if row.depth == 0 {
+		nameStyle = nameStyle.Bold(true)
+	}
+	if t.matchesTokenPrefix(row.node) {
+		nameStyle = nameStyle.Foreground(lipgloss.Color("#50FA7B")).Bold(true)
+	}
+	name := nameStyle.Render(row.node.Name)
+	summary := t.buildFlagSummary(row, isExpanded)
+	line := indent + icon + name + summary
+	return t.applySelection(line, selected, maxW)
 }
 
 // renderCommandRowColumns shows name on the left and description after a · separator.
 func (t *TreeModel) renderCommandRowColumns(row treeRow, selected bool, maxW int) string {
-indent := strings.Repeat("  ", row.depth)
-key := nodeKey(row.node, row.depth)
-isExpanded := t.nodeExpanded[key]
+	indent := strings.Repeat("  ", row.depth)
+	key := nodeKey(row.node, row.depth)
+	isExpanded := t.nodeExpanded[key]
 
-hasContent := len(row.node.Flags) > 0 || len(row.node.Positionals) > 0
-for _, c := range row.node.Children {
-if !c.Virtual {
-hasContent = true
-break
-}
-}
-icon := ""
-if hasContent {
-if isExpanded {
-icon = t.cfg.Icons.Branch
-} else {
-icon = t.cfg.Icons.Collapsed
-}
-}
+	hasContent := len(row.node.Flags) > 0 || len(row.node.Positionals) > 0
+	for _, c := range row.node.Children {
+		if !c.Virtual {
+			hasContent = true
+			break
+		}
+	}
+	icon := ""
+	if hasContent {
+		if isExpanded {
+			icon = t.cfg.Icons.Branch
+		} else {
+			icon = t.cfg.Icons.Collapsed
+		}
+	}
 
-nameColor := lipgloss.Color(t.cfg.Colors.Base)
-if row.depth > 0 {
-nameColor = lipgloss.Color(t.cfg.Colors.Subcmd)
-}
-nameStyle := lipgloss.NewStyle().Foreground(nameColor)
-if row.depth == 0 {
-nameStyle = nameStyle.Bold(true)
-}
-if t.matchesTokenPrefix(row.node) {
-nameStyle = nameStyle.Foreground(lipgloss.Color("#50FA7B")).Bold(true)
-}
-name := nameStyle.Render(row.node.Name)
+	nameColor := lipgloss.Color(t.cfg.Colors.Base)
+	if row.depth > 0 {
+		nameColor = lipgloss.Color(t.cfg.Colors.Subcmd)
+	}
+	nameStyle := lipgloss.NewStyle().Foreground(nameColor)
+	if row.depth == 0 {
+		nameStyle = nameStyle.Bold(true)
+	}
+	if t.matchesTokenPrefix(row.node) {
+		nameStyle = nameStyle.Foreground(lipgloss.Color("#50FA7B")).Bold(true)
+	}
+	name := nameStyle.Render(row.node.Name)
 
-// Build description part: truncate to fit available space.
-descPart := ""
-if row.node.Description != "" {
-sep := lipgloss.NewStyle().Faint(true).Render("  ·  ")
-maxDesc := maxW - lipgloss.Width(indent+icon+name) - lipgloss.Width(sep) - 2
-desc := row.node.Description
-if maxDesc > 8 {
-runes := []rune(desc)
-if len(runes) > maxDesc {
-desc = string(runes[:maxDesc-1]) + "…"
-}
-descPart = sep + lipgloss.NewStyle().Faint(true).Render(desc)
-}
-}
+	// Build description part: truncate to fit available space.
+	descPart := ""
+	if row.node.Description != "" {
+		sep := lipgloss.NewStyle().Faint(true).Render("  ·  ")
+		maxDesc := maxW - lipgloss.Width(indent+icon+name) - lipgloss.Width(sep) - 2
+		desc := row.node.Description
+		if maxDesc > 8 {
+			runes := []rune(desc)
+			if len(runes) > maxDesc {
+				desc = string(runes[:maxDesc-1]) + "…"
+			}
+			descPart = sep + lipgloss.NewStyle().Faint(true).Render(desc)
+		}
+	}
 
-line := indent + icon + name + descPart
-return t.applySelection(line, selected, maxW)
+	line := indent + icon + name + descPart
+	return t.applySelection(line, selected, maxW)
 }
 
 // renderCommandRowCompact renders name only — no icons, no inline flags.
 func (t *TreeModel) renderCommandRowCompact(row treeRow, selected bool, maxW int) string {
-indent := strings.Repeat("  ", row.depth)
+	indent := strings.Repeat("  ", row.depth)
 
-nameColor := lipgloss.Color(t.cfg.Colors.Base)
-if row.depth > 0 {
-nameColor = lipgloss.Color(t.cfg.Colors.Subcmd)
-}
-nameStyle := lipgloss.NewStyle().Foreground(nameColor)
-if row.depth == 0 {
-nameStyle = nameStyle.Bold(true)
-}
-if t.matchesTokenPrefix(row.node) {
-nameStyle = nameStyle.Foreground(lipgloss.Color("#50FA7B")).Bold(true)
-}
-line := indent + nameStyle.Render(row.node.Name)
-return t.applySelection(line, selected, maxW)
+	nameColor := lipgloss.Color(t.cfg.Colors.Base)
+	if row.depth > 0 {
+		nameColor = lipgloss.Color(t.cfg.Colors.Subcmd)
+	}
+	nameStyle := lipgloss.NewStyle().Foreground(nameColor)
+	if row.depth == 0 {
+		nameStyle = nameStyle.Bold(true)
+	}
+	if t.matchesTokenPrefix(row.node) {
+		nameStyle = nameStyle.Foreground(lipgloss.Color("#50FA7B")).Bold(true)
+	}
+	line := indent + nameStyle.Render(row.node.Name)
+	return t.applySelection(line, selected, maxW)
 }
 
 // renderCommandRowGraph renders classic tree connectors (├── / └──).
 func (t *TreeModel) renderCommandRowGraph(row treeRow, selected bool, maxW int) string {
-var prefix string
-if row.depth == 0 {
-prefix = ""
-} else if row.isLast {
-prefix = row.graphPrefix + "└── "
-} else {
-prefix = row.graphPrefix + "├── "
-}
-prefix = lipgloss.NewStyle().Faint(true).Render(prefix)
+	var prefix string
+	if row.depth == 0 {
+		prefix = ""
+	} else if row.isLast {
+		prefix = row.graphPrefix + "└── "
+	} else {
+		prefix = row.graphPrefix + "├── "
+	}
+	prefix = lipgloss.NewStyle().Faint(true).Render(prefix)
 
-nameColor := lipgloss.Color(t.cfg.Colors.Base)
-if row.depth > 0 {
-nameColor = lipgloss.Color(t.cfg.Colors.Subcmd)
-}
-nameStyle := lipgloss.NewStyle().Foreground(nameColor)
-if row.depth == 0 {
-nameStyle = nameStyle.Bold(true)
-}
-if t.matchesTokenPrefix(row.node) {
-nameStyle = nameStyle.Foreground(lipgloss.Color("#50FA7B")).Bold(true)
-}
-name := nameStyle.Render(row.node.Name)
+	nameColor := lipgloss.Color(t.cfg.Colors.Base)
+	if row.depth > 0 {
+		nameColor = lipgloss.Color(t.cfg.Colors.Subcmd)
+	}
+	nameStyle := lipgloss.NewStyle().Foreground(nameColor)
+	if row.depth == 0 {
+		nameStyle = nameStyle.Bold(true)
+	}
+	if t.matchesTokenPrefix(row.node) {
+		nameStyle = nameStyle.Foreground(lipgloss.Color("#50FA7B")).Bold(true)
+	}
+	name := nameStyle.Render(row.node.Name)
 
-// Show flag count hint when node has own flags.
-hint := ""
-var ownFlags []models.Flag
-for _, f := range row.node.Flags {
-if !f.Inherited {
-ownFlags = append(ownFlags, f)
-}
-}
-if len(ownFlags) > 0 {
-hint = lipgloss.NewStyle().Faint(true).Render(fmt.Sprintf("  [%d flags]", len(ownFlags)))
-}
+	// Show flag count hint when node has own flags.
+	hint := ""
+	var ownFlags []models.Flag
+	for _, f := range row.node.Flags {
+		if !f.Inherited {
+			ownFlags = append(ownFlags, f)
+		}
+	}
+	if len(ownFlags) > 0 {
+		hint = lipgloss.NewStyle().Faint(true).Render(fmt.Sprintf("  [%d flags]", len(ownFlags)))
+	}
 
-line := prefix + name + hint
-return t.applySelection(line, selected, maxW)
+	line := prefix + name + hint
+	return t.applySelection(line, selected, maxW)
 }
 
 // buildFlagSummary builds the inline flag pill string for the default style.
 func (t *TreeModel) buildFlagSummary(row treeRow, isExpanded bool) string {
-if isExpanded {
-return ""
-}
-var ownFlags []models.Flag
-for _, f := range row.node.Flags {
-if !f.Inherited {
-ownFlags = append(ownFlags, f)
-}
-}
-if len(ownFlags) == 0 {
-return ""
-}
-const maxInlineFlags = 5
-bracketStyle := lipgloss.NewStyle().Faint(true)
-dimStyle := lipgloss.NewStyle().Faint(true)
-activeStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFB86C")).Bold(true)
-if len(ownFlags) > maxInlineFlags {
-var activeParts []string
-for _, f := range ownFlags {
-if isFlagActive(f, t.cmdTokens) {
-fs := f.Name
-if f.ValueType != "" && f.ValueType != "bool" {
-fs += "=<" + f.ValueType + ">"
-}
-activeParts = append(activeParts, activeStyle.Render(fs))
-}
-}
-if len(activeParts) > 0 {
-return " " + bracketStyle.Render("[") +
-strings.Join(activeParts, bracketStyle.Render(",")) + bracketStyle.Render(",") +
-dimStyle.Render(fmt.Sprintf("…+%d flags", len(ownFlags)-len(activeParts))) +
-bracketStyle.Render("]")
-}
-return " " + dimStyle.Render(fmt.Sprintf("[%d flags]", len(ownFlags)))
-}
-var flagParts []string
-for _, f := range ownFlags {
-fs := f.Name
-if f.ValueType != "" && f.ValueType != "bool" {
-fs += "=<" + f.ValueType + ">"
-}
-if isFlagActive(f, t.cmdTokens) {
-flagParts = append(flagParts, activeStyle.Render(fs))
-} else {
-flagParts = append(flagParts, t.flagColorStyle(f.ValueType).Faint(true).Render(fs))
-}
-}
-return " " + bracketStyle.Render("[") +
-strings.Join(flagParts, bracketStyle.Render(",")) +
-bracketStyle.Render("]")
+	if isExpanded {
+		return ""
+	}
+	var ownFlags []models.Flag
+	for _, f := range row.node.Flags {
+		if !f.Inherited {
+			ownFlags = append(ownFlags, f)
+		}
+	}
+	if len(ownFlags) == 0 {
+		return ""
+	}
+	const maxInlineFlags = 5
+	bracketStyle := lipgloss.NewStyle().Faint(true)
+	dimStyle := lipgloss.NewStyle().Faint(true)
+	activeStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FFB86C")).Bold(true)
+	if len(ownFlags) > maxInlineFlags {
+		var activeParts []string
+		for _, f := range ownFlags {
+			if isFlagActive(f, t.cmdTokens) {
+				fs := f.Name
+				if f.ValueType != "" && f.ValueType != "bool" {
+					fs += "=<" + f.ValueType + ">"
+				}
+				activeParts = append(activeParts, activeStyle.Render(fs))
+			}
+		}
+		if len(activeParts) > 0 {
+			return " " + bracketStyle.Render("[") +
+				strings.Join(activeParts, bracketStyle.Render(",")) + bracketStyle.Render(",") +
+				dimStyle.Render(fmt.Sprintf("…+%d flags", len(ownFlags)-len(activeParts))) +
+				bracketStyle.Render("]")
+		}
+		return " " + dimStyle.Render(fmt.Sprintf("[%d flags]", len(ownFlags)))
+	}
+	var flagParts []string
+	for _, f := range ownFlags {
+		fs := f.Name
+		if f.ValueType != "" && f.ValueType != "bool" {
+			fs += "=<" + f.ValueType + ">"
+		}
+		if isFlagActive(f, t.cmdTokens) {
+			flagParts = append(flagParts, activeStyle.Render(fs))
+		} else {
+			flagParts = append(flagParts, t.flagColorStyle(f.ValueType).Faint(true).Render(fs))
+		}
+	}
+	return " " + bracketStyle.Render("[") +
+		strings.Join(flagParts, bracketStyle.Render(",")) +
+		bracketStyle.Render("]")
 }
 
 // applySelection highlights a line if it is the selected row.
 func (t *TreeModel) applySelection(line string, selected bool, maxW int) string {
-if !selected {
-return line
-}
-selStyle := lipgloss.NewStyle().
-Background(lipgloss.Color(t.cfg.Colors.Selected)).
-Foreground(lipgloss.Color(t.cfg.Colors.SelectedText)).
-Bold(true)
-lineW := lipgloss.Width(line)
-if lineW < maxW {
-line += strings.Repeat(" ", maxW-lineW)
-}
-return selStyle.Render(line)
+	if !selected {
+		return line
+	}
+	selStyle := lipgloss.NewStyle().
+		Background(lipgloss.Color(t.cfg.Colors.Selected)).
+		Foreground(lipgloss.Color(t.cfg.Colors.SelectedText)).
+		Bold(true)
+	lineW := lipgloss.Width(line)
+	if lineW < maxW {
+		line += strings.Repeat(" ", maxW-lineW)
+	}
+	return selStyle.Render(line)
 }
 
 func (t *TreeModel) renderSectionRow(row treeRow) string {

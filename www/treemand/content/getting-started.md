@@ -2,9 +2,9 @@
 title: "Getting Started"
 ---
 
-## Basic Usage
+## Explore Any CLI
 
-Discover and visualize any CLI command hierarchy:
+Point treemand at a CLI tool and it maps out the full command hierarchy:
 
 ```bash
 treemand git          # explore git
@@ -13,44 +13,58 @@ treemand aws          # explore the AWS CLI
 treemand treemand     # introspect treemand itself
 ```
 
-## Non-Interactive Output
+## Output Formats
 
-```
-▼ git  [--version --verbose]
-├── ▼ remote
-│   ├── • add <name> <url>
-│   ├── • remove <name>
-│   └── • get-url <name>
-├── • commit [--message=<string>]
-├── • status
-└── • push [--force]
-```
-
-### Useful Flags
+treemand produces three output formats — a human-readable tree for your
+terminal, plus JSON and YAML for piping into scripts and tools:
 
 ```bash
-treemand --depth=2 kubectl          # limit tree depth
+treemand git                       # colored ASCII tree (default)
+treemand --output=json git         # JSON — full tree with flags, descriptions
+treemand --output=yaml git         # YAML — same structure, easier to scan
+```
+
+JSON/YAML include the complete tree: subcommand names, descriptions, flags
+with types, and positional arguments. Pipe JSON to `jq`:
+
+```bash
+treemand --output=json git | jq '.children[].name'    # list all subcommands
+```
+
+## Tree Display Styles
+
+treemand offers four visual styles. Use `--tree-style` or press **T** inside
+the interactive TUI to cycle through them:
+
+```bash
+treemand --tree-style=default git     # ▼/▶/• icons with inline flag pills
+treemand --tree-style=columns git     # name · description — table alignment
+treemand --tree-style=compact git     # no icons, no flags — maximum density
+treemand --tree-style=graph git       # ├──/└── connectors like `tree`
+```
+
+## Useful Flags
+
+```bash
+treemand --depth=2 kubectl          # limit tree depth (default: unlimited)
 treemand --filter=remote git        # only show matching nodes
 treemand --exclude=help git         # exclude nodes by name
 treemand --commands-only kubectl    # subcommands only, no flags
-treemand --output=json git          # machine-readable JSON
 treemand --no-color git             # disable color
-treemand --icons=ascii git          # ASCII-safe icon set (no Unicode)
+treemand --icons=ascii git          # ASCII-safe icons (no Unicode)
 treemand --icons=nerd git           # Nerd Font icons (requires patched font)
+treemand --no-cache git             # bypass the discovery cache
 ```
 
-### Stub Nodes
+## Stub Nodes
 
 Large CLIs (aws: 400+ services, gcloud: 300+ groups) would take minutes to
 fully explore. treemand creates **stub nodes** `(…)` for commands with many
-children, then discovers them lazily.
+children, then discovers them lazily when you expand them in the TUI.
 
 ```bash
-# Explore a specific service directly instead of the full tree
-treemand aws s3
-
-# Force full eager discovery (slow — use with care)
-treemand --stub-threshold=500 aws
+treemand aws s3                     # explore a specific service directly
+treemand --stub-threshold=500 aws   # force full eager discovery (slow)
 ```
 
 ## Interactive TUI (`-i`)
@@ -59,23 +73,81 @@ treemand --stub-threshold=500 aws
 treemand -i git
 ```
 
-The TUI gives you a live explorer with a preview bar, tree pane, and help pane.
+The TUI gives you a live explorer with three panes:
 
-### Keyboard Controls
+- **Preview bar** (top) — shows the command you're building, updated live
+- **Tree pane** (left) — the command hierarchy you navigate
+- **Help pane** (right, toggle with `H`) — shows `--help` output for the
+  selected node
+
+### Tutorial: Build `git commit --message="fix bug" --all`
+
+Here's a step-by-step walkthrough of assembling a command interactively:
+
+**1. Launch the TUI:**
+
+```bash
+treemand -i git
+```
+
+You see the git command tree. The root `git` node is selected.
+
+**2. Navigate to `commit`:**
+
+Press `↓` (or `j`) to move down to the `commit` subcommand.
+
+**3. Pick the command:**
+
+Press `Enter` on `commit`. The preview bar at the top now reads:
+`► git commit`
+
+**4. Add the `--message` flag:**
+
+Press `f` to open the **flag picker**. You see all flags for `git commit`.
+Type `mess` to filter, then press `Enter` on `--message`. Since `--message`
+takes a string value, an **input prompt** appears. Type `fix bug` and
+press `Enter`.
+
+Preview bar now reads: `► git commit --message=fix bug`
+
+**5. Add the `--all` flag:**
+
+Press `f` again, find `--all` (a boolean flag), and press `Enter`. It gets
+added directly — no input prompt needed for boolean flags.
+
+Preview bar: `► git commit --message=fix bug --all`
+
+**6. Copy or run:**
+
+Press `Ctrl+E`. A confirmation modal appears:
+
+- **Copy** — copies the command to your clipboard
+- **Run** — executes the command in your shell
+
+Press `c` to copy or `r` to run.
+
+### Keyboard Reference
 
 | Key | Action |
 |-----|--------|
-| `↑`/`↓` or `j`/`k` | Navigate tree |
-| `→`/`Space`/`Enter` | Expand / add to command |
-| `←` | Collapse |
-| `Ctrl+S` | Cycle nav scheme (arrows → vim → WASD) |
-| `/` | Fuzzy filter |
+| `↓`/`↑` or `j`/`k` | Navigate tree (cursor only — never auto-expands) |
+| `→` or `l` | Expand a node and stay on it; press again to enter children |
+| `←` or `h` | Collapse a node and stay on it; press again to go to parent |
+| `Shift+→` / `Shift+←` | Expand / collapse entire subtree |
+| `Enter` | Pick a command / add a flag / fill a positional |
+| `f` | Open flag picker (with search) |
+| `S` | Toggle section headers (Sub commands, Flags, Inherited flags) |
+| `T` | Cycle display style (default → columns → compact → graph) |
 | `H` | Toggle help pane |
-| `f` / `F` | Open flags modal |
-| `p` / `P` | Open positionals modal |
-| `Ctrl+E` | Copy or execute command |
+| `/` | Fuzzy filter |
+| `Backspace` | Remove last token from preview |
+| `Ctrl+E` | Copy or execute the assembled command |
+| `Ctrl+S` | Cycle navigation scheme (arrows → vim → WASD) |
 | `?` | Show all key bindings |
 | `q` / `Esc` | Quit |
+
+> **Tip:** Press `?` inside the TUI to see the full key binding reference
+> at any time.
 
 ## Configuration
 

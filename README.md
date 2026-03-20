@@ -1,4 +1,4 @@
-# 🌲 treemand — visualize and build CLI commands interactively
+# 🌲 treemand — explore CLIs as trees, build commands interactively
 
 [![Go version](https://img.shields.io/badge/go-1.22%2B-blue)](https://go.dev/dl/)
 [![CI](https://img.shields.io/github/actions/workflow/status/aallbrig/treemand/ci.yml?branch=main)](https://github.com/aallbrig/treemand/actions)
@@ -6,7 +6,11 @@
 
 🌐 **Website & docs:** https://aallbrig.github.io/treemand
 
-treemand introspects any CLI tool's `--help` output and renders its full command hierarchy as a navigable tree. Use it statically to explore unfamiliar CLIs, or interactively to build and execute commands with a keyboard-driven TUI.
+treemand introspects any CLI tool's `--help` output and maps its entire
+command hierarchy into a navigable tree. Two modes:
+
+- **Static** — print a colored ASCII tree to your terminal (or pipe JSON/YAML for scripting)
+- **Interactive** (`-i`) — keyboard-driven TUI to explore commands, pick flags, and assemble + copy/run a full CLI invocation
 
 ![treemand demo](https://aallbrig.github.io/treemand/demo.gif)
 
@@ -14,63 +18,124 @@ treemand introspects any CLI tool's `--help` output and renders its full command
 
 ```bash
 # Homebrew (macOS / Linux) — tap: https://github.com/aallbrig/homebrew-tap
-brew tap aallbrig/tap
-brew install treemand
+brew tap aallbrig/tap && brew install treemand
 
 # Via go install
 go install github.com/aallbrig/treemand/cli/treemand@latest
 
-# Download pre-built binary
-# https://github.com/aallbrig/treemand/releases/latest
+# Pre-built binaries: https://github.com/aallbrig/treemand/releases/latest
 
 # From source
-git clone https://github.com/aallbrig/treemand.git
-cd treemand
-make install
+git clone https://github.com/aallbrig/treemand.git && cd treemand && make install
 ```
 
 ## Quick Start
 
 ```bash
-treemand git              # static tree view
-treemand -i kubectl       # interactive TUI
-treemand version          # show version info
+treemand git                       # colored ASCII tree
+treemand -i kubectl                # interactive TUI
+treemand --output=json docker      # machine-readable JSON
+treemand --output=yaml gh          # YAML (same structure as JSON)
+treemand --tree-style=graph git    # classic ├──/└── connectors
 ```
 
-## TUI Controls
+## Output Formats
+
+treemand supports three output formats — a human-readable tree, plus JSON and
+YAML for scripting and tooling integration:
+
+```bash
+treemand git                       # default colored tree
+treemand --output=json git         # JSON — pipe to jq, store, diff
+treemand --output=yaml git         # YAML — same structure, friendlier to read
+```
+
+JSON/YAML output includes the full tree: subcommand names, descriptions, flags
+(with types), positional arguments, and children — everything treemand discovers.
+
+## Tree Display Styles
+
+Cycle through styles interactively with **T** inside the TUI, or set one from
+the command line:
+
+```bash
+treemand --tree-style=default git     # icon-prefixed tree with inline flag pills (baseline)
+treemand --tree-style=columns git     # name · description — table-like alignment
+treemand --tree-style=compact git     # no icons, no flags — maximum density
+treemand --tree-style=graph git       # ├──/└── connectors like the `tree` command
+```
+
+## Interactive TUI (`-i`)
+
+```bash
+treemand -i git
+```
+
+The TUI lets you **browse a CLI's command tree and assemble a specific command**
+step by step. Here's the workflow:
+
+1. **Navigate** — use `↓`/`↑` (or `j`/`k` in vim mode) to browse subcommands
+2. **Expand / Collapse** — `→` expands a node; press again to enter its children. `←` collapses.
+3. **Pick a command** — press `Enter` on any subcommand to set it in the preview bar
+4. **Add flags** — press `f` to open the flag picker, or navigate to a flag row and press `Enter`
+5. **Add positionals** — press `Enter` on a positional argument row to fill in a value
+6. **Execute or copy** — press `Ctrl+E` to copy the assembled command or run it directly
+
+The preview bar at the top updates live as you build the command.
+
+### Key Bindings
 
 | Key | Action |
 |-----|--------|
-| ↓/j/s | Next item (auto-expands) |
-| ↑/k/w | Previous item |
-| →/l/d | Enter node (expand + move in) |
-| ←/h/a | Exit node (move to parent) |
-| Enter | Set command / add flag to preview |
-| f | Open flag picker modal |
-| Ctrl+E | Execute or copy command |
-| Tab | Cycle pane focus (tree → help → preview) |
-| / | Fuzzy filter |
-| h | Toggle help pane |
-| q/Esc | Quit |
+| `↓`/`↑` or `j`/`k` | Navigate (never auto-expands — you control what opens) |
+| `→` or `l` | Expand node (first press); enter first child (second press) |
+| `←` or `h` | Collapse node (first press); go to parent (second press) |
+| `Shift+→`/`Shift+←` | Expand / collapse entire subtree |
+| `Enter` | Set command in preview / add flag / fill positional |
+| `f` | Open flag picker modal |
+| `S` | Toggle section headers (Sub commands, Flags, etc.) |
+| `T` | Cycle display style (default → columns → compact → graph) |
+| `H` | Toggle help pane |
+| `/` | Fuzzy filter |
+| `Ctrl+E` | Copy or execute the assembled command |
+| `Ctrl+S` | Cycle navigation scheme (arrows → vim → WASD) |
+| `?` | Show all key bindings |
+| `q` / `Esc` | Quit |
 
-## Discovery
+### Mouse Support
 
-treemand uses `--help` recursively to build the tree. The `--strategy` flag selects the discovery strategy (default: `help`). Pass `--depth=N` to limit recursion.
+Click a node to select it, click `▶`/`▼` to toggle, scroll to navigate.
+
+## Useful Flags
+
+```bash
+treemand --depth=2 kubectl         # limit recursion depth
+treemand --filter=remote git       # only nodes matching pattern
+treemand --exclude=help git        # exclude nodes matching pattern
+treemand --commands-only kubectl   # hide flags and positionals
+treemand --icons=ascii git         # ASCII-safe icons (▼ → v, • → -)
+treemand --icons=nerd git          # Nerd Font glyphs (requires patched font)
+treemand --no-color git            # disable color output
+treemand --no-cache git            # bypass the discovery cache
+```
 
 ## Cache
 
-Discovered trees are cached in SQLite (`~/.treemand/cache.db`). To clear stale entries:
+Discovered trees are cached in SQLite (`~/.treemand/cache.db`).
 
 ```bash
-treemand cache clear
+treemand cache list                # show cached CLIs
+treemand cache clear git           # clear one entry
+treemand cache clear               # clear all entries
 ```
 
 ## Development
 
 ```bash
-make build   # build binary
-make test    # run tests
-make install # install to $GOPATH/bin
+make dev      # run tests + install binary (recommended dev loop)
+make build    # compile local binary
+make test     # run all tests
+make lint     # run golangci-lint
 ```
 
 ## License
