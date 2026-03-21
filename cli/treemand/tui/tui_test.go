@@ -1623,6 +1623,51 @@ func TestRight_expandsOnFirstPress_staysOnNode(t *testing.T) {
 	}
 }
 
+func TestRight_leafNodeEntersFlags(t *testing.T) {
+	cfg := config.DefaultConfig()
+	root := &models.Node{
+		Name: "git",
+		Children: []*models.Node{
+			{
+				Name: "status",
+				Flags: []models.Flag{
+					{Name: "--short", ShortName: "s"},
+					{Name: "--branch"},
+				},
+			},
+		},
+	}
+	tree := tui.NewTreeModel(root, cfg)
+	tree.SetSize(100, 40)
+	tree.ToggleSections() // flat mode so flags are directly reachable
+
+	// Navigate to status (leaf command — no subcommands, only flags).
+	tree.Down()
+	if sel := tree.SelectedItem(); sel == nil || sel.Node.Name != "status" {
+		t.Fatalf("expected cursor on status, got %v", sel)
+	}
+
+	// First Right: expand status.
+	tree.Right()
+	sel := tree.SelectedItem()
+	if sel == nil || sel.Node.Name != "status" {
+		t.Errorf("first Right should stay on status; got %v", sel)
+	}
+
+	// Second Right: should enter the first flag (--short), not do nothing.
+	tree.Right()
+	sel2 := tree.SelectedItem()
+	if sel2 == nil {
+		t.Fatal("second Right should move to a child row, got nil")
+	}
+	if sel2.Kind != tui.SelFlag {
+		t.Errorf("second Right on leaf should enter flag row; got kind=%d", sel2.Kind)
+	}
+	if sel2.Flag.Name != "--short" {
+		t.Errorf("expected --short, got %s", sel2.Flag.Name)
+	}
+}
+
 func TestLeft_collapseAndStay_thenGoToParent(t *testing.T) {
 	cfg := config.DefaultConfig()
 	root := &models.Node{

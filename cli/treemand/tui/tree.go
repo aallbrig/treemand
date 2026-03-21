@@ -204,7 +204,9 @@ func (t *TreeModel) Right() {
 		t.scrollIntoView()
 		return
 	}
-	// Step 2: already expanded — jump to first command child.
+	// Step 2: already expanded — jump to first child row.
+	// Prefer a command child; fall back to first flag/positional (leaf nodes).
+	firstChild := -1
 	for pos := t.cursor + 1; pos < len(t.rows); pos++ {
 		r := t.rows[pos]
 		if r.depth <= row.depth {
@@ -215,6 +217,13 @@ func (t *TreeModel) Right() {
 			t.scrollIntoView()
 			return
 		}
+		if firstChild == -1 && r.kind != rowKindSection {
+			firstChild = pos
+		}
+	}
+	if firstChild >= 0 {
+		t.cursor = firstChild
+		t.scrollIntoView()
 	}
 }
 
