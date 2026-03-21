@@ -2,6 +2,8 @@
 title: "Getting Started"
 ---
 
+# Getting Started
+
 ## Explore Any CLI
 
 Point treemand at a CLI tool and it maps out the full command hierarchy:

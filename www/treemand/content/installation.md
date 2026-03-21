@@ -2,6 +2,8 @@
 title: "Installation"
 ---
 
+# Installation
+
 ## Homebrew (macOS / Linux)
 
 ```bash
