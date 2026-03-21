@@ -2311,3 +2311,364 @@ if !strings.Contains(v, "--all") {
 t.Errorf("preview should contain flag '--all', got:\n%s", v)
 }
 }
+
+// =============================================================================
+// Acceptance tests — regression guards for the key UX behaviors we care about.
+//
+// Group A: Leaf-node navigation (Right key entering flags/positionals)
+// Group B: Auto-subcommand-chain (adding a flag/positional automatically sets
+//           its full ancestor command path in the draft preview)
+// =============================================================================
+
+// --- Group A: Leaf-node navigation ---
+
+// TestAccept_LeafNav_firstRightExpandsNode verifies that pressing → on a
+// collapsed leaf command expands it and keeps the cursor there.
+func TestAccept_LeafNav_firstRightExpandsNode(t *testing.T) {
+cfg := config.DefaultConfig()
+root := &models.Node{
+Name: "git", FullPath: []string{"git"},
+Children: []*models.Node{
+{Name: "commit", FullPath: []string{"git", "commit"},
+Flags: []models.Flag{{Name: "--all"}}},
+},
+}
+tree := tui.NewTreeModel(root, cfg)
+tree.SetSize(120, 40)
+
+tree.Down() // git → commit
+if sel := tree.SelectedItem(); sel == nil || sel.Node.Name != "commit" {
+t.Fatalf("expected cursor on commit, got %v", sel)
+}
+tree.Right() // first →: expand commit, stay on commit
+if sel := tree.SelectedItem(); sel == nil || sel.Node.Name != "commit" {
+t.Errorf("first Right should stay on commit; got %v", sel)
+}
+}
+
+// TestAccept_LeafNav_secondRightEntersFlagSection verifies that pressing → a
+// second time on an expanded leaf command enters its flags section (auto-expands
+// the collapsed Flags section header and lands on the first flag).
+func TestAccept_LeafNav_secondRightEntersFlagSection(t *testing.T) {
+cfg := config.DefaultConfig()
+root := &models.Node{
+Name: "git", FullPath: []string{"git"},
+Children: []*models.Node{
+{Name: "commit", FullPath: []string{"git", "commit"},
+Flags: []models.Flag{
+{Name: "--message", ValueType: "string"},
+{Name: "--all"},
+}},
+},
+}
+tree := tui.NewTreeModel(root, cfg)
+tree.SetSize(120, 40)
+
+tree.Down()  // → commit
+tree.Right() // expand commit (stay)
+tree.Right() // auto-expand Flags section, land on --message
+
+sel := tree.SelectedItem()
+if sel == nil {
+t.Fatal("second Right on leaf should move to a flag row, got nil")
+}
+if sel.Kind != tui.SelFlag {
+t.Errorf("expected SelFlag, got kind=%d", sel.Kind)
+}
+if sel.Flag.Name != "--message" {
+t.Errorf("expected --message (first flag), got %s", sel.Flag.Name)
+}
+}
+
+// TestAccept_LeafNav_canNavigateToSiblingWithoutExpandingFlags verifies that
+// after collapsing a leaf node the user can navigate straight to the sibling
+// command without getting stuck inside the flags section.
+func TestAccept_LeafNav_canNavigateToSiblingWithoutExpandingFlags(t *testing.T) {
+cfg := config.DefaultConfig()
+root := &models.Node{
+Name: "git", FullPath: []string{"git"},
+Children: []*models.Node{
+{Name: "commit", FullPath: []string{"git", "commit"},
+Flags: []models.Flag{{Name: "--all"}}},
+{Name: "log", FullPath: []string{"git", "log"}},
+},
+}
+tree := tui.NewTreeModel(root, cfg)
+tree.SetSize(120, 40)
+
+tree.Down()  // → commit
+tree.Right() // expand commit
+tree.Left()  // collapse commit (stay on commit)
+
+// Down should jump to the sibling "log", not into the flags section.
+tree.Down()
+sel := tree.SelectedItem()
+if sel == nil || sel.Kind != tui.SelCommand {
+t.Fatalf("expected a command row after Down, got %v", sel)
+}
+if sel.Node.Name != "log" {
+t.Errorf("Down after collapse should reach sibling 'log'; got %s", sel.Node.Name)
+}
+}
+
+// --- Group B: Auto-subcommand-chain ---
+
+// TestAccept_AutoChain_boolFlagRealNavigation is the primary regression test for
+// the auto-chain feature in the real default tree state (sections collapsed, no
+// ToggleSections shortcut). It navigates to a flag using only arrow keys and
+// verifies the preview includes the full ancestor command path.
+func TestAccept_AutoChain_boolFlagRealNavigation(t *testing.T) {
+cfg := config.DefaultConfig()
+m := tui.NewModel(sampleTree(), cfg)
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+// NOTE: NO ToggleSections() or ExpandAll() — real default state.
+
+// Navigate to commit: Down() skips section headers.
+m.Update(tea.KeyMsg{Type: tea.KeyDown}) // git → commit
+
+// First Right: expand commit (stay on commit).
+m.Update(tea.KeyMsg{Type: tea.KeyRight})
+// Second Right: expand Flags section, land on --message.
+m.Update(tea.KeyMsg{Type: tea.KeyRight})
+// Down once: --message → --all.
+m.Update(tea.KeyMsg{Type: tea.KeyDown})
+
+// Confirm we're on --all before pressing Enter.
+sel := m.TreeModel().SelectedItem()
+if sel == nil || sel.Kind != tui.SelFlag || sel.Flag.Name != "--all" {
+t.Fatalf("expected cursor on --all flag, got %v", sel)
+}
+if sel.Owner == nil || sel.Owner.Name != "commit" {
+t.Fatalf("expected Owner=commit, got %v", sel.Owner)
+}
+
+// Add the flag — should also auto-set "git commit" as the command base.
+m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+
+v := m.View()
+if !strings.Contains(v, "git") {
+t.Errorf("preview should contain 'git'; got:\n%s", v)
+}
+if !strings.Contains(v, "commit") {
+t.Errorf("preview should contain 'commit' (auto-chained); got:\n%s", v)
+}
+if !strings.Contains(v, "--all") {
+t.Errorf("preview should contain '--all'; got:\n%s", v)
+}
+}
+
+// TestAccept_AutoChain_stringFlagViaValueModal verifies that adding a string
+// flag through the value modal also triggers the auto-chain.
+func TestAccept_AutoChain_stringFlagViaValueModal(t *testing.T) {
+cfg := config.DefaultConfig()
+m := tui.NewModel(sampleTree(), cfg)
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+// Navigate to --message (first flag under commit) without selecting commit.
+m.Update(tea.KeyMsg{Type: tea.KeyDown})  // → commit
+m.Update(tea.KeyMsg{Type: tea.KeyRight}) // expand commit
+m.Update(tea.KeyMsg{Type: tea.KeyRight}) // expand flags, land on --message
+
+sel := m.TreeModel().SelectedItem()
+if sel == nil || sel.Kind != tui.SelFlag || sel.Flag.Name != "--message" {
+t.Fatalf("expected cursor on --message, got %v", sel)
+}
+
+// Enter opens the value modal (--message is type string).
+m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+
+// Type a value and confirm.
+for _, r := range "mycommit" {
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+}
+m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+
+v := m.View()
+if !strings.Contains(v, "commit") {
+t.Errorf("preview should contain 'commit' (auto-chained); got:\n%s", v)
+}
+if !strings.Contains(v, "--message=mycommit") {
+t.Errorf("preview should contain '--message=mycommit'; got:\n%s", v)
+}
+}
+
+// TestAccept_AutoChain_viaFlagModal verifies that opening the flag modal (F key)
+// on a command node and selecting a flag auto-chains the parent path.
+func TestAccept_AutoChain_viaFlagModal(t *testing.T) {
+	cfg := config.DefaultConfig()
+	m := tui.NewModel(sampleTree(), cfg)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	// Navigate to commit (DO NOT press Enter — no explicit command selection).
+	m.Update(tea.KeyMsg{Type: tea.KeyDown}) // → commit
+
+	sel := m.TreeModel().SelectedItem()
+	if sel == nil || sel.Node.Name != "commit" {
+		t.Fatalf("expected cursor on commit, got %v", sel)
+	}
+
+	// Press F to open flag modal.
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'f'}})
+
+	// --message is first (index 0), --all is second. Press Down once to reach --all.
+	m.Update(tea.KeyMsg{Type: tea.KeyDown})
+
+	// Enter to add --all (bool flag). The modal stays open (by design, so users can
+	// add multiple flags), so close it with Esc before checking the preview bar.
+	m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m.Update(tea.KeyMsg{Type: tea.KeyEsc}) // dismiss modal so preview bar is visible
+
+	v := m.View()
+	if !strings.Contains(v, "commit") {
+		t.Errorf("preview should contain 'commit' (auto-chained via flag modal); got:\n%s", v)
+	}
+	if !strings.Contains(v, "--all") {
+		t.Errorf("preview should contain '--all'; got:\n%s", v)
+	}
+}
+
+// TestAccept_AutoChain_positionalModal verifies that adding a positional
+// argument auto-chains the parent subcommand path.
+func TestAccept_AutoChain_positionalModal(t *testing.T) {
+cfg := config.DefaultConfig()
+m := tui.NewModel(sampleTree(), cfg)
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+// Use flat mode to access positionals easily.
+m.TreeModel().ToggleSections()
+m.TreeModel().ExpandAll()
+
+// Navigate to the <msg> positional under commit.
+found := false
+for i := 0; i < 100; i++ {
+sel := m.TreeModel().SelectedItem()
+if sel != nil && sel.Kind == tui.SelPositional &&
+sel.Owner != nil && sel.Owner.Name == "commit" {
+found = true
+break
+}
+m.Update(tea.KeyMsg{Type: tea.KeyDown})
+}
+if !found {
+t.Fatal("could not navigate to commit's positional argument")
+}
+
+// Enter opens positional modal.
+m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+
+for _, r := range "HEAD~1" {
+m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+}
+m.Update(tea.KeyMsg{Type: tea.KeyEnter}) // confirm
+
+v := m.View()
+if !strings.Contains(v, "commit") {
+t.Errorf("preview should contain 'commit' (auto-chained for positional); got:\n%s", v)
+}
+if !strings.Contains(v, "HEAD~1") {
+t.Errorf("preview should contain the positional value 'HEAD~1'; got:\n%s", v)
+}
+}
+
+// TestAccept_AutoChain_secondFlagPreservesChain verifies that after the first
+// auto-chain sets "git commit", adding a second flag on the same node appends
+// to the existing chain rather than resetting or duplicating it.
+func TestAccept_AutoChain_secondFlagPreservesChain(t *testing.T) {
+cfg := config.DefaultConfig()
+m := tui.NewModel(sampleTree(), cfg)
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+m.TreeModel().ToggleSections()
+m.TreeModel().ExpandAll()
+
+// Add --all first (triggers auto-chain → "git commit --all").
+found := false
+for i := 0; i < 100; i++ {
+sel := m.TreeModel().SelectedItem()
+if sel != nil && sel.Kind == tui.SelFlag && sel.Flag.Name == "--all" &&
+sel.Owner != nil && sel.Owner.Name == "commit" {
+found = true
+break
+}
+m.Update(tea.KeyMsg{Type: tea.KeyDown})
+}
+if !found {
+t.Fatal("could not navigate to --all")
+}
+m.Update(tea.KeyMsg{Type: tea.KeyEnter}) // adds --all, auto-chains
+
+// Now navigate to --amend on the same node.
+found = false
+for i := 0; i < 100; i++ {
+sel := m.TreeModel().SelectedItem()
+if sel != nil && sel.Kind == tui.SelFlag && sel.Flag.Name == "--amend" {
+found = true
+break
+}
+m.Update(tea.KeyMsg{Type: tea.KeyDown})
+}
+if !found {
+// Try up too.
+for i := 0; i < 100; i++ {
+sel := m.TreeModel().SelectedItem()
+if sel != nil && sel.Kind == tui.SelFlag && sel.Flag.Name == "--amend" {
+found = true
+break
+}
+m.Update(tea.KeyMsg{Type: tea.KeyUp})
+}
+}
+if !found {
+t.Fatal("could not navigate to --amend")
+}
+m.Update(tea.KeyMsg{Type: tea.KeyEnter}) // add --amend
+
+v := m.View()
+// Both flags must be present and the subcommand must appear exactly once.
+if !strings.Contains(v, "--all") {
+	t.Errorf("preview should still contain --all; got:\n%s", v)
+}
+if !strings.Contains(v, "--amend") {
+	t.Errorf("preview should contain --amend; got:\n%s", v)
+}
+// "git commit" must not be duplicated (e.g. "git commit --all git commit --amend").
+if strings.Contains(v, "commit --all git commit") || strings.Contains(v, "commit --amend git commit") {
+	t.Errorf("'commit' subcommand should not be duplicated in preview; got:\n%s", v)
+}
+}
+
+// TestAccept_AutoChain_rootFlagNoDoubleBase verifies that adding a flag on the
+// root command itself does not produce a doubled base (e.g. "git git --version").
+func TestAccept_AutoChain_rootFlagNoDoubleBase(t *testing.T) {
+cfg := config.DefaultConfig()
+m := tui.NewModel(sampleTree(), cfg)
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+m.TreeModel().ToggleSections()
+m.TreeModel().ExpandAll()
+
+// Navigate to --version on the root "git" node.
+found := false
+for i := 0; i < 100; i++ {
+sel := m.TreeModel().SelectedItem()
+if sel != nil && sel.Kind == tui.SelFlag && sel.Flag.Name == "--version" &&
+sel.Owner != nil && sel.Owner.Name == "git" {
+found = true
+break
+}
+m.Update(tea.KeyMsg{Type: tea.KeyDown})
+}
+if !found {
+t.Fatal("could not navigate to git's --version flag")
+}
+m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+
+v := m.View()
+if !strings.Contains(v, "--version") {
+	t.Errorf("preview should contain '--version'; got:\n%s", v)
+}
+// "git" must not be doubled in the preview command (e.g. "git git --version").
+if strings.Contains(v, "git git") {
+	t.Errorf("root command 'git' should not be doubled; got:\n%s", v)
+}
+}
