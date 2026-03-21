@@ -2263,3 +2263,51 @@ func TestWorkflow_navigatePickFlagCopy(t *testing.T) {
 		t.Error("execute modal should show the assembled command")
 	}
 }
+
+// TestFlagAddsSubcommandChain verifies that adding a flag on a deep subcommand
+// automatically sets the full subcommand path in the preview, even when the
+// user never pressed Enter on any ancestor node.
+func TestFlagAddsSubcommandChain(t *testing.T) {
+cfg := config.DefaultConfig()
+m := tui.NewModel(sampleTree(), cfg)
+m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+// Flat + expanded so we can reach flags directly.
+m.TreeModel().ToggleSections()
+m.TreeModel().ExpandAll()
+
+// Confirm preview starts empty (no subcommand chosen yet).
+if strings.Contains(m.View(), "git commit") {
+t.Fatal("preview should be empty before any selection")
+}
+
+// Navigate to --all flag under "commit" without pressing Enter on any
+// command node first.
+found := false
+for i := 0; i < 100; i++ {
+sel := m.TreeModel().SelectedItem()
+if sel != nil && sel.Kind == tui.SelFlag && sel.Flag != nil && sel.Flag.Name == "--all" &&
+sel.Owner != nil && sel.Owner.Name == "commit" {
+found = true
+break
+}
+m.Update(tea.KeyMsg{Type: tea.KeyDown})
+}
+if !found {
+t.Fatal("could not navigate to commit's --all flag")
+}
+
+// Add the flag (bool, so Enter adds it directly).
+m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+
+v := m.View()
+if !strings.Contains(v, "git") {
+t.Errorf("preview should contain root command 'git', got:\n%s", v)
+}
+if !strings.Contains(v, "commit") {
+t.Errorf("preview should contain subcommand 'commit', got:\n%s", v)
+}
+if !strings.Contains(v, "--all") {
+t.Errorf("preview should contain flag '--all', got:\n%s", v)
+}
+}

@@ -58,6 +58,7 @@ type valueInputModal struct {
 	label  string // e.g. "--flag-name <string>"
 	prefix string // token prefix e.g. "--flag-name=" or ""
 	input  textinput.Model
+	owner  *models.Node // node this flag/positional belongs to
 }
 
 // Model is the root Bubble Tea model.
@@ -183,6 +184,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *Model) updateValueModal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "enter":
+		m.ensureCommandBase(m.vm.owner)
 		val := m.vm.prefix + m.vm.input.Value()
 		m.preview.AppendToken(val)
 		m.tree.SetCmdTokens(m.preview.Tokens())
@@ -238,7 +240,7 @@ func (m *Model) renderValueInputModal() string {
 	return sb.String()
 }
 
-func (m *Model) openValueModal(f *models.Flag) {
+func (m *Model) openValueModal(f *models.Flag, owner *models.Node) {
 	vi := textinput.New()
 	vi.Placeholder = "value…"
 	vi.CharLimit = 256
@@ -248,10 +250,11 @@ func (m *Model) openValueModal(f *models.Flag) {
 		label:  f.Name + " <" + f.ValueType + ">",
 		prefix: f.Name + "=",
 		input:  vi,
+		owner:  owner,
 	}
 }
 
-func (m *Model) openPositionalModal(p *models.Positional) {
+func (m *Model) openPositionalModal(p *models.Positional, owner *models.Node) {
 	name := "<" + p.Name + ">"
 	if !p.Required {
 		name = "[" + p.Name + "]"
@@ -265,7 +268,36 @@ func (m *Model) openPositionalModal(p *models.Positional) {
 		label:  name,
 		prefix: "",
 		input:  vi,
+		owner:  owner,
 	}
+}
+
+// ---------- ensureCommandBase ----------
+
+// ensureCommandBase ensures the draft command in the preview starts with the full
+// subcommand chain that owns the flag/positional being added. This lets users add
+// flags without first pressing Enter on every ancestor subcommand.
+func (m *Model) ensureCommandBase(owner *models.Node) {
+	if owner == nil {
+		return
+	}
+	full := owner.FullCommand()
+	ownerToks := strings.Fields(full)
+	current := m.preview.Tokens()
+	if len(current) >= len(ownerToks) {
+		match := true
+		for i, t := range ownerToks {
+			if current[i] != t {
+				match = false
+				break
+			}
+		}
+		if match {
+			return
+		}
+	}
+	m.preview.SetCommand(full)
+	m.tree.SetCmdTokens(m.preview.Tokens())
 }
 
 // ---------- modal ----------
@@ -479,6 +511,7 @@ type flagModal struct {
 	awaitingValue bool // true when prompting the user to type a value
 	awaitingIdx   int  // index of the entry awaiting a value
 	valueInput    textinput.Model
+	owner         *models.Node // node whose flags are shown
 }
 
 // flagTypeColor returns a colour for a flag's value-type indicator in the modal.
@@ -551,7 +584,7 @@ func (m *Model) openFlagModal() {
 	vi := textinput.New()
 	vi.CharLimit = 128
 
-	m.fm = flagModal{active: true, entries: entries, valueInput: vi}
+	m.fm = flagModal{active: true, entries: entries, valueInput: vi, owner: node}
 }
 
 // updateFlagModal handles keys while the flag picker is open.
@@ -570,6 +603,7 @@ func (m *Model) updateFlagModal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if val != "" {
 				token += "=" + val
 			}
+			m.ensureCommandBase(m.fm.owner)
 			m.preview.AppendToken(token)
 			m.tree.SetCmdTokens(m.preview.Tokens())
 			m.fm.entries[m.fm.awaitingIdx].added = true
@@ -607,6 +641,7 @@ func (m *Model) updateFlagModal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.fm.valueInput.Focus()
 				return m, textinput.Blink
 			}
+			m.ensureCommandBase(m.fm.owner)
 			m.preview.AppendToken(e.flag.Name)
 			m.tree.SetCmdTokens(m.preview.Tokens())
 			m.fm.entries[m.fm.cursor].added = true
@@ -883,15 +918,16 @@ func (m *Model) handleArrows(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			vt := strings.ToLower(sel.Flag.ValueType)
 			if vt == "" || vt == "bool" {
 				if !isFlagActive(*sel.Flag, m.preview.Tokens()) {
+					m.ensureCommandBase(sel.Owner)
 					m.preview.AppendToken(sel.Flag.Name)
 					m.tree.SetCmdTokens(m.preview.Tokens())
 					m.statusMsg = "added: " + sel.Flag.Name
 				}
 			} else {
-				m.openValueModal(sel.Flag)
+				m.openValueModal(sel.Flag, sel.Owner)
 			}
 		case SelPositional:
-			m.openPositionalModal(sel.Positional)
+			m.openPositionalModal(sel.Positional, sel.Owner)
 		}
 	}
 	m.syncSelected()
@@ -926,15 +962,16 @@ func (m *Model) handleVim(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			vt := strings.ToLower(sel.Flag.ValueType)
 			if vt == "" || vt == "bool" {
 				if !isFlagActive(*sel.Flag, m.preview.Tokens()) {
+					m.ensureCommandBase(sel.Owner)
 					m.preview.AppendToken(sel.Flag.Name)
 					m.tree.SetCmdTokens(m.preview.Tokens())
 					m.statusMsg = "added: " + sel.Flag.Name
 				}
 			} else {
-				m.openValueModal(sel.Flag)
+				m.openValueModal(sel.Flag, sel.Owner)
 			}
 		case SelPositional:
-			m.openPositionalModal(sel.Positional)
+			m.openPositionalModal(sel.Positional, sel.Owner)
 		}
 	}
 	m.syncSelected()
@@ -969,15 +1006,16 @@ func (m *Model) handleWASD(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			vt := strings.ToLower(sel.Flag.ValueType)
 			if vt == "" || vt == "bool" {
 				if !isFlagActive(*sel.Flag, m.preview.Tokens()) {
+					m.ensureCommandBase(sel.Owner)
 					m.preview.AppendToken(sel.Flag.Name)
 					m.tree.SetCmdTokens(m.preview.Tokens())
 					m.statusMsg = "added: " + sel.Flag.Name
 				}
 			} else {
-				m.openValueModal(sel.Flag)
+				m.openValueModal(sel.Flag, sel.Owner)
 			}
 		case SelPositional:
-			m.openPositionalModal(sel.Positional)
+			m.openPositionalModal(sel.Positional, sel.Owner)
 		}
 	}
 	m.syncSelected()
