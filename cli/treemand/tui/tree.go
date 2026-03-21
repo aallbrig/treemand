@@ -205,8 +205,9 @@ func (t *TreeModel) Right() {
 		return
 	}
 	// Step 2: already expanded — jump to first child row.
-	// Prefer a command child; fall back to first flag/positional (leaf nodes).
+	// Priority: command child > flag/positional > expand first collapsed section.
 	firstChild := -1
+	firstSection := -1
 	for pos := t.cursor + 1; pos < len(t.rows); pos++ {
 		r := t.rows[pos]
 		if r.depth <= row.depth {
@@ -220,9 +221,38 @@ func (t *TreeModel) Right() {
 		if firstChild == -1 && r.kind != rowKindSection {
 			firstChild = pos
 		}
+		if firstSection == -1 && r.kind == rowKindSection {
+			firstSection = pos
+		}
 	}
 	if firstChild >= 0 {
 		t.cursor = firstChild
+		t.scrollIntoView()
+		return
+	}
+	// Only section headers visible (all collapsed). Expand the first section
+	// so the user can reach the flags/positionals inside.
+	if firstSection >= 0 {
+		secRow := t.rows[firstSection]
+		t.sectionExpanded[secRow.sectionKey] = true
+		t.rebuild()
+		// Land on the first non-section row after where the section was.
+		for pos := 0; pos < len(t.rows); pos++ {
+			r := t.rows[pos]
+			if r.kind != rowKindSection && r.kind != rowKindCommand && r.depth > row.depth {
+				t.cursor = pos
+				t.scrollIntoView()
+				return
+			}
+			// Also accept command children that appeared after section expand.
+			if r.kind == rowKindCommand && r.depth > row.depth {
+				t.cursor = pos
+				t.scrollIntoView()
+				return
+			}
+		}
+		// Fallback: just move past the section header itself.
+		t.cursor = firstSection
 		t.scrollIntoView()
 	}
 }

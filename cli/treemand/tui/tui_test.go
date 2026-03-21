@@ -1639,7 +1639,7 @@ func TestRight_leafNodeEntersFlags(t *testing.T) {
 	}
 	tree := tui.NewTreeModel(root, cfg)
 	tree.SetSize(100, 40)
-	tree.ToggleSections() // flat mode so flags are directly reachable
+	// NOTE: sections are NOT hidden — this matches real user behavior.
 
 	// Navigate to status (leaf command — no subcommands, only flags).
 	tree.Down()
@@ -1647,14 +1647,14 @@ func TestRight_leafNodeEntersFlags(t *testing.T) {
 		t.Fatalf("expected cursor on status, got %v", sel)
 	}
 
-	// First Right: expand status.
+	// First Right: expand status (sections appear but are collapsed).
 	tree.Right()
 	sel := tree.SelectedItem()
 	if sel == nil || sel.Node.Name != "status" {
 		t.Errorf("first Right should stay on status; got %v", sel)
 	}
 
-	// Second Right: should enter the first flag (--short), not do nothing.
+	// Second Right: should auto-expand the first section and enter its first flag.
 	tree.Right()
 	sel2 := tree.SelectedItem()
 	if sel2 == nil {
