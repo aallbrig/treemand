@@ -128,18 +128,18 @@ var DisplayStyleNames = []string{"default", "columns", "compact", "graph"}
 
 // Config holds all treemand runtime configuration.
 type Config struct {
-	Colors         ColorScheme
-	Icons          IconSet
-	IconPreset     string // "unicode" | "ascii" | "nerd" — tracks which preset is active
-	DescLineLength int    // max runes in a description before truncation (default 80)
-	StubThreshold  int    // max eager children before switching to stubs (default 50)
-	NoColor        bool
-	Depth          int
-	NoCache        bool
-	CacheDir       string
-	Strategies     []string
-	TreeStyle         DisplayStyle  // controls TUI tree presentation variant
-	StatusMsgTimeout  time.Duration // how long a timed status message is shown (default 3s)
+	Colors           ColorScheme
+	Icons            IconSet
+	IconPreset       string // "unicode" | "ascii" | "nerd" — tracks which preset is active
+	DescLineLength   int    // max runes in a description before truncation (default 80)
+	StubThreshold    int    // max eager children before switching to stubs (default 50)
+	NoColor          bool
+	Depth            int
+	NoCache          bool
+	CacheDir         string
+	Strategies       []string
+	TreeStyle        DisplayStyle  // controls TUI tree presentation variant
+	StatusMsgTimeout time.Duration // how long a timed status message is shown (default 3s)
 }
 
 // DefaultConfig returns config with sensible defaults.
@@ -150,18 +150,18 @@ func DefaultConfig() *Config {
 		cacheDir = home + "/.treemand"
 	}
 	return &Config{
-		Colors:         DefaultColors(),
-		Icons:          DefaultIconSet(),
-		IconPreset:     IconPresetUnicode,
-		DescLineLength: 80,
-		StubThreshold:  50,
-		NoColor:        os.Getenv("NO_COLOR") != "" || os.Getenv("TREEMAND_NO_COLOR") != "",
-		Depth:          -1, // unlimited
-		NoCache:        false,
-		CacheDir:       cacheDir,
-		Strategies:        defaultStrategies(),
-		TreeStyle:         StyleDefault,
-		StatusMsgTimeout:  3 * time.Second,
+		Colors:           DefaultColors(),
+		Icons:            DefaultIconSet(),
+		IconPreset:       IconPresetUnicode,
+		DescLineLength:   80,
+		StubThreshold:    50,
+		NoColor:          os.Getenv("NO_COLOR") != "" || os.Getenv("TREEMAND_NO_COLOR") != "",
+		Depth:            -1, // unlimited
+		NoCache:          false,
+		CacheDir:         cacheDir,
+		Strategies:       defaultStrategies(),
+		TreeStyle:        StyleDefault,
+		StatusMsgTimeout: 3 * time.Second,
 	}
 }
 

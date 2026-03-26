@@ -820,7 +820,7 @@ func TestModel_FilterMode_typeAndClear(t *testing.T) {
 	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
 
 	// Type some characters into the filter.
-	for _, r := range []rune("comm") {
+	for _, r := range "comm" {
 		updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
 		if updated == nil {
 			t.Fatal("Update returned nil during filter typing")
@@ -1168,7 +1168,7 @@ func TestModel_Mouse_doesNotPanic(t *testing.T) {
 	m := tui.NewModel(sampleTree(), config.DefaultConfig())
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	// Click at various positions
-	updated, _ := m.Update(tea.MouseMsg{Type: tea.MouseLeft, X: 5, Y: 5})
+	updated, _ := m.Update(tea.MouseMsg{Action: tea.MouseActionPress, Button: tea.MouseButtonLeft, X: 5, Y: 5})
 	if updated == nil {
 		t.Fatal("returned nil after mouse click")
 	}
@@ -1767,9 +1767,7 @@ func TestShiftLeft_collapsesSubtree_staysOnNode(t *testing.T) {
 	tree.CollapseSubtree(remote, 1)
 	tree.Rebuild()
 	after := tree.SelectedItem()
-	if after != nil && after.Node.Name == "remote" {
-		// Cursor might have shifted; just confirm we can still navigate to log after collapse.
-	}
+	_ = after // cursor may shift; main assertion is no panic
 	rowsAfter := tree.RowCount()
 	_ = rowsAfter // main assertion: no panic and tree is still usable.
 }

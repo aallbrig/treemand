@@ -904,7 +904,7 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int, graphPrefix string
 			})
 		}
 		if subExpanded {
-			childGraphPrefix := graphPrefix
+			childGraphPrefix := ""
 			if depth == 0 {
 				childGraphPrefix = ""
 			} else if isLast {

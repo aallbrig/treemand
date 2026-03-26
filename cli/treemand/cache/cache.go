@@ -139,8 +139,8 @@ func (c *Cache) ListCLIs() ([]string, error) {
 	return names, rows.Err()
 }
 
-// CacheEntry holds display information for a cached tree entry.
-type CacheEntry struct {
+// Entry holds display information for a cached tree entry.
+type Entry struct {
 	CLI       string
 	Version   string
 	Strategy  string
@@ -149,7 +149,7 @@ type CacheEntry struct {
 }
 
 // ListEntries returns all cache entries with metadata for display.
-func (c *Cache) ListEntries() ([]CacheEntry, error) {
+func (c *Cache) ListEntries() ([]Entry, error) {
 	rows, err := c.db.Query(`
 		SELECT cli, version, strategy, cached_at, length(data)
 		FROM trees
@@ -158,9 +158,9 @@ func (c *Cache) ListEntries() ([]CacheEntry, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	var entries []CacheEntry
+	var entries []Entry
 	for rows.Next() {
-		var e CacheEntry
+		var e Entry
 		var ts int64
 		if err := rows.Scan(&e.CLI, &e.Version, &e.Strategy, &ts, &e.SizeBytes); err != nil {
 			return nil, err

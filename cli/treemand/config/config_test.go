@@ -139,4 +139,3 @@ stub_threshold: 25
 		t.Errorf("Icons.Branch = %q, want 'v '", cfg.Icons.Branch)
 	}
 }
-
