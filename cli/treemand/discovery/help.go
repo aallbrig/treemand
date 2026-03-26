@@ -286,48 +286,48 @@ const (
 
 // sectionHeaders maps lower-cased keywords that appear in section header lines.
 var sectionHeaders = map[string]string{
-	"available commands":  secCommands,
-	"available command":   secCommands,
-	"available services":  secCommands, // AWS man-page style
-	"available service":   secCommands,
-	"management commands": secCommands,
-	"management command":  secCommands,
-	"commands":            secCommands,
-	"subcommands":         secCommands,
-	"the commands are":    secCommands, // Go toolchain style: "The commands are:"
-	"all commands":        secCommands, // npm style: "All commands:"
-	"standard commands":        secCommands, // openssl style: "Standard commands"
-	"message digest commands":  secCommands, // openssl: "Message Digest commands"
-	"cipher commands":          secCommands, // openssl: "Cipher commands"
-	"flags":               secFlags,
-	"options":             secFlags,
-	"global flags":        secFlags,
-	"global options":      secFlags,
-	"optional arguments":  secFlags,
-	"arguments":           secFlags,
-	"usage":               secUsage,
-	"use":                 secUsage,
-	"name":                secName,
-	"description":         secDesc,
-	"examples":            secExamples,
-	"example":             secExamples,
-	"aliases":             secAliases,
+	"available commands":      secCommands,
+	"available command":       secCommands,
+	"available services":      secCommands, // AWS man-page style
+	"available service":       secCommands,
+	"management commands":     secCommands,
+	"management command":      secCommands,
+	"commands":                secCommands,
+	"subcommands":             secCommands,
+	"the commands are":        secCommands, // Go toolchain style: "The commands are:"
+	"all commands":            secCommands, // npm style: "All commands:"
+	"standard commands":       secCommands, // openssl style: "Standard commands"
+	"message digest commands": secCommands, // openssl: "Message Digest commands"
+	"cipher commands":         secCommands, // openssl: "Cipher commands"
+	"flags":                   secFlags,
+	"options":                 secFlags,
+	"global flags":            secFlags,
+	"global options":          secFlags,
+	"optional arguments":      secFlags,
+	"arguments":               secFlags,
+	"usage":                   secUsage,
+	"use":                     secUsage,
+	"name":                    secName,
+	"description":             secDesc,
+	"examples":                secExamples,
+	"example":                 secExamples,
+	"aliases":                 secAliases,
 	// free-text sections that contain non-command content
-	"output formats":       secDesc,
-	"discovery strategies": secDesc,
+	"output formats":           secDesc,
+	"discovery strategies":     secDesc,
 	"interactive tui controls": secDesc,
-	"tui controls":        secDesc,
-	"interactive":         secDesc,
-	"output":              secDesc,
-	"notes":               secDesc,
-	"note":                secDesc,
-	"see also":            secDesc,
-	"environment variables": secDesc,
-	"environment":         secDesc,
-	"configuration":       secDesc,
-	"config":              secDesc,
-	"caching":             secDesc,
-	"cache":               secDesc,
+	"tui controls":             secDesc,
+	"interactive":              secDesc,
+	"output":                   secDesc,
+	"notes":                    secDesc,
+	"note":                     secDesc,
+	"see also":                 secDesc,
+	"environment variables":    secDesc,
+	"environment":              secDesc,
+	"configuration":            secDesc,
+	"config":                   secDesc,
+	"caching":                  secDesc,
+	"cache":                    secDesc,
 }
 
 // awsBulletRe matches AWS man-page bullet list items.

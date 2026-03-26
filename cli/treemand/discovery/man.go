@@ -76,7 +76,7 @@ func (m *ManDiscoverer) fetchManPage(ctx context.Context, cliName string) (strin
 	}
 
 	tctx, cancel := context.WithTimeout(ctx, m.Timeout)
-defer cancel()
+	defer cancel()
 
 	manCmd := exec.CommandContext(tctx, "man", cliName)
 	// MANPAGER=cat prevents man from invoking a pager; TERM=dumb keeps output plain.

@@ -277,14 +277,14 @@ func NewRootCmd() *cobra.Command {
 }
 
 func parseTreeStyle(s string) config.DisplayStyle {
-switch s {
-case "columns":
-return config.StyleColumns
-case "compact":
-return config.StyleCompact
-case "graph":
-return config.StyleGraph
-default:
-return config.StyleDefault
-}
+	switch s {
+	case "columns":
+		return config.StyleColumns
+	case "compact":
+		return config.StyleCompact
+	case "graph":
+		return config.StyleGraph
+	default:
+		return config.StyleDefault
+	}
 }

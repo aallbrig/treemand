@@ -114,4 +114,3 @@ func init() {
 	cacheCmd.AddCommand(cacheClearCmd)
 	cacheCmd.AddCommand(cacheListCmd)
 }
-

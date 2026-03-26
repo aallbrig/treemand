@@ -432,10 +432,10 @@ func TestParseHelpOutput_openssl_grid_subcommands(t *testing.T) {
 }
 
 func TestParseHelpOutputFor_treemand_self(t *testing.T) {
-// This is the actual output of `treemand --help`. Previously, the parser
-// incorrectly inferred bogus subcommands from the free-text sections in this
-// output (h, text, json, yaml, completions, treemand).
-helpText := `treemand discovers and visualizes any CLI tool as a command tree.
+	// This is the actual output of `treemand --help`. Previously, the parser
+	// incorrectly inferred bogus subcommands from the free-text sections in this
+	// output (h, text, json, yaml, completions, treemand).
+	helpText := `treemand discovers and visualizes any CLI tool as a command tree.
 
 Point it at any binary and it maps out subcommands, flags, and positionals
 by probing the tool's own --help output — no plugins, no config files.
@@ -489,27 +489,27 @@ Flags:
   -h, --help                 help for treemand
 `
 
-p := discovery.ParseHelpOutputFor(helpText, "treemand")
+	p := discovery.ParseHelpOutputFor(helpText, "treemand")
 
-bogus := []string{"text", "json", "yaml", "h", "completions", "treemand"}
-for _, word := range bogus {
-for _, sub := range p.Subcommands {
-if sub == word {
-t.Errorf("bogus subcommand %q should not appear; got subcommands: %v", word, p.Subcommands)
-}
-}
-}
+	bogus := []string{"text", "json", "yaml", "h", "completions", "treemand"}
+	for _, word := range bogus {
+		for _, sub := range p.Subcommands {
+			if sub == word {
+				t.Errorf("bogus subcommand %q should not appear; got subcommands: %v", word, p.Subcommands)
+			}
+		}
+	}
 
-// The real subcommands must still be present.
-want := map[string]bool{"cache": false, "completion": false, "version": false}
-for _, sub := range p.Subcommands {
-if _, ok := want[sub]; ok {
-want[sub] = true
-}
-}
-for name, found := range want {
-if !found {
-t.Errorf("expected real subcommand %q not found; got: %v", name, p.Subcommands)
-}
-}
+	// The real subcommands must still be present.
+	want := map[string]bool{"cache": false, "completion": false, "version": false}
+	for _, sub := range p.Subcommands {
+		if _, ok := want[sub]; ok {
+			want[sub] = true
+		}
+	}
+	for name, found := range want {
+		if !found {
+			t.Errorf("expected real subcommand %q not found; got: %v", name, p.Subcommands)
+		}
+	}
 }
