@@ -164,6 +164,16 @@ make test     # run all tests
 make lint     # run golangci-lint
 ```
 
+### Git Hooks
+
+Install the pre-push hook to automatically check lint and tests before pushing:
+
+```bash
+bash scripts/setup-hooks.sh
+```
+
+The hook prevents pushing to `main` or `develop` if lint or tests fail.
+
 ## License
 
 [MIT](LICENSE) © aallbrig
