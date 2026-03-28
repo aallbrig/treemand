@@ -144,7 +144,7 @@ func (t *TreeModel) Selected() *models.Node {
 	return nil
 }
 
-// SelectedDepth returns the depth of the currently selected command row.
+// SelectedDepth returns the depth of the currently selected row.
 func (t *TreeModel) SelectedDepth() int {
 	if t.cursor >= len(t.rows) {
 		return 0
@@ -152,28 +152,64 @@ func (t *TreeModel) SelectedDepth() int {
 	return t.rows[t.cursor].depth
 }
 
+// SelectedOrOwner returns the command node at or owning the current cursor
+// position. Unlike Selected(), this also works when the cursor is on a
+// section row by scanning backward to find the nearest parent command.
+func (t *TreeModel) SelectedOrOwner() *models.Node {
+	if n := t.Selected(); n != nil {
+		return n
+	}
+	if t.cursor >= len(t.rows) {
+		return nil
+	}
+	row := t.rows[t.cursor]
+	// Section rows: scan backward for the nearest command at a shallower depth.
+	if row.kind == rowKindSection {
+		for i := t.cursor - 1; i >= 0; i-- {
+			if t.rows[i].kind == rowKindCommand && t.rows[i].depth < row.depth {
+				return t.rows[i].node
+			}
+		}
+	}
+	return nil
+}
+
+// SelectedCommandDepth returns the depth of the command node that owns the
+// current cursor position. For command rows this is the row's own depth;
+// for section/flag/positional rows it's the owning command's depth.
+func (t *TreeModel) SelectedCommandDepth() int {
+	if t.cursor >= len(t.rows) {
+		return 0
+	}
+	row := t.rows[t.cursor]
+	if row.kind == rowKindCommand {
+		return row.depth
+	}
+	if row.kind == rowKindFlag || row.kind == rowKindPositional {
+		return row.ownerDepth
+	}
+	// Section row: scan backward.
+	for i := t.cursor - 1; i >= 0; i-- {
+		if t.rows[i].kind == rowKindCommand && t.rows[i].depth < row.depth {
+			return t.rows[i].depth
+		}
+	}
+	return 0
+}
+
 // Rebuild is a public alias for rebuild, used when callers mutate state externally.
 func (t *TreeModel) Rebuild() { t.rebuild() }
 
 func (t *TreeModel) Up() {
-	pos := t.cursor - 1
-	for pos >= 0 && t.rows[pos].kind == rowKindSection {
-		pos--
-	}
-	if pos >= 0 {
-		t.cursor = pos
+	if t.cursor > 0 {
+		t.cursor--
 		t.scrollIntoView()
 	}
 }
 
 func (t *TreeModel) Down() {
-	// Simply advance to the next non-section row. Never auto-expand anything.
-	pos := t.cursor + 1
-	for pos < len(t.rows) && t.rows[pos].kind == rowKindSection {
-		pos++
-	}
-	if pos < len(t.rows) {
-		t.cursor = pos
+	if t.cursor < len(t.rows)-1 {
+		t.cursor++
 		t.scrollIntoView()
 	}
 }
@@ -187,6 +223,10 @@ func (t *TreeModel) Right() {
 		return
 	}
 	row := t.rows[t.cursor]
+	if row.kind == rowKindSection {
+		t.expandSection(row)
+		return
+	}
 	if row.kind != rowKindCommand {
 		return
 	}
@@ -267,6 +307,9 @@ func (t *TreeModel) Left() {
 	}
 	row := t.rows[t.cursor]
 	switch row.kind {
+	case rowKindSection:
+		t.collapseSection(row)
+		return
 	case rowKindFlag, rowKindPositional:
 		for i, r := range t.rows {
 			if r.kind == rowKindCommand && r.node == row.owner && r.depth == row.ownerDepth {
@@ -324,22 +367,96 @@ func (t *TreeModel) Expand() { t.Right() }
 // Collapse is kept as an alias for Left for backward compatibility.
 func (t *TreeModel) Collapse() { t.Left() }
 
-// ToggleExpand toggles the current command node's expansion (Space key).
+// ToggleExpand toggles the current node's or section's expansion (Space key).
 func (t *TreeModel) ToggleExpand() {
 	if t.cursor >= len(t.rows) {
 		return
 	}
 	row := t.rows[t.cursor]
-	if row.kind != rowKindCommand {
+	switch row.kind {
+	case rowKindSection:
+		t.toggleSection(row)
+	case rowKindCommand:
+		key := nodeKey(row.node, row.depth)
+		if t.nodeExpanded[key] {
+			delete(t.nodeExpanded, key)
+		} else {
+			t.nodeExpanded[key] = true
+		}
+		t.rebuild()
+	}
+}
+
+// ToggleSelectedSection toggles expansion of the section at the current cursor.
+// Returns true if the cursor was on a section row (and it was toggled), false otherwise.
+func (t *TreeModel) ToggleSelectedSection() bool {
+	if t.cursor >= len(t.rows) {
+		return false
+	}
+	row := t.rows[t.cursor]
+	if row.kind != rowKindSection {
+		return false
+	}
+	t.toggleSection(row)
+	return true
+}
+
+// toggleSection toggles a section row's expansion and rebuilds. Keeps the
+// cursor on the section header after rebuild.
+func (t *TreeModel) toggleSection(row treeRow) {
+	current := t.isSectionExpanded(row.sectionKey, row.sectionDefault)
+	t.sectionExpanded[row.sectionKey] = !current
+	t.rebuildKeepingSection(row.sectionKey)
+}
+
+// expandSection expands a section row (no-op if already expanded).
+func (t *TreeModel) expandSection(row treeRow) {
+	if t.isSectionExpanded(row.sectionKey, row.sectionDefault) {
+		// Already expanded — jump to the first content row inside this section.
+		if pos := t.firstSectionChild(row); pos >= 0 {
+			t.cursor = pos
+			t.scrollIntoView()
+		}
 		return
 	}
-	key := nodeKey(row.node, row.depth)
-	if t.nodeExpanded[key] {
-		delete(t.nodeExpanded, key)
-	} else {
-		t.nodeExpanded[key] = true
+	t.sectionExpanded[row.sectionKey] = true
+	t.rebuildKeepingSection(row.sectionKey)
+}
+
+// collapseSection collapses a section row (no-op if already collapsed).
+func (t *TreeModel) collapseSection(row treeRow) {
+	if !t.isSectionExpanded(row.sectionKey, row.sectionDefault) {
+		return
 	}
+	t.sectionExpanded[row.sectionKey] = false
+	t.rebuildKeepingSection(row.sectionKey)
+}
+
+// rebuildKeepingSection rebuilds the row list and restores the cursor to
+// the section row identified by key.
+func (t *TreeModel) rebuildKeepingSection(key string) {
 	t.rebuild()
+	for i, r := range t.rows {
+		if r.kind == rowKindSection && r.sectionKey == key {
+			t.cursor = i
+			break
+		}
+	}
+	t.scrollIntoView()
+}
+
+// firstSectionChild returns the index of the first content row (non-section)
+// inside the given section, or -1 if none found.
+func (t *TreeModel) firstSectionChild(section treeRow) int {
+	pos := t.cursor + 1
+	if pos >= len(t.rows) {
+		return -1
+	}
+	r := t.rows[pos]
+	if r.kind == rowKindSection || r.depth < section.depth {
+		return -1
+	}
+	return pos
 }
 
 // ExpandAllFrom recursively expands the given node and all its descendants.
@@ -352,10 +469,42 @@ func (t *TreeModel) ExpandAllFrom(node *models.Node, depth int) {
 	}
 }
 
-// ExpandAll expands every node in the tree starting from the root.
+// ExpandAll expands every node and every section in the tree.
 func (t *TreeModel) ExpandAll() {
 	t.ExpandAllFrom(t.root, 0)
+	// Also expand all sections so flags/positionals are visible.
+	t.expandAllSections(t.root, 0)
 	t.rebuild()
+}
+
+// expandAllSections recursively marks every section under node as expanded.
+func (t *TreeModel) expandAllSections(node *models.Node, depth int) {
+	key := nodeKey(node, depth)
+	if len(node.Children) > 0 {
+		t.sectionExpanded[key+"/subcommands"] = true
+	}
+	var ownFlags, inheritedFlags int
+	for _, f := range node.Flags {
+		if f.Inherited {
+			inheritedFlags++
+		} else {
+			ownFlags++
+		}
+	}
+	if ownFlags > 0 {
+		t.sectionExpanded[key+"/flags"] = true
+	}
+	if inheritedFlags > 0 {
+		t.sectionExpanded[key+"/inherited"] = true
+	}
+	if len(node.Positionals) > 0 {
+		t.sectionExpanded[key+"/positionals"] = true
+	}
+	for _, c := range node.Children {
+		if !c.Virtual {
+			t.expandAllSections(c, depth+1)
+		}
+	}
 }
 
 // CollapseAll collapses every node in the tree, leaving only the root row visible.
@@ -367,7 +516,7 @@ func (t *TreeModel) CollapseAll() {
 	t.rebuild()
 }
 
-// ToggleSections shows or hides section header rows (Sub commands, Flags, Inherited flags).
+// ToggleSections shows or hides section header rows (Subcommands, Flags, Inherited flags).
 // When hidden, all child items are shown flat without grouping headers.
 func (t *TreeModel) ToggleSections() {
 	t.hideSections = !t.hideSections
@@ -398,6 +547,22 @@ func (t *TreeModel) CollapseSubtree(node *models.Node, depth int) {
 }
 
 // ToggleSectionAtY toggles the section row at content y-coordinate y (0-based inside content area).
+// SelectAtY moves the cursor to the row at visual position y (relative to the
+// tree content area, not including the border). Returns true if the cursor was
+// moved to a selectable (non-section) row; returns false if the row is a
+// section header or out of bounds.
+func (t *TreeModel) SelectAtY(y int) bool {
+	contentIdx := t.offset + y
+	if contentIdx < 0 || contentIdx >= len(t.rows) {
+		return false
+	}
+	if t.rows[contentIdx].kind == rowKindSection {
+		return false
+	}
+	t.cursor = contentIdx
+	return true
+}
+
 func (t *TreeModel) ToggleSectionAtY(y int) {
 	contentIdx := t.offset + y
 	if contentIdx < 0 || contentIdx >= len(t.rows) {
@@ -504,7 +669,7 @@ func (t *TreeModel) renderRow(row treeRow, selected bool, maxW int) string {
 	case rowKindCommand:
 		return t.renderCommandRow(row, selected, maxW)
 	case rowKindSection:
-		return t.renderSectionRow(row)
+		return t.renderSectionRow(row, selected, maxW)
 	case rowKindFlag:
 		return t.renderFlagRow(row, selected, maxW)
 	case rowKindPositional:
@@ -562,7 +727,24 @@ func (t *TreeModel) renderCommandRowDefault(row treeRow, selected bool, maxW int
 	}
 	name := nameStyle.Render(row.node.Name)
 	summary := t.buildFlagSummary(row, isExpanded)
-	line := indent + icon + name + summary
+
+	// Show description after name when collapsed and space permits.
+	descPart := ""
+	if row.node.Description != "" && !isExpanded {
+		sep := lipgloss.NewStyle().Faint(true).Render("  ·  ")
+		usedW := lipgloss.Width(indent+icon+name) + lipgloss.Width(summary) + lipgloss.Width(sep) + 2
+		maxDesc := maxW - usedW
+		if maxDesc > 8 {
+			desc := row.node.Description
+			runes := []rune(desc)
+			if len(runes) > maxDesc {
+				desc = string(runes[:maxDesc-1]) + "…"
+			}
+			descPart = sep + lipgloss.NewStyle().Faint(true).Render(desc)
+		}
+	}
+
+	line := indent + icon + name + descPart + summary
 	return t.applySelection(line, selected, maxW)
 }
 
@@ -750,7 +932,7 @@ func (t *TreeModel) applySelection(line string, selected bool, maxW int) string 
 	return selStyle.Render(line)
 }
 
-func (t *TreeModel) renderSectionRow(row treeRow) string {
+func (t *TreeModel) renderSectionRow(row treeRow, selected bool, maxW int) string {
 	indent := strings.Repeat("  ", row.depth)
 	expanded := t.isSectionExpanded(row.sectionKey, row.sectionDefault)
 	icon := t.cfg.Icons.SectionCollapsed
@@ -758,7 +940,11 @@ func (t *TreeModel) renderSectionRow(row treeRow) string {
 		icon = t.cfg.Icons.SectionExpanded
 	}
 	dimStyle := lipgloss.NewStyle().Faint(true).Italic(true)
-	return dimStyle.Render(indent + icon + row.sectionLabel)
+	line := dimStyle.Render(indent + icon + row.sectionLabel)
+	if selected {
+		return t.applySelection(line, true, maxW)
+	}
+	return line
 }
 
 func (t *TreeModel) renderFlagRow(row treeRow, selected bool, maxW int) string {
@@ -838,7 +1024,9 @@ func (t *TreeModel) renderPositionalRow(row treeRow, selected bool, maxW int) st
 func (t *TreeModel) rebuild() {
 	t.rows = nil
 	t.flattenNode(t.root, 0, "", true)
-	t.adjustCursorOffSection()
+	if t.cursor >= len(t.rows) && len(t.rows) > 0 {
+		t.cursor = len(t.rows) - 1
+	}
 }
 
 func (t *TreeModel) flattenNode(node *models.Node, depth int, graphPrefix string, isLast bool) {
@@ -889,36 +1077,7 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int, graphPrefix string
 		return
 	}
 
-	// Sub commands section.
-	if len(visChildren) > 0 {
-		sKey := key + "/subcommands"
-		subDefault := len(visChildren) <= 6
-		subExpanded := t.hideSections || t.isSectionExpanded(sKey, subDefault)
-		if !t.hideSections {
-			t.rows = append(t.rows, treeRow{
-				kind:           rowKindSection,
-				depth:          depth + 1,
-				sectionKey:     sKey,
-				sectionLabel:   fmt.Sprintf("Sub commands (%d)", len(visChildren)),
-				sectionDefault: subDefault,
-			})
-		}
-		if subExpanded {
-			childGraphPrefix := ""
-			if depth == 0 {
-				childGraphPrefix = ""
-			} else if isLast {
-				childGraphPrefix = graphPrefix + "    "
-			} else {
-				childGraphPrefix = graphPrefix + "│   "
-			}
-			for i, c := range visChildren {
-				t.flattenNode(c, depth+1, childGraphPrefix, i == len(visChildren)-1)
-			}
-		}
-	}
-
-	// Flags section — own (non-inherited) flags only.
+	// Partition flags into own (local) and inherited (global).
 	var ownFlags, inheritedFlags []int // indices into node.Flags
 	for i := range node.Flags {
 		if node.Flags[i].Inherited {
@@ -927,31 +1086,8 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int, graphPrefix string
 			ownFlags = append(ownFlags, i)
 		}
 	}
-	if len(ownFlags) > 0 {
-		sKey := key + "/flags"
-		flagExpanded := t.hideSections || t.isSectionExpanded(sKey, false)
-		if !t.hideSections {
-			t.rows = append(t.rows, treeRow{
-				kind:           rowKindSection,
-				depth:          depth + 1,
-				sectionKey:     sKey,
-				sectionLabel:   fmt.Sprintf("Flags (%d)", len(ownFlags)),
-				sectionDefault: false,
-			})
-		}
-		if flagExpanded {
-			for _, i := range ownFlags {
-				t.rows = append(t.rows, treeRow{
-					kind:       rowKindFlag,
-					depth:      depth + 2,
-					flag:       &node.Flags[i],
-					owner:      node,
-					ownerDepth: depth,
-					sectionRef: sKey,
-				})
-			}
-		}
-	}
+
+	// Inherited (global) flags section — shown first.
 	if len(inheritedFlags) > 0 {
 		sKey := key + "/inherited"
 		inhExpanded := t.hideSections || t.isSectionExpanded(sKey, false)
@@ -978,17 +1114,75 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int, graphPrefix string
 		}
 	}
 
-	// Positionals section.
+	// Own (local) flags section.
+	if len(ownFlags) > 0 {
+		sKey := key + "/flags"
+		flagDefault := len(ownFlags) <= 5
+		flagExpanded := t.hideSections || t.isSectionExpanded(sKey, flagDefault)
+		if !t.hideSections {
+			t.rows = append(t.rows, treeRow{
+				kind:           rowKindSection,
+				depth:          depth + 1,
+				sectionKey:     sKey,
+				sectionLabel:   fmt.Sprintf("Flags (%d)", len(ownFlags)),
+				sectionDefault: flagDefault,
+			})
+		}
+		if flagExpanded {
+			for _, i := range ownFlags {
+				t.rows = append(t.rows, treeRow{
+					kind:       rowKindFlag,
+					depth:      depth + 2,
+					flag:       &node.Flags[i],
+					owner:      node,
+					ownerDepth: depth,
+					sectionRef: sKey,
+				})
+			}
+		}
+	}
+
+	// Subcommands section.
+	if len(visChildren) > 0 {
+		sKey := key + "/subcommands"
+		subDefault := len(visChildren) <= 6
+		subExpanded := t.hideSections || t.isSectionExpanded(sKey, subDefault)
+		if !t.hideSections {
+			t.rows = append(t.rows, treeRow{
+				kind:           rowKindSection,
+				depth:          depth + 1,
+				sectionKey:     sKey,
+				sectionLabel:   fmt.Sprintf("Subcommands (%d)", len(visChildren)),
+				sectionDefault: subDefault,
+			})
+		}
+		if subExpanded {
+			childGraphPrefix := ""
+			if depth == 0 {
+				childGraphPrefix = ""
+			} else if isLast {
+				childGraphPrefix = graphPrefix + "    "
+			} else {
+				childGraphPrefix = graphPrefix + "│   "
+			}
+			for i, c := range visChildren {
+				t.flattenNode(c, depth+1, childGraphPrefix, i == len(visChildren)-1)
+			}
+		}
+	}
+
+	// Positional arguments section.
 	if len(node.Positionals) > 0 {
 		sKey := key + "/positionals"
-		posExpanded := t.hideSections || t.isSectionExpanded(sKey, false)
+		posDefault := len(node.Positionals) <= 5
+		posExpanded := t.hideSections || t.isSectionExpanded(sKey, posDefault)
 		if !t.hideSections {
 			t.rows = append(t.rows, treeRow{
 				kind:           rowKindSection,
 				depth:          depth + 1,
 				sectionKey:     sKey,
 				sectionLabel:   fmt.Sprintf("Positional arguments (%d)", len(node.Positionals)),
-				sectionDefault: false,
+				sectionDefault: posDefault,
 			})
 		}
 		if posExpanded {
@@ -1003,31 +1197,6 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int, graphPrefix string
 				})
 			}
 		}
-	}
-}
-
-// adjustCursorOffSection ensures the cursor is never resting on a section row.
-func (t *TreeModel) adjustCursorOffSection() {
-	if len(t.rows) == 0 {
-		t.cursor = 0
-		return
-	}
-	if t.cursor >= len(t.rows) {
-		t.cursor = len(t.rows) - 1
-	}
-	// Scan forward.
-	for t.cursor < len(t.rows) && t.rows[t.cursor].kind == rowKindSection {
-		t.cursor++
-	}
-	// If past end, scan backward.
-	if t.cursor >= len(t.rows) {
-		t.cursor = len(t.rows) - 1
-		for t.cursor > 0 && t.rows[t.cursor].kind == rowKindSection {
-			t.cursor--
-		}
-	}
-	if t.cursor < 0 {
-		t.cursor = 0
 	}
 }
 

@@ -59,4 +59,54 @@ func ApplyViper(cfg *Config) {
 	if viper.GetBool("no_color") {
 		cfg.NoColor = true
 	}
+	if v := viper.GetString("tree_style"); v != "" {
+		cfg.TreeStyle = ParseTreeStyle(v)
+	}
+	if v := viper.GetInt("depth"); v != 0 {
+		cfg.Depth = v
+	}
+	if v := viper.GetString("strategies"); v != "" {
+		cfg.Strategies = ParseStrategies(v)
+	}
+	if viper.GetBool("no_cache") {
+		cfg.NoCache = true
+	}
+
+	// Color overrides — each sub-key under "colors" is optional.
+	if v := viper.GetString("colors.base"); v != "" {
+		cfg.Colors.Base = v
+	}
+	if v := viper.GetString("colors.subcmd"); v != "" {
+		cfg.Colors.Subcmd = v
+	}
+	if v := viper.GetString("colors.flag"); v != "" {
+		cfg.Colors.Flag = v
+	}
+	if v := viper.GetString("colors.flag_bool"); v != "" {
+		cfg.Colors.FlagBool = v
+	}
+	if v := viper.GetString("colors.flag_string"); v != "" {
+		cfg.Colors.FlagString = v
+	}
+	if v := viper.GetString("colors.flag_int"); v != "" {
+		cfg.Colors.FlagInt = v
+	}
+	if v := viper.GetString("colors.flag_other"); v != "" {
+		cfg.Colors.FlagOther = v
+	}
+	if v := viper.GetString("colors.pos"); v != "" {
+		cfg.Colors.Pos = v
+	}
+	if v := viper.GetString("colors.value"); v != "" {
+		cfg.Colors.Value = v
+	}
+	if v := viper.GetString("colors.invalid"); v != "" {
+		cfg.Colors.Invalid = v
+	}
+	if v := viper.GetString("colors.selected"); v != "" {
+		cfg.Colors.Selected = v
+	}
+	if v := viper.GetString("colors.selected_text"); v != "" {
+		cfg.Colors.SelectedText = v
+	}
 }

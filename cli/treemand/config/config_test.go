@@ -107,6 +107,26 @@ func TestDefaultIconSet(t *testing.T) {
 	}
 }
 
+func TestParseTreeStyle(t *testing.T) {
+	tests := []struct {
+		input string
+		want  config.DisplayStyle
+	}{
+		{"default", config.StyleDefault},
+		{"columns", config.StyleColumns},
+		{"compact", config.StyleCompact},
+		{"graph", config.StyleGraph},
+		{"unknown", config.StyleDefault},
+		{"", config.StyleDefault},
+	}
+	for _, tt := range tests {
+		got := config.ParseTreeStyle(tt.input)
+		if got != tt.want {
+			t.Errorf("ParseTreeStyle(%q) = %d, want %d", tt.input, got, tt.want)
+		}
+	}
+}
+
 func TestLoadConfigFile(t *testing.T) {
 	// Write a temporary config file and verify ApplyViper reads it.
 	dir := t.TempDir()
@@ -137,5 +157,39 @@ stub_threshold: 25
 	}
 	if cfg.Icons.Branch != "v " {
 		t.Errorf("Icons.Branch = %q, want 'v '", cfg.Icons.Branch)
+	}
+}
+
+func TestLoadConfigFile_treeStyleAndColors(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, "config.yaml")
+	content := `tree_style: graph
+colors:
+  base: "#FF0000"
+  subcmd: "#00FF00"
+  selected: "#0000FF"
+`
+	if err := os.WriteFile(cfgPath, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := config.InitViper(cfgPath); err != nil {
+		t.Fatalf("InitViper error: %v", err)
+	}
+
+	cfg := config.DefaultConfig()
+	config.ApplyViper(cfg)
+
+	if cfg.TreeStyle != config.StyleGraph {
+		t.Errorf("TreeStyle = %d, want StyleGraph (%d)", cfg.TreeStyle, config.StyleGraph)
+	}
+	if cfg.Colors.Base != "#FF0000" {
+		t.Errorf("Colors.Base = %q, want #FF0000", cfg.Colors.Base)
+	}
+	if cfg.Colors.Subcmd != "#00FF00" {
+		t.Errorf("Colors.Subcmd = %q, want #00FF00", cfg.Colors.Subcmd)
+	}
+	if cfg.Colors.Selected != "#0000FF" {
+		t.Errorf("Colors.Selected = %q, want #0000FF", cfg.Colors.Selected)
 	}
 }

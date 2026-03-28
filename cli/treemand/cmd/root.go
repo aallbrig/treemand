@@ -112,6 +112,10 @@ func init() {
 	_ = viper.BindPFlag("desc_line_length", rootCmd.PersistentFlags().Lookup("line-length"))
 	_ = viper.BindPFlag("stub_threshold", rootCmd.PersistentFlags().Lookup("stub-threshold"))
 	_ = viper.BindPFlag("no_color", rootCmd.PersistentFlags().Lookup("no-color"))
+	_ = viper.BindPFlag("tree_style", rootCmd.PersistentFlags().Lookup("tree-style"))
+	_ = viper.BindPFlag("depth", rootCmd.PersistentFlags().Lookup("depth"))
+	_ = viper.BindPFlag("strategies", rootCmd.PersistentFlags().Lookup("strategy"))
+	_ = viper.BindPFlag("no_cache", rootCmd.PersistentFlags().Lookup("no-cache"))
 }
 
 func initConfig() {
@@ -152,7 +156,7 @@ func runRoot(cmd *cobra.Command, args []string) error {
 		cfg.StubThreshold = cfgStubThreshold
 	}
 	if cfgTreeStyle != "" && cfgTreeStyle != "default" {
-		cfg.TreeStyle = parseTreeStyle(cfgTreeStyle)
+		cfg.TreeStyle = config.ParseTreeStyle(cfgTreeStyle)
 	}
 	strategies := config.ParseStrategies(cfgStrategy)
 
@@ -274,17 +278,4 @@ func NewRootCmd() *cobra.Command {
 	c.AddCommand(completionCmd)
 	c.ValidArgsFunction = completeCLIName
 	return c
-}
-
-func parseTreeStyle(s string) config.DisplayStyle {
-	switch s {
-	case "columns":
-		return config.StyleColumns
-	case "compact":
-		return config.StyleCompact
-	case "graph":
-		return config.StyleGraph
-	default:
-		return config.StyleDefault
-	}
 }

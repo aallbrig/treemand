@@ -450,31 +450,30 @@ func (m *Model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "d", "D":
 		return m, m.openDocsURL()
 
-	// Shift+Right/Left: expand/collapse the current node's subtree.
-	// When the cursor is at the root, this is equivalent to expand/collapse all.
+	// e/E: expand all / collapse all (global).
+	case "e":
+		m.tree.ExpandAll()
+		m.statusMsg = "expanded all"
+		return m, nil
+	case "E":
+		m.tree.CollapseAll()
+		m.statusMsg = "collapsed all"
+		return m, nil
+
+	// Shift+Right/Left: expand/collapse subtree under the current node.
 	case "shift+right", "shift+l", "shift+d":
-		if node := m.tree.Selected(); node != nil {
-			if m.tree.IsAtRoot() {
-				m.tree.ExpandAll()
-				m.statusMsg = "expanded all"
-			} else {
-				m.tree.ExpandAllFrom(node, m.tree.SelectedDepth())
-				m.tree.Rebuild()
-				m.statusMsg = "expanded: " + node.Name
-			}
+		if node := m.tree.SelectedOrOwner(); node != nil {
+			m.tree.ExpandAllFrom(node, m.tree.SelectedCommandDepth())
+			m.tree.Rebuild()
+			m.statusMsg = "expanded: " + node.Name
 		}
 		return m, nil
 
 	case "shift+left", "shift+h", "shift+a":
-		if node := m.tree.Selected(); node != nil {
-			if m.tree.IsAtRoot() {
-				m.tree.CollapseAll()
-				m.statusMsg = "collapsed all"
-			} else {
-				m.tree.CollapseSubtree(node, m.tree.SelectedDepth())
-				m.tree.Rebuild()
-				m.statusMsg = "collapsed: " + node.Name
-			}
+		if node := m.tree.SelectedOrOwner(); node != nil {
+			m.tree.CollapseSubtree(node, m.tree.SelectedCommandDepth())
+			m.tree.Rebuild()
+			m.statusMsg = "collapsed: " + node.Name
 		}
 		return m, nil
 	}
@@ -890,6 +889,40 @@ func (m *Model) updatePreviewInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// handlePick handles the Enter/pick action shared across all nav schemes.
+func (m *Model) handlePick() {
+	// If cursor is on a section header, toggle it.
+	if m.tree.ToggleSelectedSection() {
+		return
+	}
+	sel := m.tree.SelectedItem()
+	if sel == nil {
+		return
+	}
+	switch sel.Kind {
+	case SelCommand:
+		if !sel.Node.Virtual {
+			m.preview.SetCommand(sel.Node.FullCommand())
+			m.tree.SetCmdTokens(m.preview.Tokens())
+			m.statusMsg = "set: " + sel.Node.FullCommand()
+		}
+	case SelFlag:
+		vt := strings.ToLower(sel.Flag.ValueType)
+		if vt == "" || vt == "bool" {
+			if !isFlagActive(*sel.Flag, m.preview.Tokens()) {
+				m.ensureCommandBase(sel.Owner)
+				m.preview.AppendToken(sel.Flag.Name)
+				m.tree.SetCmdTokens(m.preview.Tokens())
+				m.statusMsg = "added: " + sel.Flag.Name
+			}
+		} else {
+			m.openValueModal(sel.Flag, sel.Owner)
+		}
+	case SelPositional:
+		m.openPositionalModal(sel.Positional, sel.Owner)
+	}
+}
+
 func (m *Model) handleArrows(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "up":
@@ -903,32 +936,7 @@ func (m *Model) handleArrows(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case " ":
 		m.tree.ToggleExpand()
 	case "enter":
-		sel := m.tree.SelectedItem()
-		if sel == nil {
-			break
-		}
-		switch sel.Kind {
-		case SelCommand:
-			if !sel.Node.Virtual {
-				m.preview.SetCommand(sel.Node.FullCommand())
-				m.tree.SetCmdTokens(m.preview.Tokens())
-				m.statusMsg = "set: " + sel.Node.FullCommand()
-			}
-		case SelFlag:
-			vt := strings.ToLower(sel.Flag.ValueType)
-			if vt == "" || vt == "bool" {
-				if !isFlagActive(*sel.Flag, m.preview.Tokens()) {
-					m.ensureCommandBase(sel.Owner)
-					m.preview.AppendToken(sel.Flag.Name)
-					m.tree.SetCmdTokens(m.preview.Tokens())
-					m.statusMsg = "added: " + sel.Flag.Name
-				}
-			} else {
-				m.openValueModal(sel.Flag, sel.Owner)
-			}
-		case SelPositional:
-			m.openPositionalModal(sel.Positional, sel.Owner)
-		}
+		m.handlePick()
 	}
 	m.syncSelected()
 	return m, m.lazyExpandIfStub()
@@ -947,32 +955,7 @@ func (m *Model) handleVim(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case " ":
 		m.tree.ToggleExpand()
 	case "enter":
-		sel := m.tree.SelectedItem()
-		if sel == nil {
-			break
-		}
-		switch sel.Kind {
-		case SelCommand:
-			if !sel.Node.Virtual {
-				m.preview.SetCommand(sel.Node.FullCommand())
-				m.tree.SetCmdTokens(m.preview.Tokens())
-				m.statusMsg = "set: " + sel.Node.FullCommand()
-			}
-		case SelFlag:
-			vt := strings.ToLower(sel.Flag.ValueType)
-			if vt == "" || vt == "bool" {
-				if !isFlagActive(*sel.Flag, m.preview.Tokens()) {
-					m.ensureCommandBase(sel.Owner)
-					m.preview.AppendToken(sel.Flag.Name)
-					m.tree.SetCmdTokens(m.preview.Tokens())
-					m.statusMsg = "added: " + sel.Flag.Name
-				}
-			} else {
-				m.openValueModal(sel.Flag, sel.Owner)
-			}
-		case SelPositional:
-			m.openPositionalModal(sel.Positional, sel.Owner)
-		}
+		m.handlePick()
 	}
 	m.syncSelected()
 	return m, m.lazyExpandIfStub()
@@ -991,32 +974,7 @@ func (m *Model) handleWASD(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case " ":
 		m.tree.ToggleExpand()
 	case "enter":
-		sel := m.tree.SelectedItem()
-		if sel == nil {
-			break
-		}
-		switch sel.Kind {
-		case SelCommand:
-			if !sel.Node.Virtual {
-				m.preview.SetCommand(sel.Node.FullCommand())
-				m.tree.SetCmdTokens(m.preview.Tokens())
-				m.statusMsg = "set: " + sel.Node.FullCommand()
-			}
-		case SelFlag:
-			vt := strings.ToLower(sel.Flag.ValueType)
-			if vt == "" || vt == "bool" {
-				if !isFlagActive(*sel.Flag, m.preview.Tokens()) {
-					m.ensureCommandBase(sel.Owner)
-					m.preview.AppendToken(sel.Flag.Name)
-					m.tree.SetCmdTokens(m.preview.Tokens())
-					m.statusMsg = "added: " + sel.Flag.Name
-				}
-			} else {
-				m.openValueModal(sel.Flag, sel.Owner)
-			}
-		case SelPositional:
-			m.openPositionalModal(sel.Positional, sel.Owner)
-		}
+		m.handlePick()
 	}
 	m.syncSelected()
 	return m, m.lazyExpandIfStub()
@@ -1067,7 +1025,13 @@ func (m *Model) handleMouseClick(x, y int) {
 		m.setFocus(paneHelp)
 	} else {
 		m.setFocus(paneTree)
-		m.tree.ToggleSectionAtY(y - previewBarHeight - 1)
+		// Account for the tree pane's border (1 row).
+		treeY := y - previewBarHeight - 1
+		if m.tree.SelectAtY(treeY) {
+			m.syncSelected()
+		} else {
+			m.tree.ToggleSectionAtY(treeY)
+		}
 	}
 	m.statusMsg = "focus: " + paneName(m.focusedPane)
 }
@@ -1329,7 +1293,7 @@ func (m *Model) renderStatusBar() string {
 		hint = "↑↓:scroll  PgUp/PgDn  g/G:top/bottom  Tab:switch"
 		hintStyle = lipgloss.NewStyle().Faint(true)
 	default:
-		hint = schemeIndicator + "↑↓:nav  ←:collapse  →:expand/enter  Shift+←→:subtree  Enter:pick  f:flags  S:sections  t:style  /:filter  H:help  Ctrl+E:exec  q:quit"
+		hint = schemeIndicator + "↑↓:nav  ←→:expand/collapse  Enter:pick  e/E:expand/collapse all  Shift+←→:subtree  S:sections  f:flags  /:filter  H:help  Ctrl+E:exec  q:quit"
 		hintStyle = lipgloss.NewStyle().Faint(true)
 	}
 	right := hintStyle.Render(hint)

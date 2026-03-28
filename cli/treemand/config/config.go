@@ -126,6 +126,20 @@ const (
 // DisplayStyleNames maps each style to a short display name for the status bar.
 var DisplayStyleNames = []string{"default", "columns", "compact", "graph"}
 
+// ParseTreeStyle converts a string name to a DisplayStyle.
+func ParseTreeStyle(s string) DisplayStyle {
+	switch s {
+	case "columns":
+		return StyleColumns
+	case "compact":
+		return StyleCompact
+	case "graph":
+		return StyleGraph
+	default:
+		return StyleDefault
+	}
+}
+
 // Config holds all treemand runtime configuration.
 type Config struct {
 	Colors           ColorScheme

@@ -85,11 +85,12 @@ func (h *HelpPaneModel) ScrollUp(n int) {
 }
 
 func (h *HelpPaneModel) ScrollDown(n int) {
-	maxOff := len(h.lines) - h.viewportLines()
+	// Use a generous upper bound; View() clamps to the actual wrapped line count.
+	h.scrollOffset += n
+	maxOff := h.wrappedLineCount() - h.viewportLines()
 	if maxOff < 0 {
 		maxOff = 0
 	}
-	h.scrollOffset += n
 	if h.scrollOffset > maxOff {
 		h.scrollOffset = maxOff
 	}
@@ -99,11 +100,25 @@ func (h *HelpPaneModel) PageUp()   { h.ScrollUp(h.viewportLines()) }
 func (h *HelpPaneModel) PageDown() { h.ScrollDown(h.viewportLines()) }
 func (h *HelpPaneModel) Top()      { h.scrollOffset = 0 }
 func (h *HelpPaneModel) Bottom() {
-	maxOff := len(h.lines) - h.viewportLines()
+	maxOff := h.wrappedLineCount() - h.viewportLines()
 	if maxOff < 0 {
 		maxOff = 0
 	}
 	h.scrollOffset = maxOff
+}
+
+// wrappedLineCount returns the number of display lines after word-wrapping
+// at the current pane width. Used for scroll boundary calculations.
+func (h *HelpPaneModel) wrappedLineCount() int {
+	innerW := h.width - 4
+	if innerW < 1 {
+		return len(h.lines)
+	}
+	count := 0
+	for _, line := range h.lines {
+		count += len(wordWrap(line, innerW))
+	}
+	return count
 }
 
 func (h *HelpPaneModel) viewportLines() int {
@@ -121,12 +136,34 @@ func (h *HelpPaneModel) View(w, hi int) string {
 		h.rebuildLines()
 	}
 
-	vp := h.viewportLines()
-	end := h.scrollOffset + vp
-	if end > len(h.lines) {
-		end = len(h.lines)
+	innerW := w - 4
+	if innerW < 1 {
+		innerW = 1
 	}
-	slice := h.lines[h.scrollOffset:end]
+
+	// Word-wrap source lines to fit the pane width, producing the actual
+	// display lines used for scrolling and rendering.
+	var wrapped []string
+	for _, line := range h.lines {
+		wrapped = append(wrapped, wordWrap(line, innerW)...)
+	}
+
+	vp := h.viewportLines()
+
+	// Clamp scroll offset to wrapped line count.
+	maxOff := len(wrapped) - vp
+	if maxOff < 0 {
+		maxOff = 0
+	}
+	if h.scrollOffset > maxOff {
+		h.scrollOffset = maxOff
+	}
+
+	end := h.scrollOffset + vp
+	if end > len(wrapped) {
+		end = len(wrapped)
+	}
+	slice := wrapped[h.scrollOffset:end]
 
 	padded := make([]string, vp)
 	copy(padded, slice)
@@ -135,10 +172,10 @@ func (h *HelpPaneModel) View(w, hi int) string {
 	}
 
 	scrollSuffix := ""
-	if len(h.lines) > vp {
+	if len(wrapped) > vp {
 		pct := 0
-		if len(h.lines) > 0 {
-			pct = (h.scrollOffset + vp) * 100 / len(h.lines)
+		if len(wrapped) > 0 {
+			pct = (h.scrollOffset + vp) * 100 / len(wrapped)
 			if pct > 100 {
 				pct = 100
 			}
@@ -179,21 +216,36 @@ func (h *HelpPaneModel) View(w, hi int) string {
 		Width(w - 2).
 		Height(hi - 2)
 
-	innerW := w - 4
-	var rendered []string
-	for _, line := range padded {
-		rendered = append(rendered, hardWrap(line, innerW))
-	}
-
-	content := titleStyle.Render(title) + "\n" + strings.Join(rendered, "\n")
+	content := titleStyle.Render(title) + "\n" + strings.Join(padded, "\n")
 	return boxStyle.Render(content)
 }
 
-func hardWrap(s string, maxW int) string {
-	if maxW <= 0 || len(s) <= maxW {
-		return s
+// wordWrap breaks a string into lines that fit within maxW columns,
+// splitting at word boundaries when possible. Returns at least one line.
+func wordWrap(s string, maxW int) []string {
+	if maxW <= 0 {
+		return []string{s}
 	}
-	return s[:maxW]
+	if len(s) <= maxW {
+		return []string{s}
+	}
+
+	var lines []string
+	for len(s) > maxW {
+		// Find the last space within the allowed width.
+		cut := strings.LastIndex(s[:maxW], " ")
+		if cut <= 0 {
+			// No space found — hard break at maxW.
+			cut = maxW
+			lines = append(lines, s[:cut])
+			s = s[cut:]
+		} else {
+			lines = append(lines, s[:cut])
+			s = s[cut+1:] // skip the space
+		}
+	}
+	lines = append(lines, s)
+	return lines
 }
 
 func (h *HelpPaneModel) rebuildLines() {
