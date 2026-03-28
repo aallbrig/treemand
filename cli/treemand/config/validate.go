@@ -129,8 +129,8 @@ func flattenMap(prefix string, m map[string]interface{}) map[string]interface{} 
 	return flat
 }
 
-// ConfigToYAML renders a Config as YAML suitable for display.
-func ConfigToYAML(cfg *Config) (string, error) {
+// ToYAML renders a Config as YAML suitable for display.
+func ToYAML(cfg *Config) (string, error) {
 	// Build an ordered representation for clean output.
 	m := map[string]interface{}{
 		"icons":            cfg.IconPreset,

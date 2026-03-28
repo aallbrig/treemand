@@ -6,8 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aallbrig/treemand/cmd"
 	"github.com/spf13/viper"
+
+	"github.com/aallbrig/treemand/cmd"
 )
 
 func runCmd(args ...string) (string, error) {

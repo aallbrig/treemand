@@ -49,7 +49,7 @@ func runConfigView(cmd *cobra.Command, args []string) error {
 	cfg := config.DefaultConfig()
 	config.ApplyViper(cfg)
 
-	yamlStr, err := config.ConfigToYAML(cfg)
+	yamlStr, err := config.ToYAML(cfg)
 	if err != nil {
 		return fmt.Errorf("marshal config: %w", err)
 	}

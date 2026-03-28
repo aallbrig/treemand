@@ -77,7 +77,7 @@ func WriteDefaultConfig(path string, force bool) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("create directory: %w", err)
 	}
-	if err := os.WriteFile(path, []byte(defaultConfigYAML), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(defaultConfigYAML), 0o600); err != nil {
 		return fmt.Errorf("write config: %w", err)
 	}
 	return nil

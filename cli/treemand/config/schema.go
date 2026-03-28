@@ -19,7 +19,7 @@ const (
 
 // SchemaEntry describes a single known configuration key.
 type SchemaEntry struct {
-	Key           string   // dot-path key, e.g. "icons" or "colors.base"
+	Key           string // dot-path key, e.g. "icons" or "colors.base"
 	Type          KeyType
 	Default       string
 	AllowedValues []string // empty means any value of the correct type is accepted

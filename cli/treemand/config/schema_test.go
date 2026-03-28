@@ -89,11 +89,11 @@ func TestSuggestKey(t *testing.T) {
 		input string
 		want  string
 	}{
-		{"icons", "icons"},          // exact match
-		{"icon", "icons"},           // 1 edit away
-		{"depht", "depth"},          // 1 edit away
-		{"no_colr", "no_color"},     // 1 edit away
-		{"zzzzzzzzzzz", ""},         // no close match
+		{"icons", "icons"},      // exact match
+		{"icon", "icons"},       // 1 edit away
+		{"depht", "depth"},      // 1 edit away
+		{"no_colr", "no_color"}, // 1 edit away
+		{"zzzzzzzzzzz", ""},     // no close match
 	}
 	for _, tt := range tests {
 		got := config.SuggestKey(tt.input)
@@ -170,9 +170,9 @@ func TestPromoteWarnings(t *testing.T) {
 	}
 }
 
-func TestConfigToYAML(t *testing.T) {
+func TestToYAML(t *testing.T) {
 	cfg := config.DefaultConfig()
-	out, err := config.ConfigToYAML(cfg)
+	out, err := config.ToYAML(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
