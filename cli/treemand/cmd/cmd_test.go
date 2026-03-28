@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/aallbrig/treemand/cmd"
+	"github.com/spf13/viper"
 )
 
 func runCmd(args ...string) (string, error) {
@@ -333,4 +334,171 @@ func TestRootOutput_json(t *testing.T) {
 func TestRootDepth(t *testing.T) {
 	_, err := runCmd("--no-cache", "--no-color", "--depth=1", "--timeout=5", "git")
 	_ = err
+}
+
+// ── config subcommand tests ──────────────────────────────────────────────────
+
+// resetViper clears global viper state to isolate config tests from
+// earlier tests that may have loaded a config file.
+func resetViper() { viper.Reset() }
+
+func TestConfigHelp(t *testing.T) {
+	out, err := runCmd("config", "--help")
+	if err != nil {
+		t.Fatalf("config --help: %v", err)
+	}
+	for _, want := range []string{"view", "validate", "set", "init", "path", "edit"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("config help missing subcommand %q", want)
+		}
+	}
+}
+
+func TestConfigView_noFile(t *testing.T) {
+	resetViper()
+	out, err := runCmd("config", "view")
+	if err != nil {
+		t.Fatalf("config view: %v", err)
+	}
+	// Should contain either a config file path or "No config file found".
+	if !strings.Contains(out, "Config file:") && !strings.Contains(out, "No config file found") {
+		t.Errorf("config view missing file info: %q", out[:min(200, len(out))])
+	}
+	// Should contain config keys.
+	if !strings.Contains(out, "icons:") {
+		t.Errorf("config view missing 'icons:' key")
+	}
+}
+
+func TestConfigView_bare(t *testing.T) {
+	resetViper()
+	// `treemand config` with no subcommand shows help listing subcommands
+	out, err := runCmd("config")
+	if err != nil {
+		t.Fatalf("config (bare): %v", err)
+	}
+	if !strings.Contains(out, "Available Commands") {
+		t.Errorf("bare config should show help with subcommands")
+	}
+}
+
+func TestConfigValidate_noFile(t *testing.T) {
+	resetViper()
+	out, err := runCmd("config", "validate")
+	if err != nil {
+		t.Fatalf("config validate: %v", err)
+	}
+	// Should report no file or valid config.
+	if !strings.Contains(out, "No config file found") && !strings.Contains(out, "valid") {
+		t.Errorf("unexpected validate output: %q", out)
+	}
+}
+
+func TestConfigValidate_validFile(t *testing.T) {
+	tmp := t.TempDir()
+	cfgFile := tmp + "/config.yaml"
+	if err := os.WriteFile(cfgFile, []byte("icons: ascii\ndepth: 3\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	out, err := runCmd("--config="+cfgFile, "config", "validate")
+	if err != nil {
+		t.Fatalf("config validate: %v", err)
+	}
+	if !strings.Contains(out, "valid") {
+		t.Errorf("expected valid, got: %q", out)
+	}
+}
+
+func TestConfigValidate_unknownKey(t *testing.T) {
+	tmp := t.TempDir()
+	cfgFile := tmp + "/config.yaml"
+	if err := os.WriteFile(cfgFile, []byte("icons: ascii\nunknown_key: foo\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	out, err := runCmd("--config="+cfgFile, "config", "validate")
+	if err != nil {
+		t.Fatalf("config validate error: %v", err)
+	}
+	if !strings.Contains(out, "warning") {
+		t.Errorf("expected warning for unknown key, got: %q", out)
+	}
+}
+
+func TestConfigValidate_strict(t *testing.T) {
+	tmp := t.TempDir()
+	cfgFile := tmp + "/config.yaml"
+	if err := os.WriteFile(cfgFile, []byte("unknown_key: foo\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := runCmd("--config="+cfgFile, "config", "validate", "--strict")
+	if err == nil {
+		t.Error("expected error with --strict and unknown key")
+	}
+}
+
+func TestConfigValidate_invalidValue(t *testing.T) {
+	tmp := t.TempDir()
+	cfgFile := tmp + "/config.yaml"
+	if err := os.WriteFile(cfgFile, []byte("icons: invalid_preset\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := runCmd("--config="+cfgFile, "config", "validate")
+	if err == nil {
+		t.Error("expected error for invalid value")
+	}
+}
+
+func TestConfigInit(t *testing.T) {
+	// Init writes to DefaultConfigPath — test via the init command directly
+	// by using a custom EDITOR-less approach. Just verify help text.
+	out, err := runCmd("config", "init", "--help")
+	if err != nil {
+		t.Fatalf("config init --help: %v", err)
+	}
+	if !strings.Contains(out, "default") {
+		t.Errorf("config init help missing 'default': %q", out[:min(200, len(out))])
+	}
+}
+
+func TestConfigPath(t *testing.T) {
+	resetViper()
+	out, err := runCmd("config", "path")
+	if err != nil {
+		t.Fatalf("config path: %v", err)
+	}
+	// Should print a path (either existing or "does not exist yet").
+	if out == "" {
+		t.Error("config path returned empty output")
+	}
+}
+
+func TestConfigSet_invalidKey(t *testing.T) {
+	_, err := runCmd("config", "set", "nonexistent_key", "value")
+	if err == nil {
+		t.Error("expected error for unknown key")
+	}
+}
+
+func TestConfigSet_invalidValue(t *testing.T) {
+	_, err := runCmd("config", "set", "icons", "invalid_preset")
+	if err == nil {
+		t.Error("expected error for invalid value")
+	}
+}
+
+func TestConfigSet_missingArgs(t *testing.T) {
+	_, err := runCmd("config", "set")
+	if err == nil {
+		t.Error("expected error for missing args")
+	}
+}
+
+func TestConfigEdit_help(t *testing.T) {
+	out, err := runCmd("config", "edit", "--help")
+	if err != nil {
+		t.Fatalf("config edit --help: %v", err)
+	}
+	if !strings.Contains(out, "EDITOR") {
+		t.Errorf("config edit help missing EDITOR reference")
+	}
 }

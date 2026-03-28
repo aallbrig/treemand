@@ -129,6 +129,32 @@ treemand cache clear git           # clear one entry
 treemand cache clear               # clear all entries
 ```
 
+## Configuration
+
+treemand uses an optional YAML config file. Settings cascade:
+**CLI flags > environment variables (`TREEMAND_*`) > config file > defaults**.
+
+```bash
+treemand config                    # show current config with file location
+treemand config view               # same as above
+treemand config validate           # check for errors/warnings
+treemand config validate --strict  # treat warnings as errors
+treemand config set icons nerd     # set a value
+treemand config set depth 5        # set tree depth
+treemand config init               # create default config with comments
+treemand config path               # print config file path
+treemand config edit               # open in $EDITOR
+```
+
+Config file locations (searched in order):
+1. `$XDG_CONFIG_HOME/treemand/config.yaml` (typically `~/.config/treemand/`)
+2. `$HOME/.treemand/config.yaml`
+
+If no config file exists, built-in defaults are used. Run `treemand config init`
+to create a commented default config.
+
+See [`docs/features/config.md`](docs/features/config.md) for full documentation.
+
 ## Development
 
 ```bash

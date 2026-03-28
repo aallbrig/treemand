@@ -240,6 +240,7 @@ func Execute() {
 	rootCmd.SetVersionTemplate("{{.Version}}\n")
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(cacheCmd)
+	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(genDocsCmd)
 	rootCmd.AddCommand(completionCmd)
 	rootCmd.ValidArgsFunction = completeCLIName
@@ -278,6 +279,7 @@ func NewRootCmd() *cobra.Command {
 	c.PersistentFlags().IntVar(&cfgStubThreshold, "stub-threshold", 0, "Stub threshold")
 	c.AddCommand(versionCmd)
 	c.AddCommand(cacheCmd)
+	c.AddCommand(configCmd)
 	c.AddCommand(genDocsCmd)
 	c.AddCommand(completionCmd)
 	c.ValidArgsFunction = completeCLIName
