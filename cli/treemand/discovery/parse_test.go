@@ -513,3 +513,89 @@ Flags:
 		}
 	}
 }
+
+// TestParseHelpOutput_supportedFormatsNotSubcommands verifies that indented
+// format descriptions under a "Supported formats:" header in a Cobra Long
+// description are NOT mistakenly parsed as subcommands.
+func TestParseHelpOutput_supportedFormatsNotSubcommands(t *testing.T) {
+	help := `Render a .beetree.yaml specification file as a visual tree diagram.
+
+Supported formats:
+  ascii   - Indented ASCII tree (default)
+  mermaid - Mermaid flowchart syntax
+  dot     - Graphviz DOT digraph
+
+Usage:
+  beetree render <file> [flags]
+
+Flags:
+      --format string   Output format: ascii, mermaid, dot (default "ascii")
+  -h, --help            help for render`
+
+	p := discovery.ParseHelpOutputFor(help, "render")
+	for _, sub := range p.Subcommands {
+		if sub == "ascii" || sub == "mermaid" || sub == "dot" {
+			t.Errorf("format %q should NOT be parsed as a subcommand", sub)
+		}
+	}
+	// Flags should still be parsed correctly.
+	flagNames := make(map[string]bool)
+	for _, f := range p.Flags {
+		flagNames[f.Name] = true
+	}
+	if !flagNames["--format"] {
+		t.Error("expected --format flag")
+	}
+	if !flagNames["--help"] {
+		t.Error("expected --help flag")
+	}
+}
+
+// TestParseHelpOutput_supportedEnginesNotSubcommands is similar but uses a
+// "Supported engines:" header pattern.
+func TestParseHelpOutput_supportedEnginesNotSubcommands(t *testing.T) {
+	help := `Generate native game engine code from a .beetree.yaml specification.
+
+Supported engines:
+  unity   - Unity C# (MonoBehaviour, ScriptableObject)
+  unreal  - Unreal Engine C++ (BTTaskNode, BTDecorator)
+  godot   - Godot GDScript (Node-based, Godot 4.x)
+
+Usage:
+  beetree generate <file> [flags]
+
+Flags:
+  -h, --help   help for generate`
+
+	p := discovery.ParseHelpOutputFor(help, "generate")
+	for _, sub := range p.Subcommands {
+		if sub == "unity" || sub == "unreal" || sub == "godot" {
+			t.Errorf("engine %q should NOT be parsed as a subcommand", sub)
+		}
+	}
+}
+
+// TestParseHelpOutput_dashListItemsNotSubcommands verifies that indented lines
+// using "word  - description" (dash-space list item format) in an unrecognized
+// section are not parsed as subcommands, even without a recognized header.
+func TestParseHelpOutput_dashListItemsNotSubcommands(t *testing.T) {
+	help := `A tool that does things.
+
+Output modes:
+  json    - JSON output
+  table   - Table output
+  yaml    - YAML output
+
+Usage:
+  mytool run [flags]
+
+Flags:
+  -h, --help   help for run`
+
+	p := discovery.ParseHelpOutputFor(help, "run")
+	for _, sub := range p.Subcommands {
+		if sub == "json" || sub == "table" || sub == "yaml" {
+			t.Errorf("output mode %q should NOT be parsed as a subcommand", sub)
+		}
+	}
+}
