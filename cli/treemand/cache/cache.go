@@ -61,11 +61,16 @@ func (c *Cache) migrate() error {
 
 // cacheSchemaVersion is bumped whenever parsing logic changes significantly,
 // forcing old cached entries to be ignored.
-const cacheSchemaVersion = "v8"
+const cacheSchemaVersion = "v9"
+
+// TreemandVersion is set by the cmd package at init time so the cache key
+// includes the treemand binary version. This ensures parser improvements
+// auto-invalidate stale entries on upgrade without a manual schema bump.
+var TreemandVersion string
 
 // Key produces a cache key from cli name, version string, and strategies list.
 func Key(cli, version string, strategies []string) string {
-	s := cli + "|" + version + "|" + strings.Join(strategies, ",") + "|" + cacheSchemaVersion
+	s := cli + "|" + version + "|" + strings.Join(strategies, ",") + "|" + cacheSchemaVersion + "|" + TreemandVersion
 	h := sha256.Sum256([]byte(s))
 	return fmt.Sprintf("%x", h[:8])
 }

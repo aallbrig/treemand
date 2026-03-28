@@ -231,6 +231,10 @@ func output(cmd *cobra.Command, node *models.Node, cfg *config.Config) error {
 
 // Execute runs the root command.
 func Execute() {
+	// Inject treemand's own version into the cache key so upgrades
+	// automatically invalidate stale entries.
+	cache.TreemandVersion = Version
+
 	// Wire --version flag to show the same string as `treemand version`.
 	rootCmd.Version = versionString()
 	rootCmd.SetVersionTemplate("{{.Version}}\n")
