@@ -83,6 +83,8 @@ type Model struct {
 	commandToRun string // set when user picks "Run" in the modal
 	fm           flagModal
 	vm           valueInputModal
+	pendingG     bool   // true after first 'g' press, waiting for second 'g'
+	lastSearch   string // last filter/search term for n/N cycling
 }
 
 // clearTimedMsgMsg is fired by a tea.Tick to clear a timed status message.
@@ -376,10 +378,24 @@ func (m *Model) renderModal() string {
 func (m *Model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	key := msg.String()
 
+	// Handle pending 'g' for gg (jump to top) sequence.
+	if m.pendingG {
+		m.pendingG = false
+		if key == "g" {
+			m.tree.Top()
+			m.syncSelected()
+			return m, nil
+		}
+		// Not 'g' — cancel pending and process this key normally.
+	}
+
 	switch key {
-	case "ctrl+c", "q", "esc":
+	case "ctrl+c", "q":
 		m.quitting = true
 		return m, tea.Quit
+
+	case "esc":
+		return m.handleEsc()
 
 	case "tab":
 		m.cycleFocus(1)
@@ -447,7 +463,12 @@ func (m *Model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.openFlagModal()
 		return m, nil
 
-	case "d", "D":
+	case "d":
+		if m.scheme != SchemeWASD {
+			return m, m.openDocsURL()
+		}
+		// In WASD mode, lowercase 'd' is Right navigation — fall through to scheme handler.
+	case "D":
 		return m, m.openDocsURL()
 
 	// e/E: expand all / collapse all (global).
@@ -474,6 +495,33 @@ func (m *Model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.tree.CollapseSubtree(node, m.tree.SelectedCommandDepth())
 			m.tree.Rebuild()
 			m.statusMsg = "collapsed: " + node.Name
+		}
+		return m, nil
+
+	// G: jump to last row.
+	case "G":
+		m.tree.Bottom()
+		m.syncSelected()
+		return m, nil
+
+	// g: first press sets pendingG; second 'g' triggers jump to top.
+	case "g":
+		m.pendingG = true
+		return m, nil
+
+	// n/N: cycle through search matches.
+	case "n":
+		if m.lastSearch != "" {
+			if m.tree.NextMatch(m.lastSearch) {
+				m.syncSelected()
+			}
+		}
+		return m, nil
+	case "N":
+		if m.lastSearch != "" {
+			if m.tree.PrevMatch(m.lastSearch) {
+				m.syncSelected()
+			}
 		}
 		return m, nil
 	}
@@ -923,6 +971,29 @@ func (m *Model) handlePick() {
 	}
 }
 
+// handleEsc implements Esc as "back one level" in the tree pane:
+//   - On an expanded node: collapse it (same as Left)
+//   - On a collapsed child node: jump to parent (same as Left)
+//   - On root (nowhere to go back): quit
+func (m *Model) handleEsc() (tea.Model, tea.Cmd) {
+	if m.focusedPane != paneTree {
+		// From other panes, Esc returns to tree.
+		m.setFocus(paneTree)
+		m.statusMsg = "focus: tree"
+		return m, nil
+	}
+	sel := m.tree.SelectedItem()
+	if sel != nil && sel.Kind == SelCommand && sel.Node != nil && len(sel.Node.FullPath) <= 1 {
+		// On root node — quit.
+		m.quitting = true
+		return m, tea.Quit
+	}
+	// Otherwise, behave like Left (collapse or jump to parent).
+	m.tree.Left()
+	m.syncSelected()
+	return m, nil
+}
+
 func (m *Model) handleArrows(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "up":
@@ -985,6 +1056,9 @@ func (m *Model) updateFilter(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc", "enter":
 		m.filtering = false
 		m.filter.Blur()
+		if v := m.filter.Value(); v != "" {
+			m.lastSearch = v
+		}
 		m.tree.SetFilter(m.filter.Value())
 		return m, nil
 	}
@@ -1064,6 +1138,9 @@ func (m *Model) timedMsgCmd() tea.Cmd {
 
 // TreeModel returns the underlying TreeModel for testing.
 func (m *Model) TreeModel() *TreeModel { return m.tree }
+
+// SetScheme sets the active navigation scheme.
+func (m *Model) SetScheme(s NavScheme) { m.scheme = s }
 
 func (m *Model) setFocus(p pane) {
 	m.focusedPane = p
@@ -1293,7 +1370,7 @@ func (m *Model) renderStatusBar() string {
 		hint = "↑↓:scroll  PgUp/PgDn  g/G:top/bottom  Tab:switch"
 		hintStyle = lipgloss.NewStyle().Faint(true)
 	default:
-		hint = schemeIndicator + "↑↓:nav  ←→:expand/collapse  Enter:pick  e/E:expand/collapse all  Shift+←→:subtree  S:sections  f:flags  /:filter  H:help  Ctrl+E:exec  q:quit"
+		hint = schemeIndicator + m.schemeHints()
 		hintStyle = lipgloss.NewStyle().Faint(true)
 	}
 	right := hintStyle.Render(hint)
@@ -1306,6 +1383,18 @@ func (m *Model) renderStatusBar() string {
 }
 
 // ---------- helpers ----------
+
+// schemeHints returns the key-hint text adapted to the active navigation scheme.
+func (m *Model) schemeHints() string {
+	switch m.scheme {
+	case SchemeVim:
+		return "j/k:nav  h/l:expand/collapse  Enter:pick  e/E:expand/collapse all  Shift+h/l:subtree  S:sections  f:flags  /:filter  Ctrl+P:help  Ctrl+E:exec  gg/G:top/bottom  n/N:search  q:quit"
+	case SchemeWASD:
+		return "w/s:nav  a/d:expand/collapse  Enter:pick  e/E:expand/collapse all  Shift+a/d:subtree  S:sections  f:flags  /:filter  H:help  Ctrl+E:exec  gg/G:top/bottom  n/N:search  q:quit"
+	default:
+		return "↑↓:nav  ←→:expand/collapse  Enter:pick  e/E:expand/collapse all  Shift+←→:subtree  S:sections  f:flags  /:filter  H:help  Ctrl+E:exec  gg/G:top/bottom  n/N:search  q:quit"
+	}
+}
 
 func schemeName(s NavScheme) string {
 	switch s {

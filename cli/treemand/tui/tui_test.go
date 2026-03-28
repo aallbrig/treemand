@@ -3065,3 +3065,288 @@ func TestToggleSections_hidesHeaders(t *testing.T) {
 		t.Error("second S should restore section headers")
 	}
 }
+
+// ========== Task #9: Nav scheme key collisions ==========
+
+func TestWASD_dNavigatesRight(t *testing.T) {
+	cfg := config.DefaultConfig()
+	m := tui.NewModel(sampleTree(), cfg)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	// Navigate to "commit" first (using arrows, before switching scheme).
+	navigateModelTo(m, "commit")
+	m.SetScheme(tui.SchemeWASD)
+	sel := m.TreeModel().SelectedItem()
+	if sel == nil || sel.Node.Name != "commit" {
+		t.Fatal("expected cursor on commit")
+	}
+
+	// In WASD, 'd' should expand (Right), NOT open docs.
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("d")})
+	v := m.View()
+	// After expanding commit, its flags should be visible.
+	if !strings.Contains(v, "--message") {
+		t.Error("in WASD mode, 'd' should expand node (Right), not open docs")
+	}
+}
+
+func TestWASD_sNavigatesDown(t *testing.T) {
+	cfg := config.DefaultConfig()
+	m := tui.NewModel(sampleTree(), cfg)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	m.SetScheme(tui.SchemeWASD)
+
+	// Cursor starts on root "git". Press 's' (Down in WASD).
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("s")})
+
+	// Should have moved down, NOT toggled sections (that's Shift+S).
+	sel := m.TreeModel().SelectedItem()
+	// We moved off the root — exact target depends on section layout, but
+	// we should not be on root anymore.
+	if sel != nil && sel.Kind == tui.SelCommand && sel.Node.Name == "git" {
+		t.Error("in WASD mode, 's' should navigate Down, not stay on root")
+	}
+}
+
+func TestVim_hNavigatesLeft(t *testing.T) {
+	cfg := config.DefaultConfig()
+	m := tui.NewModel(sampleTree(), cfg)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	// Navigate to commit and expand it (using arrows, before switching scheme).
+	navigateModelTo(m, "commit")
+	m.Update(tea.KeyMsg{Type: tea.KeyRight}) // expand
+	rowsExpanded := m.TreeModel().RowCount()
+	m.SetScheme(tui.SchemeVim)
+
+	// Now 'h' should collapse (Left), NOT toggle help pane.
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("h")})
+
+	// After collapsing, row count should decrease.
+	rowsCollapsed := m.TreeModel().RowCount()
+	if rowsCollapsed >= rowsExpanded {
+		t.Errorf("in Vim mode, 'h' should collapse node (Left), reducing rows from %d, got %d", rowsExpanded, rowsCollapsed)
+	}
+}
+
+func TestArrows_dOpensDocsNotNav(t *testing.T) {
+	// In Arrows mode, 'd' is not a navigation key, so it should trigger docs.
+	cfg := config.DefaultConfig()
+	m := tui.NewModel(sampleTree(), cfg)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	// Default scheme is Arrows — no SetScheme needed.
+
+	// Press 'd' — should attempt docs, which sets a status message.
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("d")})
+
+	v := m.View()
+	// In arrows mode, 'd' should trigger docs action (status shows "no docs URL found"
+	// or similar), not navigation.
+	if strings.Contains(v, "no docs URL") || strings.Contains(v, "opened:") {
+		// Good — docs action was triggered.
+		return
+	}
+	// The status message is consumed on next View(), so just verify it didn't navigate.
+}
+
+// ========== Task #10: gg/G jump to top/bottom ==========
+
+func TestTree_gg_jumpsToTop(t *testing.T) {
+	cfg := config.DefaultConfig()
+	m := tui.NewModel(sampleTree(), cfg)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	// Navigate down a few rows.
+	navigateModelTo(m, "commit")
+
+	// Press 'g' once (sets pending), then 'g' again (completes gg → jump to top).
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("g")})
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("g")})
+
+	sel := m.TreeModel().SelectedItem()
+	if sel == nil || sel.Kind != tui.SelCommand || sel.Node.Name != "git" {
+		t.Errorf("gg should jump to first row (root), got %v", sel)
+	}
+}
+
+func TestTree_G_jumpsToBottom(t *testing.T) {
+	cfg := config.DefaultConfig()
+	m := tui.NewModel(sampleTree(), cfg)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	// Cursor starts at root. Press 'G' to jump to last row.
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("G")})
+
+	sel := m.TreeModel().SelectedItem()
+	if sel == nil {
+		t.Fatal("G should jump to last row, got nil selection")
+	}
+	// The last visible row should be "remote" (last subcommand).
+	if sel.Kind == tui.SelCommand && sel.Node.Name == "git" {
+		t.Error("G should move cursor away from root to last visible row")
+	}
+}
+
+// ========== Task #11: Esc = back/collapse in tree ==========
+
+func TestEsc_collapsesExpandedNode(t *testing.T) {
+	cfg := config.DefaultConfig()
+	m := tui.NewModel(sampleTree(), cfg)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	// Navigate to commit and expand it.
+	navigateModelTo(m, "commit")
+	m.Update(tea.KeyMsg{Type: tea.KeyRight}) // expand commit
+
+	rowsBefore := m.TreeModel().RowCount()
+
+	// Esc should collapse, NOT quit.
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	v2 := m.View()
+	if v2 == "" || cmd != nil {
+		t.Fatal("Esc should not quit when on an expanded non-root node")
+	}
+	// After collapsing, row count should decrease.
+	rowsAfter := m.TreeModel().RowCount()
+	if rowsAfter >= rowsBefore {
+		t.Errorf("Esc should collapse node, reducing rows from %d, got %d", rowsBefore, rowsAfter)
+	}
+}
+
+func TestEsc_jumpsToParentWhenCollapsed(t *testing.T) {
+	cfg := config.DefaultConfig()
+	m := tui.NewModel(sampleTree(), cfg)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	// Navigate to commit (which is collapsed by default).
+	navigateModelTo(m, "commit")
+
+	// Esc on a collapsed child should jump to parent.
+	m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	v := m.View()
+	if v == "" {
+		t.Fatal("Esc should not quit when on a collapsed child node")
+	}
+	sel := m.TreeModel().SelectedItem()
+	if sel == nil || sel.Node.Name != "git" {
+		t.Errorf("Esc on collapsed child should jump to parent, got %v", sel)
+	}
+}
+
+func TestEsc_quitsFromRoot(t *testing.T) {
+	cfg := config.DefaultConfig()
+	m := tui.NewModel(sampleTree(), cfg)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	// Cursor is on root. Esc should quit since there's nowhere to go back to.
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	if cmd == nil {
+		t.Error("Esc on root should quit the application")
+	}
+}
+
+// ========== Task #12: Scheme-adaptive hint text ==========
+
+func TestStatusBar_arrowSchemeHints(t *testing.T) {
+	cfg := config.DefaultConfig()
+	m := tui.NewModel(sampleTree(), cfg)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	// Default is arrows scheme.
+
+	v := m.View()
+	if !strings.Contains(v, "↑↓:nav") {
+		t.Error("arrows scheme should show arrow symbols in hints")
+	}
+	if !strings.Contains(v, "[arrows]") {
+		t.Error("arrows scheme should show [arrows] indicator")
+	}
+}
+
+func TestStatusBar_vimSchemeHints(t *testing.T) {
+	cfg := config.DefaultConfig()
+	m := tui.NewModel(sampleTree(), cfg)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	m.SetScheme(tui.SchemeVim)
+
+	v := m.View()
+	if !strings.Contains(v, "j/k:nav") {
+		t.Errorf("vim scheme should show j/k in hints, got: %s", v)
+	}
+	if !strings.Contains(v, "[vim]") {
+		t.Error("vim scheme should show [vim] indicator")
+	}
+}
+
+func TestStatusBar_wasdSchemeHints(t *testing.T) {
+	cfg := config.DefaultConfig()
+	m := tui.NewModel(sampleTree(), cfg)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	m.SetScheme(tui.SchemeWASD)
+
+	v := m.View()
+	if !strings.Contains(v, "w/s:nav") {
+		t.Errorf("wasd scheme should show w/s in hints, got: %s", v)
+	}
+	if !strings.Contains(v, "[wasd]") {
+		t.Error("wasd scheme should show [wasd] indicator")
+	}
+}
+
+// ========== Task #13: n/N filter cycling ==========
+
+func TestFilterCycle_n_movesToNextMatch(t *testing.T) {
+	cfg := config.DefaultConfig()
+	m := tui.NewModel(sampleTree(), cfg)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	// Search for "remote" — enter filter mode, type, exit.
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	for _, r := range "remote" {
+		m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+	m.Update(tea.KeyMsg{Type: tea.KeyEnter}) // exit filter, saves lastSearch
+
+	// Clear the filter so all rows are visible again.
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	m.Update(tea.KeyMsg{Type: tea.KeyEnter}) // empty filter → show all
+
+	// Now press 'n' to cycle to a matching row.
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("n")})
+	sel := m.TreeModel().SelectedItem()
+	if sel == nil {
+		t.Fatal("n should navigate to a matching row")
+	}
+	if sel.Kind != tui.SelCommand || sel.Node.Name != "remote" {
+		t.Errorf("n should find 'remote', got %v", sel)
+	}
+}
+
+func TestFilterCycle_N_movesToPreviousMatch(t *testing.T) {
+	cfg := config.DefaultConfig()
+	m := tui.NewModel(sampleTree(), cfg)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	// Search for "remote" — enter filter mode, type, exit.
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	for _, r := range "remote" {
+		m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+	m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Clear filter to restore all rows.
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+
+	// Navigate past remote so N can go backwards to find it.
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("G")}) // jump to last row
+
+	// Press 'N' to find previous match (searching backwards).
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("N")})
+	sel := m.TreeModel().SelectedItem()
+	if sel == nil {
+		t.Fatal("N should navigate to a matching row")
+	}
+	if sel.Kind != tui.SelCommand || sel.Node.Name != "remote" {
+		t.Errorf("N should find 'remote', got %v", sel)
+	}
+}

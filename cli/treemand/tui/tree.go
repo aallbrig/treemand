@@ -214,6 +214,73 @@ func (t *TreeModel) Down() {
 	}
 }
 
+// Top jumps the cursor to the first row.
+func (t *TreeModel) Top() {
+	t.cursor = 0
+	t.scrollIntoView()
+}
+
+// Bottom jumps the cursor to the last row.
+func (t *TreeModel) Bottom() {
+	if len(t.rows) > 0 {
+		t.cursor = len(t.rows) - 1
+		t.scrollIntoView()
+	}
+}
+
+// NextMatch moves the cursor to the next row whose name contains the search
+// string (case-insensitive). Wraps around to the beginning if needed.
+// Returns true if a match was found.
+func (t *TreeModel) NextMatch(search string) bool {
+	if search == "" || len(t.rows) == 0 {
+		return false
+	}
+	s := strings.ToLower(search)
+	for i := 1; i <= len(t.rows); i++ {
+		idx := (t.cursor + i) % len(t.rows)
+		if t.rowMatchesSearch(idx, s) {
+			t.cursor = idx
+			t.scrollIntoView()
+			return true
+		}
+	}
+	return false
+}
+
+// PrevMatch moves the cursor to the previous row whose name contains the
+// search string (case-insensitive). Wraps around to the end if needed.
+// Returns true if a match was found.
+func (t *TreeModel) PrevMatch(search string) bool {
+	if search == "" || len(t.rows) == 0 {
+		return false
+	}
+	s := strings.ToLower(search)
+	for i := 1; i <= len(t.rows); i++ {
+		idx := (t.cursor - i + len(t.rows)) % len(t.rows)
+		if t.rowMatchesSearch(idx, s) {
+			t.cursor = idx
+			t.scrollIntoView()
+			return true
+		}
+	}
+	return false
+}
+
+func (t *TreeModel) rowMatchesSearch(idx int, lowerSearch string) bool {
+	row := t.rows[idx]
+	switch row.kind {
+	case rowKindCommand:
+		return strings.Contains(strings.ToLower(row.node.Name), lowerSearch)
+	case rowKindFlag:
+		return strings.Contains(strings.ToLower(row.flag.Name), lowerSearch)
+	case rowKindPositional:
+		return strings.Contains(strings.ToLower(row.positional.Name), lowerSearch)
+	case rowKindSection:
+		return strings.Contains(strings.ToLower(row.sectionLabel), lowerSearch)
+	}
+	return false
+}
+
 // Right implements VS Code-style tree navigation:
 //   - collapsed command node → expand it and stay on the node
 //   - expanded command node → jump to the first command child (skip flags/positionals)
