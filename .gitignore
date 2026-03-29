@@ -37,3 +37,7 @@ go.work.sum
 # Hugo build output
 www/treemand/public/
 www/treemand/.hugo_build.lock
+
+# Demo video artifacts
+demos/segments/
+dist/demo.mp4

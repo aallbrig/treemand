@@ -1,0 +1,85 @@
+name: Demo Video
+
+on:
+  schedule:
+    - cron: '0 4 * * *'  # 4:00 AM UTC daily
+  workflow_dispatch:       # manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  check-and-record:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for changes since last demo
+        id: check
+        run: |
+          LAST_TAG=$(git tag -l 'demo-recorded-*' | sort -r | head -1)
+
+          if [ -z "$LAST_TAG" ]; then
+            echo "No previous demo tag found — will record"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          LAST_SHA="${LAST_TAG#demo-recorded-}"
+
+          CHANGED=$(git diff --name-only "$LAST_SHA" HEAD -- \
+            'cli/' 'demos/' 'scripts/record-demo.sh' 'Makefile' \
+            | wc -l)
+
+          if [ "$CHANGED" -gt 0 ]; then
+            echo "Source changed ($CHANGED files) since $LAST_TAG — will record"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No source changes since $LAST_TAG — skipping"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Go
+        if: steps.check.outputs.changed == 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/treemand/go.mod
+          cache-dependency-path: cli/treemand/go.sum
+
+      - name: Build and install treemand
+        if: steps.check.outputs.changed == 'true'
+        run: make install
+
+      - name: Install VHS
+        if: steps.check.outputs.changed == 'true'
+        uses: charmbracelet/vhs-action@v2
+
+      - name: Install ffmpeg
+        if: steps.check.outputs.changed == 'true'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Record demo video
+        if: steps.check.outputs.changed == 'true'
+        run: bash scripts/record-demo.sh
+
+      - name: Upload demo video
+        if: steps.check.outputs.changed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-video
+          path: dist/demo.mp4
+          retention-days: 90
+
+      - name: Tag recorded commit
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          SHA=$(git rev-parse HEAD)
+          TAG="demo-recorded-$SHA"
+          git tag "$TAG"
+          git push origin "$TAG"
