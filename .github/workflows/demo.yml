@@ -56,13 +56,13 @@ jobs:
         if: steps.check.outputs.changed == 'true'
         run: make install
 
-      - name: Install VHS
+      - name: Install demo dependencies
         if: steps.check.outputs.changed == 'true'
-        uses: charmbracelet/vhs-action@v2
-
-      - name: Install ffmpeg
-        if: steps.check.outputs.changed == 'true'
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+        run: |
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+          curl -fsSL https://github.com/tsl0922/ttyd/releases/latest/download/ttyd.x86_64 -o /tmp/ttyd
+          sudo install /tmp/ttyd /usr/local/bin/ttyd
+          go install github.com/charmbracelet/vhs@latest
 
       - name: Record demo video
         if: steps.check.outputs.changed == 'true'
