@@ -110,7 +110,8 @@ func BuildDiscoverersWithThreshold(strategies []string, maxDepth, stubThreshold 
 			result = append(result, d)
 		case "man":
 			result = append(result, NewManDiscoverer())
-			// Future: case "completions": result = append(result, NewCompletionsDiscoverer())
+		case "completions":
+			result = append(result, NewCompletionsDiscoverer())
 		}
 	}
 	if len(result) == 0 {

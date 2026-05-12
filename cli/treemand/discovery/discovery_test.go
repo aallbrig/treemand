@@ -226,3 +226,105 @@ func TestBuildDiscoverersWithThreshold_man(t *testing.T) {
 		t.Errorf("unexpected discoverer order: %v", names)
 	}
 }
+
+// ── CompletionsDiscoverer ─────────────────────────────────────────────────────
+
+func TestCompletionsDiscovererName(t *testing.T) {
+	d := discovery.NewCompletionsDiscoverer()
+	if d.Name() != "completions" {
+		t.Errorf("Name() = %q, want %q", d.Name(), "completions")
+	}
+}
+
+func TestCompletionsDiscoverer_nonexistent(t *testing.T) {
+	d := discovery.NewCompletionsDiscoverer()
+	ctx := context.Background()
+	// A non-existent binary should return nil, nil (not an error).
+	node, err := d.Discover(ctx, "nonexistent_cli_99999", nil)
+	if err != nil {
+		t.Errorf("expected nil error for missing binary, got: %v", err)
+	}
+	if node != nil {
+		t.Errorf("expected nil node for missing binary, got: %v", node.Name)
+	}
+}
+
+func TestParseCompletionOutput_basicSubcmds(t *testing.T) {
+	input := "get\tFetch a resource\ndelete\tRemove a resource\n:4\n"
+	nodes := discovery.ParseCompletionOutput(input, []string{"kubectl"})
+
+	if len(nodes) != 2 {
+		t.Fatalf("expected 2 nodes, got %d: %v", len(nodes), nodeNames(nodes))
+	}
+	if nodes[0].Name != "get" {
+		t.Errorf("nodes[0].Name = %q, want %q", nodes[0].Name, "get")
+	}
+	if nodes[0].Description != "Fetch a resource" {
+		t.Errorf("nodes[0].Description = %q, want %q", nodes[0].Description, "Fetch a resource")
+	}
+	if nodes[1].Name != "delete" {
+		t.Errorf("nodes[1].Name = %q, want %q", nodes[1].Name, "delete")
+	}
+	if !nodes[0].Stub {
+		t.Error("parsed children should be stubs")
+	}
+}
+
+func TestParseCompletionOutput_skipsFlags(t *testing.T) {
+	input := "--global-flag\tA flag\nsubcmd\tA subcommand\n"
+	nodes := discovery.ParseCompletionOutput(input, []string{"mycli"})
+	if len(nodes) != 1 || nodes[0].Name != "subcmd" {
+		t.Errorf("expected only 'subcmd', got: %v", nodeNames(nodes))
+	}
+}
+
+func TestParseCompletionOutput_skipsDirectives(t *testing.T) {
+	input := ":4\nactive\tActive context\n"
+	nodes := discovery.ParseCompletionOutput(input, []string{"kubectl", "config"})
+	if len(nodes) != 1 || nodes[0].Name != "active" {
+		t.Errorf("expected only 'active', got: %v", nodeNames(nodes))
+	}
+}
+
+func TestParseCompletionOutput_deduplicates(t *testing.T) {
+	input := "sub\tFirst\nsub\tDuplicate\n"
+	nodes := discovery.ParseCompletionOutput(input, []string{"cli"})
+	if len(nodes) != 1 {
+		t.Errorf("expected 1 node (deduped), got %d", len(nodes))
+	}
+}
+
+func TestParseCompletionOutput_fullPath(t *testing.T) {
+	input := "apply\tApply config\n"
+	nodes := discovery.ParseCompletionOutput(input, []string{"kubectl"})
+	if len(nodes) != 1 {
+		t.Fatalf("expected 1 node, got %d", len(nodes))
+	}
+	want := []string{"kubectl", "apply"}
+	if len(nodes[0].FullPath) != len(want) {
+		t.Fatalf("FullPath = %v, want %v", nodes[0].FullPath, want)
+	}
+	for i, p := range want {
+		if nodes[0].FullPath[i] != p {
+			t.Errorf("FullPath[%d] = %q, want %q", i, nodes[0].FullPath[i], p)
+		}
+	}
+}
+
+func TestBuildDiscoverersWithThreshold_completions(t *testing.T) {
+	ds := discovery.BuildDiscoverersWithThreshold([]string{"completions"}, 2, 50)
+	if len(ds) != 1 {
+		t.Fatalf("expected 1 discoverer, got %d", len(ds))
+	}
+	if ds[0].Name() != "completions" {
+		t.Errorf("Name() = %q, want %q", ds[0].Name(), "completions")
+	}
+}
+
+func nodeNames(nodes []*models.Node) []string {
+	names := make([]string, len(nodes))
+	for i, n := range nodes {
+		names[i] = n.Name
+	}
+	return names
+}
