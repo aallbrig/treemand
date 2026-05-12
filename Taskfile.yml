@@ -1,0 +1,129 @@
+version: "3"
+
+vars:
+  MODULE: github.com/aallbrig/treemand/cmd
+  COMMIT:
+    sh: git rev-parse --short HEAD 2>/dev/null || echo unknown
+  DATE:
+    sh: date -u +%Y-%m-%d
+  VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo dev
+  LDFLAGS: >-
+    -X '{{.MODULE}}.Version={{.VERSION}}'
+    -X '{{.MODULE}}.Commit={{.COMMIT}}'
+    -X '{{.MODULE}}.BuildDate={{.DATE}}'
+  GO_PKGS: ./cli/treemand/...
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+
+  # ── build ────────────────────────────────────────────────────────────────
+
+  build:
+    desc: Build the treemand binary
+    cmds:
+      - go build -ldflags "{{.LDFLAGS}}" -o treemand ./cli/treemand
+
+  install:
+    desc: Install treemand into GOPATH/bin
+    cmds:
+      - go install -ldflags "{{.LDFLAGS}}" ./cli/treemand
+
+  # ── hygiene ──────────────────────────────────────────────────────────────
+
+  fmt:
+    desc: Format Go source files with gofmt
+    cmds:
+      - gofmt -w ./cli/treemand
+
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - golangci-lint run {{.GO_PKGS}}
+
+  lint-fix:
+    desc: Run golangci-lint with auto-fix enabled
+    cmds:
+      - golangci-lint run --fix {{.GO_PKGS}}
+
+  vet:
+    desc: Run go vet
+    cmds:
+      - go vet {{.GO_PKGS}}
+
+  vuln:
+    desc: Run govulncheck for known vulnerabilities
+    cmds:
+      - govulncheck {{.GO_PKGS}}
+
+  # ── tests ────────────────────────────────────────────────────────────────
+
+  test:
+    desc: Run all tests
+    cmds:
+      - go test {{.GO_PKGS}}
+
+  test-race:
+    desc: Run all tests with race detector
+    cmds:
+      - go test -race {{.GO_PKGS}}
+
+  # ── composite ────────────────────────────────────────────────────────────
+
+  hygiene:
+    desc: Run all code hygiene tasks (fmt, vet, lint, vuln)
+    cmds:
+      - task: fmt
+      - task: vet
+      - task: lint
+      - task: vuln
+
+  fix:
+    desc: Auto-fix everything that can be fixed (fmt + lint --fix)
+    cmds:
+      - task: fmt
+      - task: lint-fix
+
+  precommit:
+    desc: Pre-commit gate — fmt, vet, lint, vuln, test
+    cmds:
+      - task: fmt
+      - task: vet
+      - task: lint
+      - task: vuln
+      - task: test
+
+  dev:
+    desc: Fast dev loop — test then install
+    cmds:
+      - task: test
+      - task: install
+
+  # ── hooks ────────────────────────────────────────────────────────────────
+
+  hooks:
+    desc: Install git hooks
+    cmds:
+      - bash scripts/setup-hooks.sh
+
+  # ── demo ─────────────────────────────────────────────────────────────────
+
+  demo:
+    desc: Record all VHS tapes and produce dist/demo.mp4
+    cmds:
+      - bash scripts/record-demo.sh
+
+  demo-clean:
+    desc: Remove recorded demo segments and final video
+    cmds:
+      - rm -rf demos/segments dist/demo.mp4
+
+  # ── misc ─────────────────────────────────────────────────────────────────
+
+  clean:
+    desc: Remove built binary
+    cmds:
+      - rm -f treemand
