@@ -33,3 +33,8 @@ theme = "minimal"
     name = "Reference"
     url = "/reference/"
     weight = 4
+  [[menu.main]]
+    identifier = "commands"
+    name = "Commands"
+    url = "/commands/"
+    weight = 5

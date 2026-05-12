@@ -117,10 +117,21 @@ tasks:
     cmds:
       - bash scripts/record-demo.sh
 
-  demo-clean:
-    desc: Remove recorded demo segments and final video
+  demo-subcmds:
+    desc: Record per-subcommand VHS tapes into www/treemand/static/demos/
     cmds:
-      - rm -rf demos/segments dist/demo.mp4
+      - bash scripts/record-subcmd-gifs.sh
+
+  demo-all:
+    desc: Record full demo video and all per-subcommand GIFs
+    cmds:
+      - task: demo
+      - task: demo-subcmds
+
+  demo-clean:
+    desc: Remove recorded demo segments, final video, and subcmd GIFs
+    cmds:
+      - rm -rf demos/segments dist/demo.mp4 www/treemand/static/demos/*.gif
 
   # ── misc ─────────────────────────────────────────────────────────────────
 

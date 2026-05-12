@@ -46,11 +46,14 @@ Tape files live in `demos/`; the CI workflow re-records when relevant source fil
 ### Recording All Features
 
 ```bash
-task install    # ensure treemand is up to date
-task demo       # records all segments and produces dist/demo.mp4
+task install         # ensure treemand is up to date
+task demo            # records all segments and produces dist/demo.mp4
+task demo-subcmds    # records per-subcommand GIFs → www/treemand/static/demos/
+task demo-all        # records both the full video and all subcmd GIFs
 ```
 
-The final video is written to `dist/demo.mp4`.
+The full video is written to `dist/demo.mp4`. Per-subcommand GIFs land in
+`www/treemand/static/demos/` and are served by the Hugo documentation site.
 
 ### Re-recording a Single Segment
 
@@ -70,7 +73,7 @@ This writes the segment to `demos/segments/03_filter_exclude.mp4`. Re-run `task 
 ### Cleaning Up
 
 ```bash
-task demo-clean    # removes demos/segments/ and dist/demo.mp4
+task demo-clean    # removes demos/segments/, dist/demo.mp4, and subcmd GIFs
 ```
 
 ### CI
