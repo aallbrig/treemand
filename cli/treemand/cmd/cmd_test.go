@@ -541,3 +541,30 @@ func TestDepth_explicit(t *testing.T) {
 		}
 	}
 }
+
+// ── Spinner ───────────────────────────────────────────────────────────────────
+
+func TestSpinner_nonTTY_writesNothing(t *testing.T) {
+	var buf bytes.Buffer
+	s := cmd.NewSpinner(&buf)
+	s.Start("testing…")
+	s.Stop()
+	if buf.Len() != 0 {
+		t.Errorf("spinner wrote %d bytes to non-TTY writer, want 0", buf.Len())
+	}
+}
+
+func TestSpinner_Stop_beforeStart_noPanic(t *testing.T) {
+	var buf bytes.Buffer
+	s := cmd.NewSpinner(&buf)
+	// Stop without Start must not panic or deadlock.
+	s.Stop()
+}
+
+func TestSpinner_doubleStop_noPanic(t *testing.T) {
+	var buf bytes.Buffer
+	s := cmd.NewSpinner(&buf)
+	s.Start("x")
+	s.Stop()
+	s.Stop() // second stop must be safe
+}

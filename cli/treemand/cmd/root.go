@@ -190,7 +190,10 @@ func runRoot(cmd *cobra.Command, args []string) error {
 		maxDepth = 99 // -1 means unlimited; cap at 99 to prevent infinite loops
 	}
 	discoverers := discovery.BuildDiscoverersWithThreshold(strategies, maxDepth, cfg.StubThreshold)
+	spin := NewSpinner(os.Stderr)
+	spin.Start("discovering " + cliName + "…")
 	node, err := discovery.Run(ctx, discoverers, cliName)
+	spin.Stop()
 	if err != nil {
 		return fmt.Errorf("discovery failed: %w", err)
 	}
