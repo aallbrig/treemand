@@ -26,8 +26,8 @@ tree_style: default
 # Disable colored output (default: false)
 no_color: false
 
-# Max tree depth, -1 for unlimited (default: -1)
-depth: -1
+# Max tree depth (default: 3; -1 = unlimited)
+depth: 3
 
 # Disable discovery cache (default: false)
 no_cache: false

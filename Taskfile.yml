@@ -56,8 +56,9 @@ tasks:
 
   vuln:
     desc: Run govulncheck for known vulnerabilities
+    dir: cli/treemand
     cmds:
-      - govulncheck {{.GO_PKGS}}
+      - govulncheck ./...
 
   # ── tests ────────────────────────────────────────────────────────────────
 

@@ -93,7 +93,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file (default: ~/.config/treemand/config.yaml)")
 	rootCmd.PersistentFlags().BoolVarP(&cfgInteractive, "interactive", "i", false, "Launch interactive TUI")
 	rootCmd.PersistentFlags().StringVarP(&cfgStrategy, "strategy", "s", "help", "Discovery strategies (comma-separated: help,completions)")
-	rootCmd.PersistentFlags().IntVar(&cfgDepth, "depth", -1, "Max tree depth (-1 = unlimited)")
+	rootCmd.PersistentFlags().IntVar(&cfgDepth, "depth", 3, "Max tree depth (default 3; -1 = unlimited)")
 	rootCmd.PersistentFlags().StringVar(&cfgFilter, "filter", "", "Only show nodes matching pattern")
 	rootCmd.PersistentFlags().StringVar(&cfgExclude, "exclude", "", "Exclude nodes matching pattern")
 	rootCmd.PersistentFlags().BoolVar(&cfgCommandsOnly, "commands-only", false, "Hide flags and positionals")
@@ -187,7 +187,7 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	// Discover tree
 	maxDepth := cfg.Depth
 	if maxDepth < 0 {
-		maxDepth = 3
+		maxDepth = 99 // -1 means unlimited; cap at 99 to prevent infinite loops
 	}
 	discoverers := discovery.BuildDiscoverersWithThreshold(strategies, maxDepth, cfg.StubThreshold)
 	node, err := discovery.Run(ctx, discoverers, cliName)
@@ -264,7 +264,7 @@ func NewRootCmd() *cobra.Command {
 	c.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file")
 	c.PersistentFlags().BoolVarP(&cfgInteractive, "interactive", "i", false, "Launch interactive TUI")
 	c.PersistentFlags().StringVarP(&cfgStrategy, "strategy", "s", "help", "Discovery strategies")
-	c.PersistentFlags().IntVar(&cfgDepth, "depth", -1, "Max tree depth")
+	c.PersistentFlags().IntVar(&cfgDepth, "depth", 3, "Max tree depth (default 3; -1 = unlimited)")
 	c.PersistentFlags().StringVar(&cfgFilter, "filter", "", "Filter pattern")
 	c.PersistentFlags().StringVar(&cfgExclude, "exclude", "", "Exclude pattern")
 	c.PersistentFlags().BoolVar(&cfgCommandsOnly, "commands-only", false, "Hide flags/positionals")

@@ -58,7 +58,7 @@ func buildKnownKeys() []SchemaEntry {
 		{Key: "stub_threshold", Type: TypeInt, Default: "50", MinInt: 1, MaxInt: 10000, Description: "Max eager children before creating stubs"},
 		{Key: "tree_style", Type: TypeString, Default: "default", AllowedValues: []string{"default", "columns", "compact", "graph"}, Description: "TUI tree presentation style"},
 		{Key: "no_color", Type: TypeBool, Default: "false", Description: "Disable colored output"},
-		{Key: "depth", Type: TypeInt, Default: "-1", MinInt: -1, MaxInt: 100, Description: "Max tree depth (-1 = unlimited)"},
+		{Key: "depth", Type: TypeInt, Default: "3", MinInt: -1, MaxInt: 100, Description: "Max tree depth (default 3; -1 = unlimited)"},
 		{Key: "no_cache", Type: TypeBool, Default: "false", Description: "Disable discovery cache"},
 		{Key: "strategies", Type: TypeString, Default: "help", Description: "Comma-separated discovery strategies (help, completions, man)"},
 	}

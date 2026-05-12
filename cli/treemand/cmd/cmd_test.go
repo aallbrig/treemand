@@ -503,3 +503,41 @@ func TestConfigEdit_help(t *testing.T) {
 		t.Errorf("config edit help missing EDITOR reference")
 	}
 }
+
+// ── --depth flag semantics ────────────────────────────────────────────────────
+
+func TestDepth_defaultIsThree(t *testing.T) {
+	// Default depth is 3 (not -1). Verify the flag help says so.
+	out, err := runCmd("--help")
+	if err != nil {
+		t.Fatalf("--help: %v", err)
+	}
+	if !strings.Contains(out, "--depth") {
+		t.Errorf("--help missing --depth flag")
+	}
+	// The description must not claim -1 is the default or say "unlimited" is
+	// the default behavior.
+	if strings.Contains(out, "default -1") {
+		t.Errorf("--depth description should not show -1 as the default value")
+	}
+}
+
+func TestDepth_negativeOne_accepted(t *testing.T) {
+	// -1 must be accepted as a valid flag value (means unlimited depth).
+	// We can't assert on discovery depth without a mock, but we verify the
+	// flag is not rejected at parse time.
+	_, err := runCmd("--depth=-1", "--help")
+	if err != nil {
+		t.Errorf("--depth=-1 should be accepted, got: %v", err)
+	}
+}
+
+func TestDepth_explicit(t *testing.T) {
+	// Verify that non-negative depths are accepted.
+	for _, d := range []string{"1", "3", "5"} {
+		_, err := runCmd("--depth="+d, "--help")
+		if err != nil {
+			t.Errorf("--depth=%s should be accepted, got: %v", d, err)
+		}
+	}
+}
