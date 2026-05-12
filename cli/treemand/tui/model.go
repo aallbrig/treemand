@@ -78,8 +78,9 @@ type Model struct {
 	commandToRun string // set when user picks "Run" in the modal
 	fm           flagModal
 	vm           valueInputModal
-	pendingG     bool   // true after first 'g' press, waiting for second 'g'
-	lastSearch   string // last filter/search term for n/N cycling
+	kb           keybindModal // ? key overlay
+	pendingG     bool         // true after first 'g' press, waiting for second 'g'
+	lastSearch   string       // last filter/search term for n/N cycling
 }
 
 // clearTimedMsgMsg is fired by a tea.Tick to clear a timed status message.
@@ -113,6 +114,14 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Key-bindings help modal intercepts all input when active.
+	if m.kb.active {
+		if km, ok := msg.(tea.KeyMsg); ok {
+			return m.updateKeybindModal(km)
+		}
+		return m, nil
+	}
+
 	// Value input modal intercepts all input when active.
 	if m.vm.active {
 		if km, ok := msg.(tea.KeyMsg); ok {

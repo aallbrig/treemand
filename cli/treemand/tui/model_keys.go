@@ -73,6 +73,11 @@ func (m *Model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.filter.Focus()
 		return m, textinput.Blink
 
+	case "?":
+		m.kb.active = true
+		m.kb.offset = 0
+		return m, nil
+
 	case "ctrl+e":
 		cmd := strings.Join(m.preview.Tokens(), " ")
 		if cmd == "" {

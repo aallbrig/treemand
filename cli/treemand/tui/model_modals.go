@@ -12,6 +12,134 @@ import (
 	"github.com/aallbrig/treemand/models"
 )
 
+// ---------- key-bindings help modal (??) ----------
+
+// keybindModal is the ? key overlay showing all keyboard shortcuts.
+type keybindModal struct {
+	active bool
+	offset int
+}
+
+const keybindText = `Navigation
+  ↑ / ↓    or  k / j   or  w / s    Move up / down
+  → / l / d                          Expand node; enter children (2nd press)
+  ← / h / a                          Collapse node; go to parent (2nd press)
+  Shift+→ / Shift+L / Shift+D        Expand entire subtree
+  Shift+← / Shift+H / Shift+A        Collapse entire subtree
+  gg                                  Jump to top
+  G                                   Jump to bottom
+
+Tree
+  /        Fuzzy filter
+  n / N    Next / previous search match
+  e / E    Expand all / collapse all
+  S        Toggle section headers
+  T        Cycle display style (default → columns → compact → graph)
+  R        Re-discover selected node (refresh children)
+
+Building Commands
+  Enter    Set command / add flag / fill positional
+  f / F    Open flag picker modal
+  Backspace  Remove last token from preview
+  Ctrl+K   Clear entire preview bar
+  Ctrl+E   Copy or execute the assembled command
+
+View
+  H / Ctrl+P   Toggle help pane
+  Tab / Shift+Tab  Cycle pane focus
+  d / D    Open docs URL in browser
+  Ctrl+S   Cycle navigation scheme (arrows → vim → WASD)
+  ?        Show this help
+
+Quit
+  q / Esc    Quit`
+
+func (m *Model) updateKeybindModal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "esc", "q", "?":
+		m.kb.active = false
+	case "up", "k":
+		if m.kb.offset > 0 {
+			m.kb.offset--
+		}
+	case "down", "j":
+		m.kb.offset++
+	case "pgup", "b", "ctrl+u":
+		m.kb.offset -= 10
+		if m.kb.offset < 0 {
+			m.kb.offset = 0
+		}
+	case "pgdown", "ctrl+d":
+		m.kb.offset += 10
+	}
+	return m, nil
+}
+
+func (m *Model) renderKeybindModal() string {
+	modalW := min(m.width-6, 64)
+	if modalW < 40 {
+		modalW = 40
+	}
+
+	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#5EA4F5"))
+	hintStyle := lipgloss.NewStyle().Faint(true)
+
+	lines := strings.Split(keybindText, "\n")
+	maxVisible := m.height - 10
+	if maxVisible < 5 {
+		maxVisible = 5
+	}
+	if m.kb.offset > len(lines)-maxVisible {
+		m.kb.offset = max(0, len(lines)-maxVisible)
+	}
+	end := m.kb.offset + maxVisible
+	if end > len(lines) {
+		end = len(lines)
+	}
+	visible := lines[m.kb.offset:end]
+
+	scrollHint := ""
+	if len(lines) > maxVisible {
+		scrollHint = fmt.Sprintf(" [%d/%d]", m.kb.offset+1, len(lines))
+	}
+
+	content := titleStyle.Render("Key Bindings"+scrollHint) + "\n" +
+		hintStyle.Render("↑↓/jk scroll · Esc close") + "\n\n" +
+		strings.Join(visible, "\n")
+
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#5EA4F5")).
+		Padding(0, 2).
+		Width(modalW - 2).
+		Render(content)
+
+	boxH := lipgloss.Height(box)
+	padLeft := (m.width - lipgloss.Width(box)) / 2
+	if padLeft < 0 {
+		padLeft = 0
+	}
+	padTop := (m.height - boxH) / 2
+	if padTop < 0 {
+		padTop = 0
+	}
+	padBottom := max(0, m.height-padTop-boxH)
+
+	blankLine := strings.Repeat(" ", m.width)
+	leftPad := strings.Repeat(" ", padLeft)
+	var sb strings.Builder
+	for i := 0; i < padTop; i++ {
+		sb.WriteString(blankLine + "\n")
+	}
+	for _, line := range strings.Split(box, "\n") {
+		sb.WriteString(leftPad + line + "\n")
+	}
+	for i := 0; i < padBottom; i++ {
+		sb.WriteString(blankLine + "\n")
+	}
+	return sb.String()
+}
+
 // ---------- value input modal ----------
 
 func (m *Model) updateValueModal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
