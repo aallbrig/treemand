@@ -17,8 +17,8 @@ icons: unicode
 # Max description characters before truncation (default: 80)
 desc_line_length: 80
 
-# Max eager children before creating stubs (default: 50)
-stub_threshold: 50
+# Max eager children before creating stubs (default: 150)
+stub_threshold: 150
 
 # TUI tree presentation style: default, columns, compact, graph
 tree_style: default

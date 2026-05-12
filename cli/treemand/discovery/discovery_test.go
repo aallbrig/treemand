@@ -160,8 +160,8 @@ func TestBuildDiscoverersWithThreshold(t *testing.T) {
 	if !ok {
 		t.Fatal("expected *discovery.HelpDiscoverer")
 	}
-	if hd.StubThreshold != 50 {
-		t.Errorf("default StubThreshold = %d, want 50", hd.StubThreshold)
+	if hd.StubThreshold != 150 {
+		t.Errorf("default StubThreshold = %d, want 150", hd.StubThreshold)
 	}
 
 	// Custom threshold.

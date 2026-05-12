@@ -33,7 +33,7 @@ func NewHelpDiscoverer(maxDepth int) *HelpDiscoverer {
 	if maxDepth <= 0 {
 		maxDepth = 3
 	}
-	return &HelpDiscoverer{MaxDepth: maxDepth, Timeout: 5 * time.Second, StubThreshold: 50}
+	return &HelpDiscoverer{MaxDepth: maxDepth, Timeout: 5 * time.Second, StubThreshold: 150}
 }
 
 func (h *HelpDiscoverer) Name() string { return "help" }
@@ -238,11 +238,20 @@ func (h *HelpDiscoverer) runHelp(ctx context.Context, cliName string, args []str
 		}
 	}
 
-	// Fallback: some CLIs (aws, go-style, man-page wrappers) use `<cli> [sub...] help`
-	// as a positional rather than a flag.
+	// Fallback 1: `<cli> [sub...] help` — used by tools like aws, man wrappers.
 	if firstOut == "" {
 		helpArgs := append(append([]string{}, args...), "help")
 		if s := run(helpArgs); s != "" && !isErrorOutput(s) {
+			firstOut = s
+		}
+	}
+
+	// Fallback 2: `<cli> help [sub...]` — Go-style toolchains where
+	// `go mod --help` fails but `go help mod` succeeds. Only applies when
+	// there are sub-args to reorder (skip for the root command itself).
+	if firstOut == "" && len(args) > 0 {
+		helpFirstArgs := append([]string{"help"}, args...)
+		if s := run(helpFirstArgs); s != "" && !isErrorOutput(s) {
 			firstOut = s
 		}
 	}
@@ -419,14 +428,16 @@ func allGridEntries(parts []string) bool {
 }
 
 // isErrorOutput reports whether s looks like a CLI error message rather than
-// help text. Used to skip error output from CLIs (e.g. aws) that print an
+// help text. Used to skip error output from CLIs (e.g. aws, go) that print an
 // error instead of help when --help is passed without a required argument.
+// Checks for Contains("unknown command") rather than HasPrefix because Go-style
+// CLIs emit "<name>: unknown command" (e.g. "go mod: unknown command").
 func isErrorOutput(s string) bool {
 	first := strings.ToLower(strings.SplitN(strings.TrimSpace(s), "\n", 2)[0])
 	return strings.Contains(first, "[error]") ||
 		strings.HasPrefix(first, "error:") ||
-		strings.HasPrefix(first, "unknown command") ||
-		strings.HasPrefix(first, "invalid command")
+		strings.Contains(first, "unknown command") ||
+		strings.Contains(first, "invalid command")
 }
 
 // skipSubcmdWords are words that look like subcommands but aren't.

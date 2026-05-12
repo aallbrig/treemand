@@ -162,7 +162,7 @@ treemand reads `~/.config/treemand/config.yaml` (XDG standard) or
 # ~/.config/treemand/config.yaml
 icons: ascii          # unicode (default) | ascii | nerd
 desc_line_length: 80  # max chars before description is truncated
-stub_threshold: 50    # subcommand count before switching to stub nodes
+stub_threshold: 150   # subcommand count before switching to stub nodes
 
 colors:
   subcmd: "#5EA4F5"

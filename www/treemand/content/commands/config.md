@@ -39,7 +39,7 @@ treemand searches for the config file in this order:
 |-----|------|---------|-------------|
 | `icons` | string | `unicode` | Icon preset: `unicode`, `ascii`, `nerd` |
 | `desc_line_length` | int | `80` | Max description chars before truncation |
-| `stub_threshold` | int | `50` | Subcommand count before switching to stub nodes |
+| `stub_threshold` | int | `150` | Subcommand count before switching to stub nodes |
 | `tree_style` | string | `default` | TUI tree style: `default`, `columns`, `compact`, `graph` |
 | `no_color` | bool | `false` | Disable colored output |
 | `depth` | int | `3` | Max tree depth (default 3; -1 = unlimited) |

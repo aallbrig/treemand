@@ -105,7 +105,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&cfgDebug, "debug", false, "Enable debug logging")
 	rootCmd.PersistentFlags().StringVar(&cfgIcons, "icons", "", "Icon preset: unicode (default), ascii, nerd")
 	rootCmd.PersistentFlags().IntVar(&cfgLineLength, "line-length", 0, "Max description chars before truncation (default 80)")
-	rootCmd.PersistentFlags().IntVar(&cfgStubThreshold, "stub-threshold", 0, "Max eager children before creating stubs (default 50)")
+	rootCmd.PersistentFlags().IntVar(&cfgStubThreshold, "stub-threshold", 0, "Max eager children before creating stubs (default 150)")
 	rootCmd.PersistentFlags().StringVar(&cfgTreeStyle, "tree-style", "default", "TUI tree presentation style: default, columns, compact, graph")
 
 	_ = viper.BindPFlag("icons", rootCmd.PersistentFlags().Lookup("icons"))

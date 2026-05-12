@@ -55,7 +55,7 @@ func buildKnownKeys() []SchemaEntry {
 	entries := []SchemaEntry{
 		{Key: "icons", Type: TypeString, Default: "unicode", AllowedValues: []string{"unicode", "ascii", "nerd"}, Description: "Icon preset for tree rendering"},
 		{Key: "desc_line_length", Type: TypeInt, Default: "80", MinInt: 1, MaxInt: 500, Description: "Max description characters before truncation"},
-		{Key: "stub_threshold", Type: TypeInt, Default: "50", MinInt: 1, MaxInt: 10000, Description: "Max eager children before creating stubs"},
+		{Key: "stub_threshold", Type: TypeInt, Default: "150", MinInt: 1, MaxInt: 10000, Description: "Max eager children before creating stubs"},
 		{Key: "tree_style", Type: TypeString, Default: "default", AllowedValues: []string{"default", "columns", "compact", "graph"}, Description: "TUI tree presentation style"},
 		{Key: "no_color", Type: TypeBool, Default: "false", Description: "Disable colored output"},
 		{Key: "depth", Type: TypeInt, Default: "3", MinInt: -1, MaxInt: 100, Description: "Max tree depth (default 3; -1 = unlimited)"},

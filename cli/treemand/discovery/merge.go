@@ -94,7 +94,7 @@ func Run(ctx context.Context, discoverers []Discoverer, cliName string) (*models
 
 // BuildDiscoverers creates Discoverer instances from strategy names.
 func BuildDiscoverers(strategies []string, maxDepth int) []Discoverer {
-	return BuildDiscoverersWithThreshold(strategies, maxDepth, 50)
+	return BuildDiscoverersWithThreshold(strategies, maxDepth, 150)
 }
 
 // BuildDiscoverersWithThreshold creates Discoverer instances with a configurable stub threshold.
