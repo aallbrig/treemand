@@ -3425,6 +3425,42 @@ func TestModel_R_setsDiscoveringStatus(t *testing.T) {
 	}
 }
 
+// ── Task #4: discovery error indicator ───────────────────────────────────────
+
+func TestTreeModel_DiscoveryErr_showsWarningIndicator(t *testing.T) {
+	cfg := config.DefaultConfig()
+	root := &models.Node{
+		Name:     "mycli",
+		FullPath: []string{"mycli"},
+		Children: []*models.Node{
+			{
+				Name:         "broken",
+				FullPath:     []string{"mycli", "broken"},
+				DiscoveryErr: "exit status 1",
+			},
+		},
+	}
+	tree := tui.NewTreeModel(root, cfg)
+	tree.SetSize(120, 40)
+	// Expand root so children are visible.
+	tree.Right()
+	v := tree.ViewSized(120, 40)
+	if !strings.Contains(v, "⚠") {
+		t.Errorf("node with DiscoveryErr should render ⚠ indicator, got:\n%s", v)
+	}
+}
+
+func TestTreeModel_NoDiscoveryErr_noWarningIndicator(t *testing.T) {
+	cfg := config.DefaultConfig()
+	tree := tui.NewTreeModel(sampleTree(), cfg)
+	tree.SetSize(120, 40)
+	tree.Right()
+	v := tree.ViewSized(120, 40)
+	if strings.Contains(v, "⚠") {
+		t.Errorf("node without DiscoveryErr should not render ⚠, got:\n%s", v)
+	}
+}
+
 func max(a, b int) int {
 	if a > b {
 		return a

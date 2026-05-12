@@ -792,6 +792,7 @@ func (t *TreeModel) renderCommandRowDefault(row treeRow, selected bool, maxW int
 	if t.matchesTokenPrefix(row.node) {
 		nameStyle = nameStyle.Foreground(lipgloss.Color("#50FA7B")).Bold(true)
 	}
+	warn := t.discoveryErrIndicator(row.node)
 	name := nameStyle.Render(row.node.Name)
 	summary := t.buildFlagSummary(row, isExpanded)
 
@@ -799,7 +800,7 @@ func (t *TreeModel) renderCommandRowDefault(row treeRow, selected bool, maxW int
 	descPart := ""
 	if row.node.Description != "" && !isExpanded {
 		sep := lipgloss.NewStyle().Faint(true).Render("  ·  ")
-		usedW := lipgloss.Width(indent+icon+name) + lipgloss.Width(summary) + lipgloss.Width(sep) + 2
+		usedW := lipgloss.Width(indent+icon+warn+name) + lipgloss.Width(summary) + lipgloss.Width(sep) + 2
 		maxDesc := maxW - usedW
 		if maxDesc > 8 {
 			desc := row.node.Description
@@ -811,7 +812,7 @@ func (t *TreeModel) renderCommandRowDefault(row treeRow, selected bool, maxW int
 		}
 	}
 
-	line := indent + icon + name + descPart + summary
+	line := indent + icon + warn + name + descPart + summary
 	return t.applySelection(line, selected, maxW)
 }
 
@@ -848,13 +849,14 @@ func (t *TreeModel) renderCommandRowColumns(row treeRow, selected bool, maxW int
 	if t.matchesTokenPrefix(row.node) {
 		nameStyle = nameStyle.Foreground(lipgloss.Color("#50FA7B")).Bold(true)
 	}
+	warn := t.discoveryErrIndicator(row.node)
 	name := nameStyle.Render(row.node.Name)
 
 	// Build description part: truncate to fit available space.
 	descPart := ""
 	if row.node.Description != "" {
 		sep := lipgloss.NewStyle().Faint(true).Render("  ·  ")
-		maxDesc := maxW - lipgloss.Width(indent+icon+name) - lipgloss.Width(sep) - 2
+		maxDesc := maxW - lipgloss.Width(indent+icon+warn+name) - lipgloss.Width(sep) - 2
 		desc := row.node.Description
 		if maxDesc > 8 {
 			runes := []rune(desc)
@@ -865,7 +867,7 @@ func (t *TreeModel) renderCommandRowColumns(row treeRow, selected bool, maxW int
 		}
 	}
 
-	line := indent + icon + name + descPart
+	line := indent + icon + warn + name + descPart
 	return t.applySelection(line, selected, maxW)
 }
 
@@ -884,7 +886,7 @@ func (t *TreeModel) renderCommandRowCompact(row treeRow, selected bool, maxW int
 	if t.matchesTokenPrefix(row.node) {
 		nameStyle = nameStyle.Foreground(lipgloss.Color("#50FA7B")).Bold(true)
 	}
-	line := indent + nameStyle.Render(row.node.Name)
+	line := indent + t.discoveryErrIndicator(row.node) + nameStyle.Render(row.node.Name)
 	return t.applySelection(line, selected, maxW)
 }
 
@@ -925,8 +927,17 @@ func (t *TreeModel) renderCommandRowGraph(row treeRow, selected bool, maxW int) 
 		hint = lipgloss.NewStyle().Faint(true).Render(fmt.Sprintf("  [%d flags]", len(ownFlags)))
 	}
 
-	line := prefix + name + hint
+	line := prefix + t.discoveryErrIndicator(row.node) + name + hint
 	return t.applySelection(line, selected, maxW)
+}
+
+// discoveryErrIndicator returns a styled ⚠ prefix when the node has a
+// non-empty DiscoveryErr, or "" when the node is healthy.
+func (t *TreeModel) discoveryErrIndicator(node *models.Node) string {
+	if node.DiscoveryErr == "" {
+		return ""
+	}
+	return lipgloss.NewStyle().Foreground(lipgloss.Color(t.cfg.Colors.Invalid)).Render("⚠ ")
 }
 
 // buildFlagSummary builds the inline flag pill string for the default style.
