@@ -5,12 +5,14 @@
 ```bash
 git clone https://github.com/aallbrig/treemand.git
 cd treemand
-make dev    # runs tests + installs binary
+task dev    # runs tests + installs binary
 ```
+
+Requires Go 1.25+ and [go-task](https://taskfile.dev) (`brew install go-task` or `go install github.com/go-task/task/v3/cmd/task@latest`).
 
 ### Git Hooks
 
-Install the pre-push hook to catch lint and test failures before pushing:
+Install pre-commit and pre-push hooks that run `task precommit` automatically:
 
 ```bash
 bash scripts/setup-hooks.sh
@@ -19,30 +21,33 @@ bash scripts/setup-hooks.sh
 ## Development Loop
 
 ```bash
-make dev      # run tests + install binary (recommended)
-make build    # compile local binary only
-make test     # run all tests
-make lint     # run golangci-lint
+task dev          # run tests + install binary (recommended)
+task build        # compile local binary only
+task test         # run all tests
+task lint         # run golangci-lint
+task precommit    # full hygiene gate: fmt, vet, lint, vuln, test
+task fix          # auto-fix formatting and lint issues
 ```
+
+Makefile targets mirror the Taskfile and remain available (`make dev`, `make test`, etc.).
 
 ## Recording Demo Videos
 
-The project uses [VHS](https://github.com/charmbracelet/vhs) to produce a
-single MP4 showcasing all CLI features. Each feature has its own `.tape` file
-in `demos/`, and they are stitched into one video via `ffmpeg`.
+The project uses [VHS](https://github.com/charmbracelet/vhs) to produce demo GIFs.
+Tape files live in `demos/`; the CI workflow re-records when relevant source files change.
 
 ### Prerequisites
 
 - [VHS](https://github.com/charmbracelet/vhs) (`go install github.com/charmbracelet/vhs@latest`)
 - `ffmpeg` (bundled with most VHS installs, or install separately)
-- `treemand` on `$PATH` (run `make install` first)
+- `treemand` on `$PATH` (run `task install` first)
 - `git` on `$PATH` (used as the target CLI in most demos)
 
 ### Recording All Features
 
 ```bash
-make install   # ensure treemand is up to date
-make demo      # records all segments and produces dist/demo.mp4
+task install    # ensure treemand is up to date
+task demo       # records all segments and produces dist/demo.mp4
 ```
 
 The final video is written to `dist/demo.mp4`.
@@ -53,30 +58,26 @@ The final video is written to `dist/demo.mp4`.
 vhs demos/03_filter_exclude.tape
 ```
 
-This writes the segment to `demos/segments/03_filter_exclude.mp4`. You can
-then re-run `make demo` to rebuild the full video, or view the segment on its
-own.
+This writes the segment to `demos/segments/03_filter_exclude.mp4`. Re-run `task demo` to rebuild the full video.
 
 ### Adding a New Feature Demo
 
 1. Create `demos/NN_<name>.tape` following the numbering and pattern of
-   existing tapes (source `_settings.tape`, print an ANSI banner label, run
-   demo commands)
+   existing tapes (source `_settings.tape`, print an ANSI banner label, run demo commands)
 2. Add the feature to `docs/FEATURES.md`
-3. Run `make demo` to verify the segment records correctly and the full video
-   looks good
+3. Run `task demo` to verify the segment records correctly
 
 ### Cleaning Up
 
 ```bash
-make demo-clean   # removes demos/segments/ and dist/demo.mp4
+task demo-clean    # removes demos/segments/ and dist/demo.mp4
 ```
 
 ### CI
 
-A nightly GitHub Actions workflow (`.github/workflows/demo.yml`) checks for
-source changes since the last recording and regenerates the video automatically.
-It can also be triggered manually via `workflow_dispatch`.
+The demo GitHub Actions workflow (`.github/workflows/demo.yml`) triggers on
+pushes that touch `cli/**`, `demos/**`, `scripts/record-demo.sh`, `Makefile`,
+or `Taskfile.yml`. It can also be triggered manually via `workflow_dispatch`.
 
 ## Project Structure
 
@@ -93,5 +94,5 @@ www/treemand/       Hugo documentation site
 ## Code Style
 
 - Go code is linted with `golangci-lint`
-- Run `make lint` before submitting PRs
+- Run `task lint` before submitting PRs
 - Tests live alongside source files (`*_test.go`)

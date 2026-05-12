@@ -87,17 +87,28 @@ Keyboard-driven TUI to explore commands, pick flags, and build CLI invocations:
 - Fuzzy filter with `/`; cycle matches with `n` / `N`
 - Flag picker modal (`f`/`F`)
 - Live preview bar showing assembled command
+- Clear preview bar with `Ctrl+K`
 - Execute or copy built command (`Ctrl+E`)
+- Re-discover / refresh selected node's children with `R`
 - Toggle help pane with `H` or `Ctrl+P` (uppercase only — lowercase `h` is Left in vim mode)
 - Toggle section headers with `S`
 - Display style cycling with `T`
 - Cycle pane focus with `Tab` / `Shift+Tab`
 - Open docs URL in browser with `d` / `D`
-- Show all key bindings with `?`
+- Show all key bindings with `?` (scrollable overlay)
 - Mouse support (click, scroll)
+- `⚠` indicator on nodes where discovery partially failed
 ```bash
 treemand -i git
 ```
+
+### 13. Discovery Progress Spinner
+A braille-frame spinner is shown on stderr while discovery runs (TTY only —
+no output when piped or in CI).
+
+### 14. Discovery Error Indicator
+Nodes whose children could not be fully discovered display a `⚠` prefix (styled
+with `colors.invalid`) so failures are visible without expanding the node.
 
 ## Misc
 
@@ -126,7 +137,7 @@ These flags apply to the root command and control discovery behavior:
 
 | Flag | Description |
 |------|-------------|
-| `--depth=N` | Limit tree recursion depth (-1 = unlimited) |
+| `--depth=N` | Limit tree recursion depth (default 3; -1 = unlimited) |
 | `--filter=<regex>` | Show only matching nodes |
 | `--exclude=<regex>` | Hide matching nodes |
 | `--commands-only` | Hide flags and positionals |

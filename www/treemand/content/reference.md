@@ -19,7 +19,7 @@ treemand cache [clear|list]
 |------|-------|---------|-------------|
 | `--interactive` | `-i` | false | Launch interactive TUI explorer |
 | `--strategy` | `-s` | `help` | Discovery strategies: `help`, `man`, `completions` (comma-separated) |
-| `--depth` | | `-1` | Max tree depth (-1 = unlimited) |
+| `--depth` | | `3` | Max tree depth (default 3; -1 = unlimited) |
 | `--filter` | | | Only show nodes whose name matches pattern |
 | `--exclude` | | | Exclude nodes whose name matches pattern |
 | `--commands-only` | | false | Hide flags and positional arguments |
@@ -228,6 +228,7 @@ Toggle navigation scheme with **Ctrl+S** (cycles: arrows → vim → WASD).
 | `e` | Expand all nodes |
 | `E` | Collapse all nodes |
 | `f` / `F` | Open flags modal for current node |
+| `R` | Re-discover / refresh children of selected node |
 | `S` | Toggle section headers (Sub commands, Flags, Inherited flags) |
 | `T` | Cycle display style (default → columns → compact → graph) |
 
@@ -238,8 +239,9 @@ Toggle navigation scheme with **Ctrl+S** (cycles: arrows → vim → WASD).
 | `Enter` | On a command: set it in the preview. On a flag: add it. On a positional: open input prompt. |
 | `f` | Open flag picker — browse all flags for the current command with search |
 | `Backspace` | Remove last token from the preview |
+| `Ctrl+K` | Clear the entire preview bar |
 | `Ctrl+E` | **Copy** the assembled command to your clipboard, or **run** it (confirmation prompt) |
-| `Esc` / `q` | Quit (copies command to clipboard as fallback) |
+| `Esc` / `q` | Quit |
 
 #### View Controls
 
@@ -247,7 +249,7 @@ Toggle navigation scheme with **Ctrl+S** (cycles: arrows → vim → WASD).
 |-----|--------|
 | `H` / `Ctrl+P` | Toggle help pane (uppercase `H` only — lowercase `h` is Left navigation in vim mode) |
 | `Tab` / `Shift+Tab` | Cycle pane focus forward / backward (tree → help → preview) |
-| `?` | Show all key bindings modal |
+| `?` | Show all key bindings in a scrollable overlay |
 | `d` / `D` | Open docs URL in browser (if detected in help text; `d` conflicts with Right in WASD mode) |
 
 #### Mouse
@@ -305,8 +307,10 @@ groff formatting. Provides richer descriptions than `--help` for many Unix tools
 
 ### `completions`
 
-Uses shell completion output (`<cli> __complete`, `<cli> completion`) to
-enumerate subcommands without executing `--help` for every node.
+Runs `<cli> __complete ""` (Cobra's built-in completion protocol) to enumerate
+top-level subcommands without executing `--help` for every node. Results are
+stub nodes expanded lazily on demand. Falls back gracefully when the CLI does
+not support `__complete`.
 
 ```bash
 treemand -s help git          # default

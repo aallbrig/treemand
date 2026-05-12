@@ -17,7 +17,7 @@ brew install treemand
 go install github.com/aallbrig/treemand/cli/treemand@latest
 ```
 
-Requires Go 1.22+. The binary is placed in `$GOPATH/bin` (usually `~/go/bin`).
+Requires Go 1.25+. The binary is placed in `$GOPATH/bin` (usually `~/go/bin`).
 
 ## Pre-built Binaries
 

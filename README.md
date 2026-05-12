@@ -1,6 +1,6 @@
 # 🌲 treemand — explore CLIs as trees, build commands interactively
 
-[![Go version](https://img.shields.io/badge/go-1.22%2B-blue)](https://go.dev/dl/)
+[![Go version](https://img.shields.io/badge/go-1.25%2B-blue)](https://go.dev/dl/)
 [![CI](https://img.shields.io/github/actions/workflow/status/aallbrig/treemand/ci.yml?branch=main)](https://github.com/aallbrig/treemand/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -26,7 +26,7 @@ go install github.com/aallbrig/treemand/cli/treemand@latest
 # Pre-built binaries: https://github.com/aallbrig/treemand/releases/latest
 
 # From source
-git clone https://github.com/aallbrig/treemand.git && cd treemand && make install
+git clone https://github.com/aallbrig/treemand.git && cd treemand && task install
 ```
 
 ## Quick Start
@@ -102,8 +102,10 @@ The preview bar at the top updates live as you build the command.
 | `/` | Fuzzy filter |
 | `n` / `N` | Next / previous search match |
 | `d` / `D` | Open docs URL in browser |
+| `Ctrl+K` | Clear the preview bar |
 | `Ctrl+E` | Copy or execute the assembled command |
 | `Ctrl+S` | Cycle navigation scheme (arrows → vim → WASD) |
+| `R` | Re-discover / refresh children of selected node |
 | `?` | Show all key bindings |
 | `q` / `Esc` | Quit |
 

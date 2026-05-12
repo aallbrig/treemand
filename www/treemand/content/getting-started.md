@@ -48,7 +48,7 @@ treemand --tree-style=graph git       # ├──/└── connectors like `tre
 ## Useful Flags
 
 ```bash
-treemand --depth=2 kubectl          # limit tree depth (default: unlimited)
+treemand --depth=2 kubectl          # limit tree depth (default: 3; -1 = unlimited)
 treemand --filter=remote git        # only show matching nodes
 treemand --exclude=help git         # exclude nodes by name
 treemand --commands-only kubectl    # subcommands only, no flags
@@ -143,9 +143,11 @@ Press `c` to copy or `r` to run.
 | `H` | Toggle help pane |
 | `/` | Fuzzy filter |
 | `Backspace` | Remove last token from preview |
+| `Ctrl+K` | Clear the entire preview bar |
 | `Ctrl+E` | Copy or execute the assembled command |
 | `Ctrl+S` | Cycle navigation scheme (arrows → vim → WASD) |
-| `?` | Show all key bindings |
+| `R` | Re-discover / refresh children of selected node |
+| `?` | Show all key bindings in a scrollable overlay |
 | `q` / `Esc` | Quit |
 
 > **Tip:** Press `?` inside the TUI to see the full key binding reference
