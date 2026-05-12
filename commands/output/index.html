@@ -1,0 +1,46 @@
+<!doctype html><html lang=en><head><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Output Formats | Treemand</title><link rel=stylesheet href=/treemand/css/main.css></head><body><header><nav><a href=/ class=site-title>🌲 Treemand</a><ul><li><a href=/treemand/>Home</a></li><li><a href=/treemand/installation/>Installation</a></li><li><a href=/treemand/getting-started/>Getting Started</a></li><li><a href=/treemand/reference/>Reference</a></li><li><a href=/treemand/commands/>Commands</a></li></ul></nav></header><main><article><h1 id=output-formats>Output Formats</h1><p>treemand can emit the discovered tree as JSON or YAML for scripting, diffing,
+and integration with other tools.</p><img src=/treemand/demos/cmd_output.gif alt="treemand JSON/YAML output demo" width=100%><h2 id=usage>Usage</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span>treemand --output<span style=color:#f92672>=</span>json git          <span style=color:#75715e># full tree as JSON</span>
+</span></span><span style=display:flex><span>treemand --output<span style=color:#f92672>=</span>yaml git          <span style=color:#75715e># full tree as YAML</span>
+</span></span><span style=display:flex><span>treemand --output<span style=color:#f92672>=</span>text git          <span style=color:#75715e># default colored text tree</span>
+</span></span></code></pre></div><h2 id=json-schema>JSON schema</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-json data-lang=json><span style=display:flex><span>{
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;name&#34;</span>: <span style=color:#e6db74>&#34;git&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;description&#34;</span>: <span style=color:#e6db74>&#34;the stupid content tracker&#34;</span>,
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;flags&#34;</span>: [
+</span></span><span style=display:flex><span>    {<span style=color:#f92672>&#34;name&#34;</span>: <span style=color:#e6db74>&#34;--version&#34;</span>, <span style=color:#f92672>&#34;value_type&#34;</span>: <span style=color:#e6db74>&#34;bool&#34;</span>, <span style=color:#f92672>&#34;description&#34;</span>: <span style=color:#e6db74>&#34;Print version&#34;</span>}
+</span></span><span style=display:flex><span>  ],
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;positionals&#34;</span>: [],
+</span></span><span style=display:flex><span>  <span style=color:#f92672>&#34;children&#34;</span>: [
+</span></span><span style=display:flex><span>    {
+</span></span><span style=display:flex><span>      <span style=color:#f92672>&#34;name&#34;</span>: <span style=color:#e6db74>&#34;commit&#34;</span>,
+</span></span><span style=display:flex><span>      <span style=color:#f92672>&#34;description&#34;</span>: <span style=color:#e6db74>&#34;Record changes to the repository&#34;</span>,
+</span></span><span style=display:flex><span>      <span style=color:#f92672>&#34;flags&#34;</span>: [
+</span></span><span style=display:flex><span>        {<span style=color:#f92672>&#34;name&#34;</span>: <span style=color:#e6db74>&#34;--message&#34;</span>, <span style=color:#f92672>&#34;short_name&#34;</span>: <span style=color:#e6db74>&#34;m&#34;</span>, <span style=color:#f92672>&#34;value_type&#34;</span>: <span style=color:#e6db74>&#34;string&#34;</span>}
+</span></span><span style=display:flex><span>      ],
+</span></span><span style=display:flex><span>      <span style=color:#f92672>&#34;positionals&#34;</span>: [],
+</span></span><span style=display:flex><span>      <span style=color:#f92672>&#34;children&#34;</span>: []
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>  ]
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><h2 id=scripting-with-jq>Scripting with jq</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># List all top-level subcommands</span>
+</span></span><span style=display:flex><span>treemand --output<span style=color:#f92672>=</span>json --depth<span style=color:#f92672>=</span><span style=color:#ae81ff>1</span> git | jq <span style=color:#e6db74>&#39;[.children[].name]&#39;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Find all flags of a specific subcommand</span>
+</span></span><span style=display:flex><span>treemand --output<span style=color:#f92672>=</span>json git | jq <span style=color:#e6db74>&#39;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  .children[] | select(.name == &#34;commit&#34;) | .flags[].name&#39;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Count flags per subcommand</span>
+</span></span><span style=display:flex><span>treemand --output<span style=color:#f92672>=</span>json --depth<span style=color:#f92672>=</span><span style=color:#ae81ff>1</span> kubectl | jq <span style=color:#e6db74>&#39;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  [.children[] | {cmd: .name, flags: (.flags | length)}]&#39;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Extract commands with descriptions</span>
+</span></span><span style=display:flex><span>treemand --output<span style=color:#f92672>=</span>json --depth<span style=color:#f92672>=</span><span style=color:#ae81ff>1</span> docker | jq <span style=color:#e6db74>&#39;
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>  [.children[] | {name, description}]&#39;</span>
+</span></span></code></pre></div><h2 id=combine-with-other-tools>Combine with other tools</h2><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e># Store a CLI&#39;s schema as YAML</span>
+</span></span><span style=display:flex><span>treemand --output<span style=color:#f92672>=</span>yaml kubectl &gt; kubectl-schema.yaml
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#75715e># Diff two versions of a CLI&#39;s command surface</span>
+</span></span><span style=display:flex><span>treemand --output<span style=color:#f92672>=</span>json --depth<span style=color:#f92672>=</span><span style=color:#ae81ff>3</span> aws &gt; aws-before.json
+</span></span><span style=display:flex><span><span style=color:#75715e># (upgrade aws cli)</span>
+</span></span><span style=display:flex><span>treemand --no-cache --output<span style=color:#f92672>=</span>json --depth<span style=color:#f92672>=</span><span style=color:#ae81ff>3</span> aws &gt; aws-after.json
+</span></span><span style=display:flex><span>diff aws-before.json aws-after.json
+</span></span></code></pre></div></article></main><footer><p>MIT License · <a href=https://github.com/aallbrig/treemand>GitHub</a></p></footer></body></html>
