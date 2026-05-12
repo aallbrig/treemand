@@ -222,8 +222,12 @@ Toggle navigation scheme with **Ctrl+S** (cycles: arrows → vim → WASD).
 | Key | Action |
 |-----|--------|
 | `/` | Fuzzy filter tree nodes |
-| `R` | Refresh / re-discover current node |
-| `F` | Open flags modal for current node |
+| `n` / `N` | Jump to next / previous search match (after `/` search) |
+| `gg` | Jump to top of tree |
+| `G` | Jump to bottom of tree |
+| `e` | Expand all nodes |
+| `E` | Collapse all nodes |
+| `f` / `F` | Open flags modal for current node |
 | `S` | Toggle section headers (Sub commands, Flags, Inherited flags) |
 | `T` | Cycle display style (default → columns → compact → graph) |
 
@@ -241,10 +245,10 @@ Toggle navigation scheme with **Ctrl+S** (cycles: arrows → vim → WASD).
 
 | Key | Action |
 |-----|--------|
-| `H` | Toggle help pane (shows `--help` output for selected node) |
-| `Tab` | Cycle pane focus (tree → help → preview) |
+| `H` / `Ctrl+P` | Toggle help pane (uppercase `H` only — lowercase `h` is Left navigation in vim mode) |
+| `Tab` / `Shift+Tab` | Cycle pane focus forward / backward (tree → help → preview) |
 | `?` | Show all key bindings modal |
-| `d` / `D` | Open docs URL in browser (if detected in help text) |
+| `d` / `D` | Open docs URL in browser (if detected in help text; `d` conflicts with Right in WASD mode) |
 
 #### Mouse
 

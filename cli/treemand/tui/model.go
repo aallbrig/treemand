@@ -438,10 +438,6 @@ func (m *Model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.filter.Focus()
 		return m, textinput.Blink
 
-	case "r", "R":
-		m.statusMsg = "refreshed"
-		return m, nil
-
 	case "ctrl+e":
 		cmd := strings.Join(m.preview.Tokens(), " ")
 		if cmd == "" {
