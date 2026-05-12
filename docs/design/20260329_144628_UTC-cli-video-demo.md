@@ -1,7 +1,15 @@
 # Design: CLI Feature Demo Video System
 
-**Date:** 2026-03-29
-**Status:** Accepted
+**Date:** 2026-03-29  
+**Status:** Accepted (updated 2026-05-12)
+
+**Implementation update (2026-05-12):** The nightly schedule + git-tag
+change-detection approach described below was replaced with GitHub Actions
+path-based push triggers (`on.push.paths`). GitHub itself is now the source
+of truth for detecting when to re-record — the workflow only fires when
+demo-relevant paths (`cli/**`, `demos/**`, `scripts/record-demo.sh`,
+`Makefile`, `Taskfile.yml`) change on `main`. The git-tag bookkeeping
+described in Part 1 is no longer used.
 
 ## Problem
 

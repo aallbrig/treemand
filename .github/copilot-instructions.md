@@ -8,17 +8,19 @@ treemand is a Go CLI tool that visualizes arbitrary CLI command hierarchies as a
 - Module root: `cli/treemand/` (`github.com/aallbrig/treemand`)
 
 ## Dev Loop
-After making code changes, use **`make dev`** (from the repo root) to run tests and install the binary in one step:
+After making code changes, use **`task dev`** (from the repo root) to run tests and install the binary in one step:
 ```
-make dev   # runs: go test ./cli/treemand/... && go install ./cli/treemand
+task dev   # runs: go test ./cli/treemand/... && go install ./cli/treemand
 ```
-This ensures the system-wide `treemand` binary stays in sync with the latest code. Do **not** assume the installed binary is current unless `make dev` (or `make install`) was run recently.
+This ensures the system-wide `treemand` binary stays in sync with the latest code. Do **not** assume the installed binary is current unless `task dev` (or `task install`) was run recently.
 
-Other Makefile targets:
-- `make build`   — compile to `./treemand` (local binary, not installed)
-- `make install` — install to `$GOPATH/bin` without running tests
-- `make test`    — run all tests
-- `make lint`    — run golangci-lint
+Key Taskfile targets (Makefile mirrors these):
+- `task build`      — compile to `./treemand` (local binary, not installed)
+- `task install`    — install to `$GOPATH/bin` without running tests
+- `task test`       — run all tests
+- `task lint`       — run golangci-lint
+- `task precommit`  — full hygiene gate: fmt, vet, lint, vuln, test
+- `task fix`        — auto-fix formatting and fixable lint issues
 
 ## Repository Layout
 ```
@@ -35,7 +37,7 @@ www/treemand/        Hugo static site
 ```
 
 ## Key Conventions
-- Go 1.24+; all packages under `github.com/aallbrig/treemand`
+- Go 1.25.8 (toolchain pinned in go.mod); all packages under `github.com/aallbrig/treemand`
 - TUI uses Bubble Tea (bubbletea + bubbles + lipgloss)
 - `tui/model.go` is large (1200+ lines) — prefer Python inline scripts for edits to that file to avoid tool timeouts
 - `config.DisplayStyle` controls TUI tree presentation: `StyleDefault`, `StyleColumns`, `StyleCompact`, `StyleGraph`; cycle with `T` key or `--tree-style` flag
@@ -45,7 +47,7 @@ www/treemand/        Hugo static site
 ## Release Process
 - Tag `vX.Y.Z` → triggers `release.yml` (GoReleaser multi-platform binaries) + `update-homebrew` job (updates `aallbrig/homebrew-tap`) + `deploy-site` job (Hugo → gh-pages)
 - Homebrew tap: `brew tap aallbrig/tap && brew install treemand`
-- After releasing, run `make dev` locally to update the dev binary
+- After releasing, run `task dev` locally to update the dev binary
 
 ## GitHub Pages
 https://aallbrig.github.io/treemand
