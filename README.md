@@ -91,12 +91,17 @@ The preview bar at the top updates live as you build the command.
 | `→` or `l` | Expand node (first press); enter first child (second press) |
 | `←` or `h` | Collapse node (first press); go to parent (second press) |
 | `Shift+→`/`Shift+←` | Expand / collapse entire subtree |
+| `gg` / `G` | Jump to top / bottom of tree |
 | `Enter` | Set command in preview / add flag / fill positional |
-| `f` | Open flag picker modal |
+| `f` / `F` | Open flag picker modal |
+| `e` / `E` | Expand all / collapse all |
 | `S` | Toggle section headers (Sub commands, Flags, etc.) |
 | `T` | Cycle display style (default → columns → compact → graph) |
-| `H` | Toggle help pane |
+| `H` / `Ctrl+P` | Toggle help pane (uppercase `H` only; lowercase `h` is Left in vim mode) |
+| `Tab` / `Shift+Tab` | Cycle pane focus |
 | `/` | Fuzzy filter |
+| `n` / `N` | Next / previous search match |
+| `d` / `D` | Open docs URL in browser |
 | `Ctrl+E` | Copy or execute the assembled command |
 | `Ctrl+S` | Cycle navigation scheme (arrows → vim → WASD) |
 | `?` | Show all key bindings |
@@ -158,21 +163,27 @@ See [`docs/features/config.md`](docs/features/config.md) for full documentation.
 ## Development
 
 ```bash
-make dev      # run tests + install binary (recommended dev loop)
-make build    # compile local binary
-make test     # run all tests
-make lint     # run golangci-lint
+task dev          # run tests + install binary (recommended dev loop)
+task test         # run all tests
+task lint         # run golangci-lint
+task precommit    # full hygiene gate: fmt, vet, lint, vuln, test
+task fix          # auto-fix formatting and lint issues
+task build        # compile local binary
 ```
+
+Make targets mirror the Taskfile and remain available:
+`make dev`, `make test`, `make lint`, `make build`.
 
 ### Git Hooks
 
-Install the pre-push hook to automatically check lint and tests before pushing:
+Install pre-commit and pre-push hooks (run `task precommit` automatically):
 
 ```bash
 bash scripts/setup-hooks.sh
 ```
 
-The hook prevents pushing to `main` or `develop` if lint or tests fail.
+The pre-commit hook runs the full hygiene suite before every commit.
+The pre-push hook runs the same suite before pushing to `main` or `develop`.
 
 ## License
 

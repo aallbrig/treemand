@@ -80,15 +80,20 @@ See [features/config.md](features/config.md) for full documentation.
 
 ### 9. Interactive TUI Mode
 Keyboard-driven TUI to explore commands, pick flags, and build CLI invocations:
-- Navigate with arrows or vim keys (`j`/`k`/`h`/`l`)
-- Expand/collapse nodes and subtrees
-- Flag picker modal (`f`)
+- Navigate with arrows or vim keys (`j`/`k`/`h`/`l`) or WASD; cycle scheme with `Ctrl+S`
+- Expand/collapse nodes (`→`/`←`) and entire subtrees (`Shift+→`/`Shift+←`)
+- Expand all / collapse all with `e` / `E`
+- Jump to top / bottom with `gg` / `G`
+- Fuzzy filter with `/`; cycle matches with `n` / `N`
+- Flag picker modal (`f`/`F`)
 - Live preview bar showing assembled command
 - Execute or copy built command (`Ctrl+E`)
-- Multiple navigation schemes (arrows, vim, WASD) via `Ctrl+S`
-- Fuzzy filter with `/`
-- Help pane toggle with `H`
+- Toggle help pane with `H` or `Ctrl+P` (uppercase only — lowercase `h` is Left in vim mode)
+- Toggle section headers with `S`
 - Display style cycling with `T`
+- Cycle pane focus with `Tab` / `Shift+Tab`
+- Open docs URL in browser with `d` / `D`
+- Show all key bindings with `?`
 - Mouse support (click, scroll)
 ```bash
 treemand -i git
