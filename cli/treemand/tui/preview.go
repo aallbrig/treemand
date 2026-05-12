@@ -72,6 +72,12 @@ func (p *PreviewModel) AppendToken(s string) {
 	p.ti.CursorEnd()
 }
 
+// ClearAll empties the entire preview bar.
+func (p *PreviewModel) ClearAll() {
+	p.ti.SetValue("")
+	p.ti.CursorEnd()
+}
+
 // RemoveLastToken removes the last whitespace-delimited token from the preview.
 func (p *PreviewModel) RemoveLastToken() {
 	cur := strings.TrimSpace(p.ti.Value())

@@ -3350,3 +3350,84 @@ func TestFilterCycle_N_movesToPreviousMatch(t *testing.T) {
 		t.Errorf("N should find 'remote', got %v", sel)
 	}
 }
+
+// ── Ctrl+K: clear preview bar ─────────────────────────────────────────────────
+
+func TestModel_CtrlK_clearsPreview(t *testing.T) {
+	cfg := config.DefaultConfig()
+	m := tui.NewModel(sampleTree(), cfg)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	// Build a command in the preview.
+	m.Update(tea.KeyMsg{Type: tea.KeyRight}) // expand git → commit
+	m.Update(tea.KeyMsg{Type: tea.KeyEnter}) // pick commit
+
+	// Sanity: preview contains "commit".
+	if !strings.Contains(m.View(), "commit") {
+		t.Skip("could not build a preview command — skipping")
+	}
+
+	// Clear with Ctrl+K.
+	m.Update(tea.KeyMsg{Type: tea.KeyCtrlK})
+
+	// Status bar should confirm the clear.
+	v := m.View()
+	if !strings.Contains(v, "cleared") {
+		t.Errorf("after Ctrl+K status should say 'cleared', got: %q", v[max(0, len(v)-300):])
+	}
+	// The explicitly-built tokens must be gone (no free-standing "commit" token
+	// separate from the tree-cursor display).
+	tokens := m.Preview().Tokens()
+	if len(tokens) != 0 {
+		t.Errorf("after Ctrl+K preview tokens should be empty, got %v", tokens)
+	}
+}
+
+func TestPreviewModel_ClearAll(t *testing.T) {
+	cfg := config.DefaultConfig()
+	p := tui.NewPreviewModel(cfg)
+	p.AppendToken("git")
+	p.AppendToken("commit")
+	if len(p.Tokens()) == 0 {
+		t.Fatal("expected tokens after AppendToken")
+	}
+	p.ClearAll()
+	if len(p.Tokens()) != 0 {
+		t.Errorf("ClearAll should empty tokens, got %v", p.Tokens())
+	}
+}
+
+// ── R key: re-discover selected node ─────────────────────────────────────────
+
+func TestModel_R_returnsDiscoveryCmd(t *testing.T) {
+	cfg := config.DefaultConfig()
+	m := tui.NewModel(sampleTree(), cfg)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	// Press 'r' — should queue an async discovery for the selected node.
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("r")})
+	if cmd == nil {
+		t.Error("pressing 'r' on a command node should return a non-nil tea.Cmd")
+	}
+}
+
+func TestModel_R_setsDiscoveringStatus(t *testing.T) {
+	cfg := config.DefaultConfig()
+	m := tui.NewModel(sampleTree(), cfg)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+
+	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("r")})
+
+	v := m.View()
+	if !strings.Contains(v, "discovering") {
+		t.Errorf("pressing 'r' should set a 'discovering …' status, got: %q",
+			v[max(0, len(v)-200):])
+	}
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}

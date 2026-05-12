@@ -449,11 +449,20 @@ func (m *Model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.modal.active = true
 		return m, nil
 
+	case "ctrl+k":
+		m.preview.ClearAll()
+		m.tree.SetCmdTokens(nil)
+		m.statusMsg = "cleared command"
+		return m, nil
+
 	case "backspace", "delete":
 		m.preview.RemoveLastToken()
 		m.tree.SetCmdTokens(m.preview.Tokens())
 		m.statusMsg = "removed last token"
 		return m, nil
+
+	case "r", "R":
+		return m, m.forceExpandSelected()
 
 	case "f", "F":
 		m.openFlagModal()
@@ -1135,6 +1144,9 @@ func (m *Model) timedMsgCmd() tea.Cmd {
 // TreeModel returns the underlying TreeModel for testing.
 func (m *Model) TreeModel() *TreeModel { return m.tree }
 
+// Preview returns the underlying PreviewModel for testing.
+func (m *Model) Preview() *PreviewModel { return m.preview }
+
 // SetScheme sets the active navigation scheme.
 func (m *Model) SetScheme(s NavScheme) { m.scheme = s }
 
@@ -1182,6 +1194,32 @@ func (m *Model) lazyExpandIfStub() tea.Cmd {
 
 		result, err := d.Discover(ctx, cliName, args)
 		return LazyExpandMsg{Stub: stub, Discovered: result, Err: err}
+	}
+}
+
+// forceExpandSelected re-discovers the currently selected command node
+// regardless of whether it is a stub. It uses the same async LazyExpandMsg
+// pattern as lazyExpandIfStub so the result patches the live tree.
+func (m *Model) forceExpandSelected() tea.Cmd {
+	sel := m.tree.SelectedItem()
+	if sel == nil || sel.Kind != SelCommand {
+		return nil
+	}
+	node := sel.Node
+	stubThreshold := m.cfg.StubThreshold
+	cliName := m.root.Name
+	args := node.FullPath[1:] // subcommand path below root
+
+	m.statusMsg = "discovering " + node.Name + "…"
+
+	return func() tea.Msg {
+		d := discovery.NewHelpDiscoverer(1)
+		d.StubThreshold = stubThreshold
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		result, err := d.Discover(ctx, cliName, args)
+		return LazyExpandMsg{Stub: node, Discovered: result, Err: err}
 	}
 }
 
