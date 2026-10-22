@@ -70,7 +70,16 @@ var TreemandVersion string
 
 // Key produces a cache key from cli name, version string, and strategies list.
 func Key(cli, version string, strategies []string) string {
+	return KeyWith(cli, version, strategies, "")
+}
+
+// KeyWith is Key plus an extra discriminator for options that change the
+// discovered tree (depth, stub threshold, preset).
+func KeyWith(cli, version string, strategies []string, extra string) string {
 	s := cli + "|" + version + "|" + strings.Join(strategies, ",") + "|" + cacheSchemaVersion + "|" + TreemandVersion
+	if extra != "" {
+		s += "|" + extra
+	}
 	h := sha256.Sum256([]byte(s))
 	return fmt.Sprintf("%x", h[:8])
 }

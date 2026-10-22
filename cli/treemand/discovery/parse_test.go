@@ -599,3 +599,17 @@ Flags:
 		}
 	}
 }
+
+func TestSanitizeHelp(t *testing.T) {
+	cases := map[string]string{
+		"\x1b[1mNAME\x1b[0m\n  aws -": "NAME\n  aws -",
+		"N\x08NA\x08AM\x08ME\x08E":    "NAME",
+		"Usage:\n  stripe x\n<claude-code-hint v=\"1\" type=\"plugin\" value=\"s\" />\nFlags:": "Usage:\n  stripe x\nFlags:",
+		"  help text  \n": "help text",
+	}
+	for in, want := range cases {
+		if got := discovery.SanitizeHelp(in); got != want {
+			t.Errorf("SanitizeHelp(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

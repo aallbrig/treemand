@@ -16,6 +16,7 @@ import (
 	"github.com/aallbrig/treemand/config"
 	"github.com/aallbrig/treemand/discovery"
 	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/presets"
 	"github.com/aallbrig/treemand/render"
 	"github.com/aallbrig/treemand/tui"
 )
@@ -160,6 +161,17 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	}
 	strategies := config.ParseStrategies(cfgStrategy)
 
+	// Presets tune well-known CLIs (aws, stripe, ...). An explicit --depth wins.
+	preset, hasPreset := presets.Lookup(cliName)
+	if hasPreset && preset.Depth != 0 && !cmd.Flags().Changed("depth") {
+		cfg.Depth = preset.Depth
+		cfgDepth = preset.Depth
+	}
+	cacheExtra := fmt.Sprintf("d=%d,t=%d", cfg.Depth, cfg.StubThreshold)
+	if hasPreset {
+		cacheExtra += ",p=" + preset.Name
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfgTimeout)*time.Second)
 	defer cancel()
 
@@ -176,7 +188,7 @@ func runRoot(cmd *cobra.Command, args []string) error {
 		} else {
 			defer cacheInst.Close()
 			ver := cache.CLIVersion(cliName)
-			cacheKey = cache.Key(cliName, ver, strategies)
+			cacheKey = cache.KeyWith(cliName, ver, strategies, cacheExtra)
 			if node, err := cacheInst.Get(cacheKey, 24*time.Hour); err == nil && node != nil {
 				log.Debug().Str("cli", cliName).Msg("cache hit")
 				return output(cmd, node, cfg)
@@ -199,6 +211,17 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	}
 	if node == nil {
 		return fmt.Errorf("no results from discovery for %q", cliName)
+	}
+
+	if hasPreset && preset.Seed != nil {
+		spin := NewSpinner(os.Stderr)
+		spin.Start("mapping " + cliName + "…")
+		if seed, serr := preset.Seed(ctx, cliName); serr != nil {
+			log.Warn().Err(serr).Str("preset", preset.Name).Msg("preset seed failed")
+		} else {
+			presets.Graft(node, seed)
+		}
+		spin.Stop()
 	}
 
 	// Persist to cache
