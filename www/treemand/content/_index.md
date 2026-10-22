@@ -12,6 +12,8 @@ title: "Treemand"
   </div>
 </div>
 
+<p style="text-align:center"><a class="cta" href="try/">▶ Try it in your browser — no install</a></p>
+
 ## What is Treemand?
 
 `treemand` is a Go CLI tool that **discovers and visualizes** any CLI command hierarchy — `git`, `kubectl`, `aws`, `docker` — as an intuitive tree, inspired by the classic `tree` command.
