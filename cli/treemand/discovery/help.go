@@ -216,7 +216,7 @@ func (h *HelpDiscoverer) runHelp(ctx context.Context, cliName string, args []str
 		cmd := exec.CommandContext(ctx, resolved, cmdArgs...) //nolint:gosec
 		cmd.Env = append(os.Environ(), pagerEnv...)
 		out, _ := cmd.CombinedOutput()
-		return strings.TrimSpace(string(out))
+		return SanitizeHelp(string(out))
 	}
 
 	var firstOut string
@@ -374,7 +374,7 @@ var (
 	// manpageHeaderRe matches lines like "GIT-CLONE(1)   Git Manual   GIT-CLONE(1)".
 	// These appear at the top of man-formatted --help output and should never be
 	// used as the command description.
-	manpageHeaderRe = regexp.MustCompile(`^[A-Z][A-Z0-9_.-]+\(\d+\)\s`)
+	manpageHeaderRe = regexp.MustCompile(`^[A-Z][A-Z0-9_.-]+\(\d*\)\s`)
 	// nameSectionDescRe matches the NAME section body: "   git-clone - Short desc"
 	nameSectionDescRe = regexp.MustCompile(`^[\s\t]+\S.*?\s+-\s+(.+)$`)
 	// subcommand line: 2–8 leading spaces, lowercase word; args like [PATTERN...] may appear
@@ -478,6 +478,7 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 	var result ParsedHelp
 	lines := strings.Split(text, "\n")
 	section := secNone
+	var bulletSubs []string
 	seenSubs := map[string]bool{}
 	seenFlags := map[string]bool{}
 	usageLines := []string{}
@@ -531,7 +532,9 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 		}
 
 		// Detect section header: "Flags:", "Available Commands:", "GLOBAL OPTIONS", etc.
-		if sec := detectSection(lower); sec != secNone {
+		// Bullet list items ("o appconfig") are never headers, even when the
+		// name ends in a header keyword such as "config" or "cache".
+		if sec := detectSection(lower); sec != secNone && !awsBulletRe.MatchString(rawLine) {
 			// For named flag-group sections (e.g. "General options:", "Debug options:"),
 			// remember the human-readable name so flags get grouped under it.
 			if sec == secFlags {
@@ -588,6 +591,9 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 		if result.Description == "" && i < 10 && trimmed != "" &&
 			!manpageHeaderRe.MatchString(trimmed) &&
 			!strings.HasPrefix(trimmed, "-") &&
+			!strings.HasSuffix(trimmed, " -") && // empty man NAME body: "aws -"
+			!isUsageLine(trimmed, selfName) &&
+			!strings.HasSuffix(trimmed, ":") && // section header, not prose
 			!strings.HasPrefix(lower, "usage") &&
 			!strings.HasPrefix(lower, "use ") &&
 			!strings.HasPrefix(lower, "name") &&
@@ -666,6 +672,7 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 			// AWS man-page bullet: "       +o subcmd"
 			if m := awsBulletRe.FindStringSubmatch(rawLine); m != nil {
 				name := m[1]
+				bulletSubs = append(bulletSubs, name)
 				if !seenSubs[name] && !skipSubcmdWords[name] && name != selfName {
 					seenSubs[name] = true
 					result.Subcommands = append(result.Subcommands, name)
@@ -722,6 +729,12 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 	// Parse positionals from all collected usage lines
 	for _, ul := range usageLines {
 		result.Positionals = append(result.Positionals, parsePositionals(ul)...)
+	}
+	result.Description = strings.Join(strings.Fields(result.Description), " ")
+	// A man-page bullet list ("o service") is authoritative: prose elsewhere in
+	// the page ("... help each ...") must not add phantom subcommands.
+	if len(bulletSubs) >= 3 {
+		result.Subcommands = bulletSubs
 	}
 	// Deduplicate positionals
 	result.Positionals = dedupePositionals(result.Positionals)
@@ -864,4 +877,23 @@ func dedupePositionals(ps []models.Positional) []models.Positional {
 		}
 	}
 	return out
+}
+
+// agentHintRe matches machine hints some CLIs print when they detect an AI
+// agent (e.g. <claude-code-hint v="1" ... />); they are not help text.
+var agentHintRe = regexp.MustCompile(`(?m)[ \t]*<[a-z-]+-hint\b[^>]*/>[ \t]*\r?\n?`)
+
+// SanitizeHelp strips terminal escapes, man-page overstrike sequences and
+// agent hint tags from raw help output, then trims surrounding whitespace.
+func SanitizeHelp(s string) string {
+	s = ansiRe.ReplaceAllString(s, "")
+	s = manpageBoldRe.ReplaceAllString(s, "")
+	s = agentHintRe.ReplaceAllString(s, "")
+	return strings.TrimSpace(s)
+}
+
+// isUsageLine reports whether line is a bare usage synopsis such as
+// "stripe charges <operation> [parameters...]" rather than prose.
+func isUsageLine(line, cliName string) bool {
+	return strings.HasPrefix(line, cliName+" ") && strings.ContainsAny(line, "<[")
 }

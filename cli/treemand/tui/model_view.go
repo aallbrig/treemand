@@ -45,6 +45,9 @@ func (m *Model) View() string {
 		return ""
 	}
 
+	if m.sm.active {
+		return m.renderSearchModal()
+	}
 	if m.kb.active {
 		return m.renderKeybindModal()
 	}
@@ -119,7 +122,7 @@ func (m *Model) renderStatusBar() string {
 		hint = m.timedMsg
 		hintStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#BD93F9"))
 	case m.filtering:
-		hint = "type to filter  Enter/Esc:done"
+		hint = m.filter.View() + "  Enter:keep  Esc:clear"
 		hintStyle = lipgloss.NewStyle().Faint(true)
 	case m.focusedPane == panePreview:
 		hint = "Esc:back  Ctrl+E:exec/copy  Tab:switch"

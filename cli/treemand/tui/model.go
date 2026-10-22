@@ -79,6 +79,7 @@ type Model struct {
 	fm           flagModal
 	vm           valueInputModal
 	kb           keybindModal // ? key overlay
+	sm           searchModal  // Ctrl+F fuzzy finder
 	pendingG     bool         // true after first 'g' press, waiting for second 'g'
 	lastSearch   string       // last filter/search term for n/N cycling
 }
@@ -114,6 +115,23 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Background index results must never be dropped by a modal, or the
+	// worker goroutines would block forever.
+	if im, ok := msg.(indexMsg); ok {
+		return m, m.handleIndexMsg(im)
+	}
+
+	// Fuzzy finder takes keys; async results and resizes still reach the model.
+	if m.sm.active {
+		switch km := msg.(type) {
+		case tea.KeyMsg:
+			return m.updateSearchModal(km)
+		case LazyExpandMsg, tea.WindowSizeMsg:
+		default:
+			return m, nil
+		}
+	}
+
 	// Key-bindings help modal intercepts all input when active.
 	if m.kb.active {
 		if km, ok := msg.(tea.KeyMsg); ok {

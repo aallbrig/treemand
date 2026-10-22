@@ -42,6 +42,9 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           version: latest
+          # The prebuilt binary is compiled with an older Go than go.mod targets;
+          # build it with the toolchain set up above instead.
+          install-mode: goinstall
           working-directory: cli/treemand
           args: --timeout=5m
 

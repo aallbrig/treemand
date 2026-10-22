@@ -16,6 +16,7 @@ import (
 	"github.com/aallbrig/treemand/config"
 	"github.com/aallbrig/treemand/discovery"
 	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/presets"
 	"github.com/aallbrig/treemand/render"
 	"github.com/aallbrig/treemand/tui"
 )
@@ -33,6 +34,7 @@ var (
 	cfgNoColor       bool
 	cfgNoCache       bool
 	cfgTimeout       int
+	cfgExpandStubs   int
 	cfgDebug         bool
 	cfgIcons         string
 	cfgLineLength    int
@@ -101,6 +103,8 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgOutput, "output", "text", "Output format: text, json, yaml")
 	rootCmd.PersistentFlags().BoolVar(&cfgNoColor, "no-color", false, "Disable color output")
 	rootCmd.PersistentFlags().BoolVar(&cfgNoCache, "no-cache", false, "Disable caching")
+	rootCmd.PersistentFlags().IntVar(&cfgExpandStubs, "expand-stubs", 0, "Expand undiscovered (stub) nodes N levels deep before output (slow on huge CLIs; disables cache)")
+	_ = rootCmd.PersistentFlags().MarkHidden("expand-stubs")
 	rootCmd.PersistentFlags().IntVar(&cfgTimeout, "timeout", 30, "Discovery timeout in seconds")
 	rootCmd.PersistentFlags().BoolVar(&cfgDebug, "debug", false, "Enable debug logging")
 	rootCmd.PersistentFlags().StringVar(&cfgIcons, "icons", "", "Icon preset: unicode (default), ascii, nerd")
@@ -155,10 +159,24 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	if cfgStubThreshold > 0 {
 		cfg.StubThreshold = cfgStubThreshold
 	}
+	if cfgExpandStubs > 0 {
+		cfg.NoCache = true // expanded trees are exports, not cache entries
+	}
 	if cfgTreeStyle != "" && cfgTreeStyle != "default" {
 		cfg.TreeStyle = config.ParseTreeStyle(cfgTreeStyle)
 	}
 	strategies := config.ParseStrategies(cfgStrategy)
+
+	// Presets tune well-known CLIs (aws, stripe, ...). An explicit --depth wins.
+	preset, hasPreset := presets.Lookup(cliName)
+	if hasPreset && preset.Depth != 0 && !cmd.Flags().Changed("depth") {
+		cfg.Depth = preset.Depth
+		cfgDepth = preset.Depth
+	}
+	cacheExtra := fmt.Sprintf("d=%d,t=%d", cfg.Depth, cfg.StubThreshold)
+	if hasPreset {
+		cacheExtra += ",p=" + preset.Name
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfgTimeout)*time.Second)
 	defer cancel()
@@ -176,7 +194,7 @@ func runRoot(cmd *cobra.Command, args []string) error {
 		} else {
 			defer cacheInst.Close()
 			ver := cache.CLIVersion(cliName)
-			cacheKey = cache.Key(cliName, ver, strategies)
+			cacheKey = cache.KeyWith(cliName, ver, strategies, cacheExtra)
 			if node, err := cacheInst.Get(cacheKey, 24*time.Hour); err == nil && node != nil {
 				log.Debug().Str("cli", cliName).Msg("cache hit")
 				return output(cmd, node, cfg)
@@ -199,6 +217,24 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	}
 	if node == nil {
 		return fmt.Errorf("no results from discovery for %q", cliName)
+	}
+
+	if hasPreset && preset.Seed != nil {
+		spin := NewSpinner(os.Stderr)
+		spin.Start("mapping " + cliName + "…")
+		if seed, serr := preset.Seed(ctx, cliName); serr != nil {
+			log.Warn().Err(serr).Str("preset", preset.Name).Msg("preset seed failed")
+		} else {
+			presets.Graft(node, seed)
+		}
+		spin.Stop()
+	}
+
+	if cfgExpandStubs > 0 {
+		spin := NewSpinner(os.Stderr)
+		spin.Start("expanding stubs…")
+		discovery.ExpandStubs(ctx, node, cliName, cfgExpandStubs, 16, 30*time.Second, nil)
+		spin.Stop()
 	}
 
 	// Persist to cache

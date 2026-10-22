@@ -73,6 +73,10 @@ func (m *Model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.filter.Focus()
 		return m, textinput.Blink
 
+	case "ctrl+f":
+		m.openSearchModal()
+		return m, textinput.Blink
+
 	case "?":
 		m.kb.active = true
 		m.kb.offset = 0
@@ -348,7 +352,13 @@ func (m *Model) handleWASD(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m *Model) updateFilter(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
-	case "esc", "enter":
+	case "esc":
+		m.filtering = false
+		m.filter.Blur()
+		m.filter.SetValue("")
+		m.tree.SetFilter("")
+		return m, nil
+	case "enter":
 		m.filtering = false
 		m.filter.Blur()
 		if v := m.filter.Value(); v != "" {

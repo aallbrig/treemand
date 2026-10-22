@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "www/treemand/**"
+      - "cli/treemand/**"
+      - "scripts/gen-web-trees.sh"
   workflow_run:
     workflows: ["Demo Video"]
     types: [completed]
@@ -24,6 +26,14 @@ jobs:
         with:
           hugo-version: "0.157.0"
           extended: true
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/treemand/go.mod
+
+      - name: Build in-browser TUI (wasm)
+        run: cli/treemand/web/wasm/build.sh www/treemand/static/try
 
       - name: Build
         working-directory: www/treemand
