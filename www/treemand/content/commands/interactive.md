@@ -48,7 +48,8 @@ Toggle navigation scheme with **Ctrl+S** (arrows → vim → WASD).
 
 | Key | Action |
 |-----|--------|
-| `/` | Fuzzy filter tree nodes |
+| `/` | Fuzzy filter tree nodes (`Esc` clears, `Enter` keeps) |
+| `Ctrl+F` | Global fuzzy finder over commands, flags, args and help text; `Tab` indexes undiscovered nodes |
 | `n` / `N` | Next / previous search match |
 | `e` / `E` | Expand all / collapse all |
 | `R` | Re-discover / refresh children of selected node |

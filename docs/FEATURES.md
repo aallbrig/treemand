@@ -84,7 +84,9 @@ Keyboard-driven TUI to explore commands, pick flags, and build CLI invocations:
 - Expand/collapse nodes (`→`/`←`) and entire subtrees (`Shift+→`/`Shift+←`)
 - Expand all / collapse all with `e` / `E`
 - Jump to top / bottom with `gg` / `G`
-- Fuzzy filter with `/`; cycle matches with `n` / `N`
+- Fuzzy filter with `/` (name + description; `Esc` clears, `Enter` keeps); cycle matches with `n` / `N`
+- Global fuzzy finder with `Ctrl+F`: ranks commands, flags, positionals, descriptions and help text across the whole CLI; `Enter` jumps to the hit; `Tab` indexes undiscovered nodes in the background (e.g. aws's ~420 services)
+- Presets for large CLIs (`stripe`: full command map from `stripe --map`; `aws`: lazy service stubs) apply automatically; an explicit `--depth` overrides them
 - Flag picker modal (`f`/`F`)
 - Live preview bar showing assembled command
 - Clear preview bar with `Ctrl+K`
