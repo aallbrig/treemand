@@ -13,6 +13,8 @@ WORK="$(mktemp -d)"
 trap 'chmod -R u+w "$WORK"; rm -rf "$WORK"' EXIT
 
 cd "$MOD"
+# Fresh CI runners have an empty module cache; `go list -m` does not download.
+go mod download github.com/charmbracelet/bubbletea github.com/atotto/clipboard
 BT="$(go list -m -f '{{.Dir}}' github.com/charmbracelet/bubbletea)"
 CB="$(go list -m -f '{{.Dir}}' github.com/atotto/clipboard)"
 cp -r "$BT" "$WORK/bubbletea"
