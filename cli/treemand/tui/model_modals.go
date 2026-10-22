@@ -32,6 +32,7 @@ const keybindText = `Navigation
 Tree
   /        Fuzzy filter tree (Esc clears, Enter keeps)
   Ctrl+F   Global fuzzy find: commands, flags, args, help text
+             (Tab inside: index all undiscovered nodes in background)
   n / N    Next / previous search match
   e / E    Expand all / collapse all
   S        Toggle section headers

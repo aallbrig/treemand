@@ -115,6 +115,12 @@ func (m *Model) Init() tea.Cmd {
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Background index results must never be dropped by a modal, or the
+	// worker goroutines would block forever.
+	if im, ok := msg.(indexMsg); ok {
+		return m, m.handleIndexMsg(im)
+	}
+
 	// Fuzzy finder takes keys; async results and resizes still reach the model.
 	if m.sm.active {
 		switch km := msg.(type) {

@@ -24,6 +24,10 @@ type searchModal struct {
 	cursor  int
 	offset  int
 	stubs   int // undiscovered (stub) nodes that cannot be searched yet
+
+	indexing   bool // background "index all" run in progress
+	indexed    int
+	indexTotal int
 }
 
 // openSearchModal indexes the current tree and activates the finder.
@@ -35,13 +39,9 @@ func (m *Model) openSearchModal() {
 	in.Focus()
 
 	entries := fuzzy.Build(m.root)
-	stubs := 0
-	m.root.Walk(func(n *models.Node) {
-		if n.Stub {
-			stubs++
-		}
-	})
-	m.sm = searchModal{active: true, input: in, entries: entries, stubs: stubs}
+	prev := m.sm
+	m.sm = searchModal{active: true, input: in, entries: entries, stubs: countStubs(m.root),
+		indexing: prev.indexing, indexed: prev.indexed, indexTotal: prev.indexTotal}
 }
 
 func (m *Model) updateSearchModal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -65,6 +65,11 @@ func (m *Model) updateSearchModal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "pgdown":
 		m.sm.cursor = min(max(0, len(m.sm.results)-1), m.sm.cursor+10)
 		return m, nil
+	case "tab":
+		if m.sm.indexing || m.sm.stubs == 0 {
+			return m, nil
+		}
+		return m, m.indexAllStubs()
 	case "enter":
 		if len(m.sm.results) == 0 {
 			return m, nil
@@ -77,10 +82,34 @@ func (m *Model) updateSearchModal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	before := m.sm.input.Value()
 	m.sm.input, cmd = m.sm.input.Update(msg)
 	if m.sm.input.Value() != before {
-		m.sm.results = fuzzy.Search(m.sm.entries, m.sm.input.Value(), searchMaxResults)
+		m.refreshSearch()
 		m.sm.cursor, m.sm.offset = 0, 0
 	}
 	return m, cmd
+}
+
+// refreshSearch re-indexes the tree and re-runs the current query, keeping
+// the cursor where it was when possible.
+func (m *Model) refreshSearch() {
+	if !m.sm.active {
+		return
+	}
+	m.sm.entries = fuzzy.Build(m.root)
+	m.sm.stubs = countStubs(m.root)
+	m.sm.results = fuzzy.Search(m.sm.entries, m.sm.input.Value(), searchMaxResults)
+	if m.sm.cursor >= len(m.sm.results) {
+		m.sm.cursor = max(0, len(m.sm.results)-1)
+	}
+}
+
+func countStubs(root *models.Node) int {
+	n := 0
+	root.Walk(func(x *models.Node) {
+		if x.Stub {
+			n++
+		}
+	})
+	return n
 }
 
 // jumpToEntry reveals a search hit in the tree and focuses it.
@@ -197,8 +226,11 @@ func (m *Model) renderSearchModal() string {
 		count = fmt.Sprintf(" [%d/%d]", m.sm.cursor+1, len(m.sm.results))
 	}
 	footer := "↑↓ select · Enter jump · Esc close"
-	if m.sm.stubs > 0 {
-		footer += fmt.Sprintf(" · %d undiscovered (expand to search)", m.sm.stubs)
+	switch {
+	case m.sm.indexing:
+		footer = fmt.Sprintf("indexing %d/%d… · ", m.sm.indexed, m.sm.indexTotal) + footer
+	case m.sm.stubs > 0:
+		footer += fmt.Sprintf(" · Tab: index %d undiscovered", m.sm.stubs)
 	}
 	content := titleStyle.Render("Find"+count) + "\n" +
 		m.sm.input.View() + "\n\n" +

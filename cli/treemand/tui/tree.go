@@ -651,7 +651,19 @@ func (t *TreeModel) PatchNode(stub *models.Node, discovered *models.Node) {
 	if stub == nil || discovered == nil {
 		return
 	}
+	copyDiscovered(stub, discovered)
+	// Auto-expand the freshly-discovered node.
+	key := t.findNodeKey(stub)
+	if key != "" {
+		t.nodeExpanded[key] = true
+	}
+	t.rebuild()
+}
+
+// copyDiscovered fills a stub with freshly discovered data (no tree rebuild).
+func copyDiscovered(stub, discovered *models.Node) {
 	stub.Stub = false
+	stub.Discovered = true
 	stub.Children = discovered.Children
 	if stub.Description == "" {
 		stub.Description = discovered.Description
@@ -659,12 +671,24 @@ func (t *TreeModel) PatchNode(stub *models.Node, discovered *models.Node) {
 	if len(stub.Flags) == 0 {
 		stub.Flags = discovered.Flags
 	}
-	// Auto-expand the freshly-discovered node.
-	key := t.findNodeKey(stub)
-	if key != "" {
-		t.nodeExpanded[key] = true
+	if len(stub.Positionals) == 0 {
+		stub.Positionals = discovered.Positionals
 	}
-	t.rebuild()
+	if stub.HelpText == "" {
+		stub.HelpText = discovered.HelpText
+	}
+	if discovered.DiscoveryErr != "" {
+		stub.DiscoveryErr = discovered.DiscoveryErr
+	}
+}
+
+// PatchNodeQuiet fills a stub like PatchNode but neither expands it nor
+// rebuilds rows; used for bulk background indexing. Call Rebuild afterwards.
+func (t *TreeModel) PatchNodeQuiet(stub, discovered *models.Node) {
+	if stub == nil || discovered == nil {
+		return
+	}
+	copyDiscovered(stub, discovered)
 }
 
 // findNodeKey locates the nodeKey for a given node pointer within the current rows.
