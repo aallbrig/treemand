@@ -229,7 +229,7 @@ func (m *Model) renderSearchModal() string {
 	switch {
 	case m.sm.indexing:
 		footer = fmt.Sprintf("indexing %d/%d… · ", m.sm.indexed, m.sm.indexTotal) + footer
-	case m.sm.stubs > 0:
+	case m.sm.stubs > 0 && !Offline:
 		footer += fmt.Sprintf(" · Tab: index %d undiscovered", m.sm.stubs)
 	}
 	content := titleStyle.Render("Find"+count) + "\n" +

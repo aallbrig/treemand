@@ -133,6 +133,32 @@ tasks:
     cmds:
       - rm -rf demos/segments dist/demo.mp4 www/treemand/static/demos/*.gif
 
+  # ── website ──────────────────────────────────────────────────────────────
+
+  web:wasm:
+    desc: Build the in-browser TUI (treemand.wasm + wasm_exec.js) for the Try page
+    cmds:
+      - cli/treemand/web/wasm/build.sh www/treemand/static/try
+
+  web:trees:
+    desc: Regenerate the CLI snapshots used by the Try page (slow; needs the CLIs installed)
+    cmds:
+      - scripts/gen-web-trees.sh {{.CLI_ARGS}}
+
+  site:build:
+    desc: Build the Hugo site, including the Try page wasm
+    deps: [web:wasm]
+    dir: www/treemand
+    cmds:
+      - hugo --minify
+
+  site:dev:
+    desc: Start the Hugo dev server, including the Try page wasm
+    deps: [web:wasm]
+    dir: www/treemand
+    cmds:
+      - hugo server
+
   # ── misc ─────────────────────────────────────────────────────────────────
 
   clean:

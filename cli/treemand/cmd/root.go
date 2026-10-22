@@ -34,6 +34,7 @@ var (
 	cfgNoColor       bool
 	cfgNoCache       bool
 	cfgTimeout       int
+	cfgExpandStubs   int
 	cfgDebug         bool
 	cfgIcons         string
 	cfgLineLength    int
@@ -102,6 +103,8 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgOutput, "output", "text", "Output format: text, json, yaml")
 	rootCmd.PersistentFlags().BoolVar(&cfgNoColor, "no-color", false, "Disable color output")
 	rootCmd.PersistentFlags().BoolVar(&cfgNoCache, "no-cache", false, "Disable caching")
+	rootCmd.PersistentFlags().IntVar(&cfgExpandStubs, "expand-stubs", 0, "Expand undiscovered (stub) nodes N levels deep before output (slow on huge CLIs; disables cache)")
+	_ = rootCmd.PersistentFlags().MarkHidden("expand-stubs")
 	rootCmd.PersistentFlags().IntVar(&cfgTimeout, "timeout", 30, "Discovery timeout in seconds")
 	rootCmd.PersistentFlags().BoolVar(&cfgDebug, "debug", false, "Enable debug logging")
 	rootCmd.PersistentFlags().StringVar(&cfgIcons, "icons", "", "Icon preset: unicode (default), ascii, nerd")
@@ -155,6 +158,9 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	}
 	if cfgStubThreshold > 0 {
 		cfg.StubThreshold = cfgStubThreshold
+	}
+	if cfgExpandStubs > 0 {
+		cfg.NoCache = true // expanded trees are exports, not cache entries
 	}
 	if cfgTreeStyle != "" && cfgTreeStyle != "default" {
 		cfg.TreeStyle = config.ParseTreeStyle(cfgTreeStyle)
@@ -221,6 +227,13 @@ func runRoot(cmd *cobra.Command, args []string) error {
 		} else {
 			presets.Graft(node, seed)
 		}
+		spin.Stop()
+	}
+
+	if cfgExpandStubs > 0 {
+		spin := NewSpinner(os.Stderr)
+		spin.Start("expanding stubs…")
+		discovery.ExpandStubs(ctx, node, cliName, cfgExpandStubs, 16, 30*time.Second, nil)
 		spin.Stop()
 	}
 

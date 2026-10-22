@@ -14,11 +14,22 @@ import (
 	"github.com/aallbrig/treemand/models"
 )
 
+// Offline disables live discovery (lazy stub expansion, re-discovery and
+// background indexing). The in-browser demo sets it because it runs from a
+// pre-built snapshot and cannot spawn the real CLI.
+var Offline bool
+
+const offlineMsg = "demo mode: live discovery needs the installed treemand"
+
 // lazyExpandIfStub checks whether the currently selected node is a stub and,
 // if so, returns a tea.Cmd that discovers its children asynchronously.
 func (m *Model) lazyExpandIfStub() tea.Cmd {
 	sel := m.tree.SelectedItem()
 	if sel == nil || sel.Kind != SelCommand || !sel.Node.Stub {
+		return nil
+	}
+	if Offline {
+		m.statusMsg = offlineMsg
 		return nil
 	}
 	stub := sel.Node
@@ -45,6 +56,10 @@ func (m *Model) lazyExpandIfStub() tea.Cmd {
 func (m *Model) forceExpandSelected() tea.Cmd {
 	sel := m.tree.SelectedItem()
 	if sel == nil || sel.Kind != SelCommand {
+		return nil
+	}
+	if Offline {
+		m.statusMsg = offlineMsg
 		return nil
 	}
 	node := sel.Node
@@ -136,6 +151,10 @@ const indexWorkers = 16
 // indexAllStubs discovers every undiscovered node one level deep (children
 // are left as name-only stubs) so the fuzzy finder can see inside them.
 func (m *Model) indexAllStubs() tea.Cmd {
+	if Offline {
+		m.statusMsg = offlineMsg
+		return nil
+	}
 	var stubs []*models.Node
 	m.root.Walk(func(n *models.Node) {
 		if n.Stub && len(n.FullPath) > 1 {
