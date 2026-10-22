@@ -1,0 +1,15 @@
+<!doctype html><html lang=en><head><meta charset=UTF-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Try It | Treemand</title><link rel=stylesheet href=/treemand/css/main.css></head><body><header><nav><a href=/ class=site-title>🌲 Treemand</a><ul><li><a href=/treemand/>Home</a></li><li><a href=/treemand/try/>Try it</a></li><li><a href=/treemand/installation/>Installation</a></li><li><a href=/treemand/getting-started/>Getting Started</a></li><li><a href=/treemand/reference/>Reference</a></li><li><a href=/treemand/commands/>Commands</a></li></ul></nav></header><main><article class=try><h1>🌲 Try Treemand</h1><p class=lead>This is the <strong>real treemand TUI</strong> compiled to WebAssembly, running entirely in your
+browser — nothing is installed and nothing is sent anywhere. Pick a CLI, click the terminal, and explore.</p><div class=try-picker id=try-picker role=tablist aria-label="Choose a CLI to explore"><button data-cli=git class=active>git</button>
+<button data-cli=docker>docker</button>
+<button data-cli=kubectl>kubectl</button>
+<button data-cli=gh>gh</button>
+<button data-cli=stripe>stripe</button>
+<button data-cli=aws>aws</button>
+<button data-cli=treemand>treemand</button></div><div class=try-stage><div id=try-term class=try-term tabindex=0 aria-label="treemand terminal"></div><div id=try-status class=try-status>Loading treemand…</div><div id=try-ended class=try-ended hidden><p>Session ended.</p><button id=try-restart>Restart</button></div></div><div class=try-keys id=try-keys aria-label="On-screen keys"><button data-key=up>↑</button><button data-key=down>↓</button>
+<button data-key=left>←</button><button data-key=right>→</button>
+<button data-key=enter>Enter</button><button data-key=esc>Esc</button>
+<button data-key=tab>Tab</button>
+<button data-key=ctrl-f class=hot>Ctrl+F find</button>
+<button data-key=slash>/ filter</button>
+<button data-key=help>? keys</button></div><h2>Things to try</h2><ul class=try-ideas id=try-ideas></ul><h2>Like it? Run it on <em>your</em> CLIs</h2><p>The page uses saved snapshots of a few popular CLIs. The installed <code>treemand</code> discovers any CLI on your machine live:</p><pre><code>go install github.com/aallbrig/treemand@latest
+treemand -i kubectl</code></pre><p><a href=/treemand/installation/>Installation options →</a> · <a href=/treemand/getting-started/>Getting started →</a></p><p class=muted>Demo mode runs from snapshots, so live re-discovery (<code>r</code>) and running assembled commands are disabled here.</p></article><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css><script src=https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js></script><script src=https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js></script><script src=/treemand/try/wasm_exec.js></script><script>window.TREEMAND_BASE="/treemand/try/"</script><script src=/treemand/try/try.js></script></main><footer><p>MIT License · <a href=https://github.com/aallbrig/treemand>GitHub</a></p></footer></body></html>
