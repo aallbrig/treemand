@@ -30,7 +30,8 @@ const keybindText = `Navigation
   G                                   Jump to bottom
 
 Tree
-  /        Fuzzy filter
+  /        Fuzzy filter tree (Esc clears, Enter keeps)
+  Ctrl+F   Global fuzzy find: commands, flags, args, help text
   n / N    Next / previous search match
   e / E    Expand all / collapse all
   S        Toggle section headers

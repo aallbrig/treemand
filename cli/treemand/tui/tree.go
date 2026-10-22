@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/aallbrig/treemand/config"
+	"github.com/aallbrig/treemand/fuzzy"
 	"github.com/aallbrig/treemand/models"
 )
 
@@ -1336,8 +1337,19 @@ func isFlagActive(f models.Flag, tokens []string) bool {
 	return false
 }
 
+// matchesFilter reports whether node fuzzy-matches filter on its name or
+// one-line description. Space-separated terms must all match.
 func matchesFilter(node *models.Node, filter string) bool {
-	return strings.Contains(strings.ToLower(node.Name), strings.ToLower(filter))
+	for _, term := range strings.Fields(filter) {
+		if _, _, ok := fuzzy.Match(term, node.Name); ok {
+			continue
+		}
+		if strings.Contains(strings.ToLower(node.Description), strings.ToLower(term)) {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 // nodeOrDescendantMatchesFilter returns true if any non-virtual descendant of
@@ -1383,4 +1395,61 @@ func (t *TreeModel) flagColorStyle(valueType string) lipgloss.Style {
 		hex = t.cfg.Colors.FlagOther
 	}
 	return lipgloss.NewStyle().Foreground(lipgloss.Color(hex))
+}
+
+// pathTo returns the chain of nodes from root down to target (inclusive), or
+// nil when target is not reachable from root.
+func pathTo(root, target *models.Node) []*models.Node {
+	if root == target {
+		return []*models.Node{root}
+	}
+	for _, c := range root.Children {
+		if p := pathTo(c, target); p != nil {
+			return append([]*models.Node{root}, p...)
+		}
+	}
+	return nil
+}
+
+// Reveal clears any filter, expands every ancestor of node (and node itself
+// when a flag or positional is requested) and moves the cursor to the
+// requested row. flagName/posName select a flag or positional row on node;
+// leave both empty to land on the command row. It reports whether a row was
+// found.
+func (t *TreeModel) Reveal(node *models.Node, flagName, posName string) bool {
+	chain := pathTo(t.root, node)
+	if chain == nil {
+		return false
+	}
+	t.filter = ""
+	for i, n := range chain {
+		key := nodeKey(n, i)
+		if i < len(chain)-1 {
+			t.nodeExpanded[key] = true
+			t.sectionExpanded[key+"/subcommands"] = true
+		} else if flagName != "" || posName != "" {
+			t.nodeExpanded[key] = true
+			t.sectionExpanded[key+"/flags"] = true
+			t.sectionExpanded[key+"/inherited"] = true
+			t.sectionExpanded[key+"/positionals"] = true
+		}
+	}
+	t.rebuild()
+	for i, r := range t.rows {
+		var hit bool
+		switch {
+		case flagName != "":
+			hit = r.kind == rowKindFlag && r.owner == node && "--"+strings.TrimLeft(r.flag.Name, "-") == flagName
+		case posName != "":
+			hit = r.kind == rowKindPositional && r.owner == node && r.positional.Name == posName
+		default:
+			hit = r.kind == rowKindCommand && r.node == node
+		}
+		if hit {
+			t.cursor = i
+			t.scrollIntoView()
+			return true
+		}
+	}
+	return false
 }
