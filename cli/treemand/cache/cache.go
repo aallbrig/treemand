@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3" // sqlite3 driver
+	_ "modernc.org/sqlite" // pure-Go sqlite driver (works with CGO_ENABLED=0)
 
 	"github.com/aallbrig/treemand/models"
 )
@@ -28,7 +28,7 @@ func Open(dir string) (*Cache, error) {
 		return nil, fmt.Errorf("create cache dir: %w", err)
 	}
 	dbPath := filepath.Join(dir, "cache.db")
-	db, err := sql.Open("sqlite3", dbPath)
+	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite3: %w", err)
 	}
