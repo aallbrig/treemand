@@ -613,3 +613,26 @@ func TestSanitizeHelp(t *testing.T) {
 		}
 	}
 }
+
+const mockGhAuthHelp = `Authenticate gh and git with GitHub
+
+USAGE
+  gh auth <command> [flags]
+
+AVAILABLE COMMANDS
+  login:         Log in to a GitHub account
+  switch:        Switch active GitHub account
+`
+
+func TestParseHelpOutput_subcommandDescriptions(t *testing.T) {
+	p := discovery.ParseHelpOutputFor(mockGhAuthHelp, "gh")
+	want := map[string]string{
+		"login":  "Log in to a GitHub account",
+		"switch": "Switch active GitHub account",
+	}
+	for name, desc := range want {
+		if got := p.SubcommandDescs[name]; got != desc {
+			t.Errorf("SubcommandDescs[%q] = %q, want %q", name, got, desc)
+		}
+	}
+}
