@@ -7,7 +7,7 @@ weight: 5
 
 Manage treemand's optional YAML configuration file without opening it manually.
 
-<img src="/treemand/demos/cmd_config.gif" alt="treemand config demo" width="100%">
+{{< demo src="demos/cmd_config.gif" alt="treemand config demo" >}}
 
 ## Commands
 

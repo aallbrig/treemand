@@ -7,7 +7,7 @@ weight: 6
 
 Print the version, git commit, and build date of the installed binary.
 
-<img src="/treemand/demos/cmd_version.gif" alt="treemand version demo" width="100%">
+{{< demo src="demos/cmd_version.gif" alt="treemand version demo" >}}
 
 ## Usage
 
