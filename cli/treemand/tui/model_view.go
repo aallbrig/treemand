@@ -131,7 +131,7 @@ func (m *Model) renderStatusBar() string {
 		hint = "↑↓:scroll  PgUp/PgDn  g/G:top/bottom  Tab:switch"
 		hintStyle = lipgloss.NewStyle().Faint(true)
 	default:
-		hint = schemeIndicator + m.schemeHints()
+		hint = schemeIndicator + fitHints(m.schemeHints(), m.width-lipgloss.Width(left)-3-len(schemeIndicator))
 		hintStyle = lipgloss.NewStyle().Faint(true)
 	}
 	right := hintStyle.Render(hint)
@@ -153,6 +153,35 @@ func (m *Model) schemeHints() string {
 	default:
 		return "↑↓:nav  ←→:expand/collapse  Enter:pick  e/E:expand/collapse all  Shift+←→:subtree  S:sections  f:flags  /:filter  H:help  Ctrl+E:exec  gg/G:top/bottom  n/N:search  q:quit"
 	}
+}
+
+// hintDropOrder lists the indices of schemeHints tokens in the order they are
+// dropped when the footer is too narrow (least important first).
+var hintDropOrder = []int{11, 10, 9, 4, 3, 5, 6, 1}
+
+// fitHints removes whole hint tokens (double-space separated) until the text
+// fits in avail columns, so the footer never truncates mid-token.
+func fitHints(hints string, avail int) string {
+	tokens := strings.Split(hints, "  ")
+	dropped := map[int]bool{}
+	join := func() string {
+		var kept []string
+		for i, t := range tokens {
+			if !dropped[i] {
+				kept = append(kept, t)
+			}
+		}
+		return strings.Join(kept, "  ")
+	}
+	out := join()
+	for _, idx := range hintDropOrder {
+		if lipgloss.Width(out) <= avail || idx >= len(tokens) {
+			break
+		}
+		dropped[idx] = true
+		out = join()
+	}
+	return out
 }
 
 func schemeName(s NavScheme) string {
