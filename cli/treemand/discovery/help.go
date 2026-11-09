@@ -209,6 +209,11 @@ var pagerEnv = []string{
 // and a more complete form is available (e.g. curl's "use --help all").
 var truncatedHelpRe = regexp.MustCompile(`(?i)--help all|--help <category>|not the full help`)
 
+// killWaitDelay bounds how long we wait for a command's output pipes to close
+// after its context ends. Without it, an orphaned child that inherited stdout
+// keeps CombinedOutput blocked long after the timeout.
+const killWaitDelay = time.Second
+
 // runHelp tries to get help text for args under cliName.
 // It attempts --help / -h first, then `help` as a positional fallback
 // (needed for tools like aws that use "aws help" instead of "aws --help").
@@ -219,6 +224,7 @@ func (h *HelpDiscoverer) runHelp(ctx context.Context, cliName string, args []str
 	run := func(cmdArgs []string) string {
 		cmd := exec.CommandContext(ctx, resolved, cmdArgs...) //nolint:gosec
 		cmd.Env = append(os.Environ(), pagerEnv...)
+		cmd.WaitDelay = killWaitDelay
 		out, _ := cmd.CombinedOutput()
 		return SanitizeHelp(string(out))
 	}
