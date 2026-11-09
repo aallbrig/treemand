@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Commands on Treemand</title><link>/commands/</link><description>Recent content in Commands on Treemand</description><generator>Hugo</generator><language>en-us</language><atom:link href="/commands/index.xml" rel="self" type="application/rss+xml"/><item><title>Tree Output</title><link>/commands/tree/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/commands/tree/</guid><description>&lt;h1 id="tree-output"&gt;Tree Output&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;treemand &amp;lt;cli&amp;gt;&lt;/code&gt; discovers any CLI&amp;rsquo;s full command hierarchy and renders it as a
+color-coded tree. Point it at anything: &lt;code&gt;git&lt;/code&gt;, &lt;code&gt;kubectl&lt;/code&gt;, &lt;code&gt;docker&lt;/code&gt;, &lt;code&gt;aws&lt;/code&gt;, your
+own tools.&lt;/p&gt;
+&lt;img src="/treemand/demos/cmd_tree.gif" alt="treemand tree demo" width="100%"&gt;
+&lt;h2 id="basic-usage"&gt;Basic usage&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand git &lt;span style="color:#75715e"&gt;# full tree at default depth (3)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand --depth&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;2&lt;/span&gt; kubectl &lt;span style="color:#75715e"&gt;# limit recursion depth&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand --filter&lt;span style="color:#f92672"&gt;=&lt;/span&gt;remote git &lt;span style="color:#75715e"&gt;# only show nodes matching pattern&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand --exclude&lt;span style="color:#f92672"&gt;=&lt;/span&gt;help git &lt;span style="color:#75715e"&gt;# hide nodes matching pattern&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand --commands-only kubectl &lt;span style="color:#75715e"&gt;# subcommands only — no flags or positionals&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id="display-styles"&gt;Display styles&lt;/h2&gt;
+&lt;p&gt;Four styles, switchable with &lt;code&gt;--tree-style&lt;/code&gt; or &lt;strong&gt;T&lt;/strong&gt; inside the TUI:&lt;/p&gt;</description></item><item><title>Output Formats</title><link>/commands/output/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/commands/output/</guid><description>&lt;h1 id="output-formats"&gt;Output Formats&lt;/h1&gt;
+&lt;p&gt;treemand can emit the discovered tree as JSON or YAML for scripting, diffing,
+and integration with other tools.&lt;/p&gt;
+&lt;img src="/treemand/demos/cmd_output.gif" alt="treemand JSON/YAML output demo" width="100%"&gt;
+&lt;h2 id="usage"&gt;Usage&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand --output&lt;span style="color:#f92672"&gt;=&lt;/span&gt;json git &lt;span style="color:#75715e"&gt;# full tree as JSON&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand --output&lt;span style="color:#f92672"&gt;=&lt;/span&gt;yaml git &lt;span style="color:#75715e"&gt;# full tree as YAML&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand --output&lt;span style="color:#f92672"&gt;=&lt;/span&gt;text git &lt;span style="color:#75715e"&gt;# default colored text tree&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id="json-schema"&gt;JSON schema&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-json" data-lang="json"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;{
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;&amp;#34;name&amp;#34;&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;git&amp;#34;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;&amp;#34;description&amp;#34;&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;the stupid content tracker&amp;#34;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;&amp;#34;flags&amp;#34;&lt;/span&gt;: [
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; {&lt;span style="color:#f92672"&gt;&amp;#34;name&amp;#34;&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;--version&amp;#34;&lt;/span&gt;, &lt;span style="color:#f92672"&gt;&amp;#34;value_type&amp;#34;&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;bool&amp;#34;&lt;/span&gt;, &lt;span style="color:#f92672"&gt;&amp;#34;description&amp;#34;&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Print version&amp;#34;&lt;/span&gt;}
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; ],
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;&amp;#34;positionals&amp;#34;&lt;/span&gt;: [],
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;&amp;#34;children&amp;#34;&lt;/span&gt;: [
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; {
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;&amp;#34;name&amp;#34;&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;commit&amp;#34;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;&amp;#34;description&amp;#34;&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;Record changes to the repository&amp;#34;&lt;/span&gt;,
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;&amp;#34;flags&amp;#34;&lt;/span&gt;: [
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; {&lt;span style="color:#f92672"&gt;&amp;#34;name&amp;#34;&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;--message&amp;#34;&lt;/span&gt;, &lt;span style="color:#f92672"&gt;&amp;#34;short_name&amp;#34;&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;m&amp;#34;&lt;/span&gt;, &lt;span style="color:#f92672"&gt;&amp;#34;value_type&amp;#34;&lt;/span&gt;: &lt;span style="color:#e6db74"&gt;&amp;#34;string&amp;#34;&lt;/span&gt;}
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; ],
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;&amp;#34;positionals&amp;#34;&lt;/span&gt;: [],
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; &lt;span style="color:#f92672"&gt;&amp;#34;children&amp;#34;&lt;/span&gt;: []
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; }
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt; ]
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;}
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id="scripting-with-jq"&gt;Scripting with jq&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# List all top-level subcommands&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand --output&lt;span style="color:#f92672"&gt;=&lt;/span&gt;json --depth&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;1&lt;/span&gt; git | jq &lt;span style="color:#e6db74"&gt;&amp;#39;[.children[].name]&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Find all flags of a specific subcommand&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand --output&lt;span style="color:#f92672"&gt;=&lt;/span&gt;json git | jq &lt;span style="color:#e6db74"&gt;&amp;#39;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt; .children[] | select(.name == &amp;#34;commit&amp;#34;) | .flags[].name&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Count flags per subcommand&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand --output&lt;span style="color:#f92672"&gt;=&lt;/span&gt;json --depth&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;1&lt;/span&gt; kubectl | jq &lt;span style="color:#e6db74"&gt;&amp;#39;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt; [.children[] | {cmd: .name, flags: (.flags | length)}]&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Extract commands with descriptions&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand --output&lt;span style="color:#f92672"&gt;=&lt;/span&gt;json --depth&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;1&lt;/span&gt; docker | jq &lt;span style="color:#e6db74"&gt;&amp;#39;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#e6db74"&gt; [.children[] | {name, description}]&amp;#39;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id="combine-with-other-tools"&gt;Combine with other tools&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Store a CLI&amp;#39;s schema as YAML&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand --output&lt;span style="color:#f92672"&gt;=&lt;/span&gt;yaml kubectl &amp;gt; kubectl-schema.yaml
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Diff two versions of a CLI&amp;#39;s command surface&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand --output&lt;span style="color:#f92672"&gt;=&lt;/span&gt;json --depth&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;3&lt;/span&gt; aws &amp;gt; aws-before.json
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# (upgrade aws cli)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand --no-cache --output&lt;span style="color:#f92672"&gt;=&lt;/span&gt;json --depth&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;3&lt;/span&gt; aws &amp;gt; aws-after.json
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;diff aws-before.json aws-after.json
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;</description></item><item><title>Interactive TUI</title><link>/commands/interactive/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/commands/interactive/</guid><description>&lt;h1 id="interactive-tui--i"&gt;Interactive TUI (&lt;code&gt;-i&lt;/code&gt;)&lt;/h1&gt;
+&lt;p&gt;The interactive mode launches a full-screen terminal explorer with three panes:
+a live &lt;strong&gt;preview bar&lt;/strong&gt;, a navigable &lt;strong&gt;tree pane&lt;/strong&gt;, and a &lt;strong&gt;help pane&lt;/strong&gt; that shows
+&lt;code&gt;--help&lt;/code&gt; output for the currently selected node.&lt;/p&gt;
+&lt;img src="/treemand/demos/cmd_interactive.gif" alt="treemand TUI demo" width="100%"&gt;
+&lt;h2 id="launch"&gt;Launch&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand -i git
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand -i kubectl
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand -i docker
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id="workflow"&gt;Workflow&lt;/h2&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Navigate&lt;/strong&gt; — &lt;code&gt;↓&lt;/code&gt;/&lt;code&gt;↑&lt;/code&gt; (or &lt;code&gt;j&lt;/code&gt;/&lt;code&gt;k&lt;/code&gt;) to browse; cursor never auto-expands&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Expand&lt;/strong&gt; — &lt;code&gt;→&lt;/code&gt; opens a node, press again to enter its children&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Pick a command&lt;/strong&gt; — &lt;code&gt;Enter&lt;/code&gt; sets it in the preview bar&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Add flags&lt;/strong&gt; — &lt;code&gt;f&lt;/code&gt; to open the flag picker; &lt;code&gt;Enter&lt;/code&gt; on a flag row adds it directly&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Fill positionals&lt;/strong&gt; — &lt;code&gt;Enter&lt;/code&gt; on a positional row opens an input prompt&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Copy or run&lt;/strong&gt; — &lt;code&gt;Ctrl+E&lt;/code&gt; opens a confirmation modal: copy to clipboard or execute&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h2 id="key-bindings"&gt;Key bindings&lt;/h2&gt;
+&lt;h3 id="navigation"&gt;Navigation&lt;/h3&gt;
+&lt;table&gt;
+ &lt;thead&gt;
+ &lt;tr&gt;
+ &lt;th&gt;Keys (arrows)&lt;/th&gt;
+ &lt;th&gt;Keys (vim)&lt;/th&gt;
+ &lt;th&gt;Keys (WASD)&lt;/th&gt;
+ &lt;th&gt;Action&lt;/th&gt;
+ &lt;/tr&gt;
+ &lt;/thead&gt;
+ &lt;tbody&gt;
+ &lt;tr&gt;
+ &lt;td&gt;&lt;code&gt;↑&lt;/code&gt; / &lt;code&gt;↓&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;k&lt;/code&gt; / &lt;code&gt;j&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;w&lt;/code&gt; / &lt;code&gt;s&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;Move up / down&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;&lt;code&gt;→&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;l&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;d&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;Expand node; enter children on 2nd press&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;&lt;code&gt;←&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;h&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;a&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;Collapse node; go to parent on 2nd press&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;&lt;code&gt;Shift+→&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;Shift+L&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;Shift+D&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;Expand entire subtree&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;&lt;code&gt;Shift+←&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;Shift+H&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;Shift+A&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;Collapse entire subtree&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;&lt;code&gt;gg&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;&lt;/td&gt;
+ &lt;td&gt;&lt;/td&gt;
+ &lt;td&gt;Jump to top&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;&lt;code&gt;G&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;&lt;/td&gt;
+ &lt;td&gt;&lt;/td&gt;
+ &lt;td&gt;Jump to bottom&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Toggle navigation scheme with &lt;strong&gt;Ctrl+S&lt;/strong&gt; (arrows → vim → WASD).&lt;/p&gt;</description></item><item><title>cache</title><link>/commands/cache/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/commands/cache/</guid><description>&lt;h1 id="treemand-cache"&gt;&lt;code&gt;treemand cache&lt;/code&gt;&lt;/h1&gt;
+&lt;p&gt;treemand caches discovered CLI trees in an SQLite database so repeat lookups are
+instant. The &lt;code&gt;cache&lt;/code&gt; subcommand lets you inspect and manage those entries.&lt;/p&gt;
+&lt;img src="/treemand/demos/cmd_cache.gif" alt="treemand cache demo" width="100%"&gt;
+&lt;h2 id="commands"&gt;Commands&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand cache list &lt;span style="color:#75715e"&gt;# list all cached CLIs with age and size&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand cache clear git &lt;span style="color:#75715e"&gt;# clear the cached entry for git&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand cache clear &lt;span style="color:#75715e"&gt;# clear all cached entries&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id="cache-details"&gt;Cache details&lt;/h2&gt;
+&lt;table&gt;
+ &lt;thead&gt;
+ &lt;tr&gt;
+ &lt;th&gt;Property&lt;/th&gt;
+ &lt;th&gt;Value&lt;/th&gt;
+ &lt;/tr&gt;
+ &lt;/thead&gt;
+ &lt;tbody&gt;
+ &lt;tr&gt;
+ &lt;td&gt;Location&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;~/.treemand/cache.db&lt;/code&gt;&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;Format&lt;/td&gt;
+ &lt;td&gt;SQLite&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;TTL&lt;/td&gt;
+ &lt;td&gt;24 hours&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;Cache key&lt;/td&gt;
+ &lt;td&gt;CLI name + version string + discovery strategies&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h2 id="bypassing-the-cache"&gt;Bypassing the cache&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand --no-cache docker &lt;span style="color:#75715e"&gt;# skip cache for this run&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;TREEMAND_CACHE_DIR&lt;span style="color:#f92672"&gt;=&lt;/span&gt;/tmp treemand git &lt;span style="color:#75715e"&gt;# use a custom cache directory&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The cache key includes the CLI&amp;rsquo;s version string (from &lt;code&gt;&amp;lt;cli&amp;gt; --version&lt;/code&gt;), so
+updating a CLI automatically invalidates its cached tree on the next run.&lt;/p&gt;</description></item><item><title>config</title><link>/commands/config/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/commands/config/</guid><description>&lt;h1 id="treemand-config"&gt;&lt;code&gt;treemand config&lt;/code&gt;&lt;/h1&gt;
+&lt;p&gt;Manage treemand&amp;rsquo;s optional YAML configuration file without opening it manually.&lt;/p&gt;
+&lt;img src="/treemand/demos/cmd_config.gif" alt="treemand config demo" width="100%"&gt;
+&lt;h2 id="commands"&gt;Commands&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand config view &lt;span style="color:#75715e"&gt;# show merged config + file path&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand config validate &lt;span style="color:#75715e"&gt;# check for errors or unknown keys&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand config validate --strict &lt;span style="color:#75715e"&gt;# treat warnings as errors&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand config set &amp;lt;key&amp;gt; &amp;lt;value&amp;gt; &lt;span style="color:#75715e"&gt;# write a value to the config file&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand config init &lt;span style="color:#75715e"&gt;# create a commented default config&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand config init --force &lt;span style="color:#75715e"&gt;# overwrite an existing config&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand config path &lt;span style="color:#75715e"&gt;# print the config file path&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand config edit &lt;span style="color:#75715e"&gt;# open config in $EDITOR&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id="config-file-locations"&gt;Config file locations&lt;/h2&gt;
+&lt;p&gt;treemand searches for the config file in this order:&lt;/p&gt;</description></item><item><title>version</title><link>/commands/version/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/commands/version/</guid><description>&lt;h1 id="treemand-version"&gt;&lt;code&gt;treemand version&lt;/code&gt;&lt;/h1&gt;
+&lt;p&gt;Print the version, git commit, and build date of the installed binary.&lt;/p&gt;
+&lt;img src="/treemand/demos/cmd_version.gif" alt="treemand version demo" width="100%"&gt;
+&lt;h2 id="usage"&gt;Usage&lt;/h2&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand version
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# treemand v0.3.0 (abc1234) built 2026-05-11&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The version is embedded at build time from the git tag (&lt;code&gt;git describe --tags&lt;/code&gt;).
+Development builds show &lt;code&gt;dev&lt;/code&gt; when no tag is present.&lt;/p&gt;</description></item><item><title>completion</title><link>/commands/completion/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/commands/completion/</guid><description>&lt;h1 id="treemand-completion"&gt;&lt;code&gt;treemand completion&lt;/code&gt;&lt;/h1&gt;
+&lt;p&gt;Generate shell completion scripts for bash, zsh, fish, or PowerShell. Once set
+up, pressing &lt;code&gt;Tab&lt;/code&gt; after &lt;code&gt;treemand&lt;/code&gt; suggests CLIs you&amp;rsquo;ve already explored from
+the cache.&lt;/p&gt;
+&lt;img src="/treemand/demos/cmd_completion.gif" alt="treemand completion demo" width="100%"&gt;
+&lt;h2 id="setup"&gt;Setup&lt;/h2&gt;
+&lt;h3 id="bash"&gt;Bash&lt;/h3&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Add to ~/.bashrc&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;source &amp;lt;&lt;span style="color:#f92672"&gt;(&lt;/span&gt;treemand completion bash&lt;span style="color:#f92672"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id="zsh"&gt;Zsh&lt;/h3&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Add to ~/.zshrc&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;source &amp;lt;&lt;span style="color:#f92672"&gt;(&lt;/span&gt;treemand completion zsh&lt;span style="color:#f92672"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id="fish"&gt;Fish&lt;/h3&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand completion fish &amp;gt; ~/.config/fish/completions/treemand.fish
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id="powershell"&gt;PowerShell&lt;/h3&gt;
+&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-powershell" data-lang="powershell"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Add to your PowerShell profile&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand completion powershell | Out-String | Invoke-Expression
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id="how-it-works"&gt;How it works&lt;/h2&gt;
+&lt;p&gt;The completion script hooks into your shell&amp;rsquo;s completion system. When you type
+&lt;code&gt;treemand [Tab]&lt;/code&gt;, it suggests CLI names from the discovery cache — so the more
+CLIs you explore, the more useful tab-completion becomes.&lt;/p&gt;</description></item></channel></rss>
