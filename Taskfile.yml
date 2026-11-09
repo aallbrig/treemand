@@ -213,6 +213,7 @@ tasks:
       - task: dev:check
       - task: loop:check
       - task: docs:check
+      - task: site:check
 
   fmt:check:
     desc: Fail if any Go file needs formatting
@@ -223,6 +224,11 @@ tasks:
     desc: Every `task X` named in docs, scripts, CI or the loop skill must exist in this Taskfile
     cmds:
       - bash scripts/check_task_refs.sh
+
+  site:check:
+    desc: Fail if the built site links outside its baseURL
+    cmds:
+      - bash scripts/check_site_baseurl.sh
 
   pr:merge:
     desc: "Pass the PR's CI gate, then merge with a merge commit: task pr:merge -- N"
