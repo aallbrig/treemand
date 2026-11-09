@@ -51,6 +51,7 @@ func (c *CompletionsDiscoverer) Discover(ctx context.Context, cliName string, ar
 func runCommand(ctx context.Context, cliName string, args []string) (string, error) {
 	resolved := resolveBinary(cliName)
 	cmd := exec.CommandContext(ctx, resolved, args...) //nolint:gosec
+	cmd.WaitDelay = killWaitDelay
 	out, err := cmd.CombinedOutput()
 	return strings.TrimSpace(string(out)), err
 }

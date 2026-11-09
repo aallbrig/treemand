@@ -2,8 +2,11 @@ package discovery_test
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/aallbrig/treemand/discovery"
 	"github.com/aallbrig/treemand/models"
@@ -327,4 +330,23 @@ func nodeNames(nodes []*models.Node) []string {
 		names[i] = n.Name
 	}
 	return names
+}
+
+// A CLI whose help spawns a lingering child (inheriting stdout) must not make
+// discovery outlive its context: the orphan keeps the output pipe open.
+func TestHelpDiscoverer_hangingCLI_honoursContext(t *testing.T) {
+	dir := t.TempDir()
+	script := "#!/bin/sh\nsleep 30 &\nsleep 30\n"
+	if err := os.WriteFile(filepath.Join(dir, "hangcli"), []byte(script), 0o755); err != nil { //nolint:gosec
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	start := time.Now()
+	_, _ = discovery.NewHelpDiscoverer(1).Discover(ctx, "hangcli", nil)
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
+		t.Errorf("Discover took %v after a 1s context timeout", elapsed)
+	}
 }
