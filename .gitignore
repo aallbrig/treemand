@@ -41,3 +41,6 @@ www/treemand/.hugo_build.lock
 # Demo video artifacts
 demos/segments/
 dist/demo.mp4
+
+# Dev loop runtime state, worktrees and screenshots
+/.loop/

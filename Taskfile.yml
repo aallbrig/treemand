@@ -1,3 +1,6 @@
+---
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
 version: "3"
 
 vars:
@@ -97,11 +100,134 @@ tasks:
       - task: vuln
       - task: test
 
-  dev:
-    desc: Fast dev loop — test then install
+  dev:install:
+    desc: Fast edit loop — test then install the binary
     cmds:
       - task: test
       - task: install
+
+  # ── dev session (tmuxinator) ─────────────────────────────────────────────
+
+  dev:
+    desc: Start the treemand tmuxinator session, or attach if it is already running
+    cmds:
+      - bash scripts/dev_session.sh up
+
+  dev:attach:
+    desc: Re-attach to the running dev session without restarting it
+    cmds:
+      - bash scripts/dev_session.sh attach
+
+  dev:recycle:
+    desc: Kill and restart the dev session (works from outside tmux)
+    cmds:
+      - bash scripts/dev_session.sh recycle
+
+  dev:stop:
+    desc: Stop the dev session and everything running in it
+    cmds:
+      - bash scripts/dev_session.sh stop
+
+  dev:check:
+    desc: Validate the tmuxinator config without starting anything
+    cmds:
+      - tmuxinator debug --project-config .tmuxinator/treemand.yml >/dev/null
+
+  # ── dev loop ─────────────────────────────────────────────────────────────
+
+  loop:start:
+    desc: Start the autonomous dev loop (creates the session if needed); runs until loop:stop
+    cmds:
+      - bash scripts/loop/loopctl.sh start
+
+  loop:stop:
+    desc: "Stop the dev loop at its next phase boundary (add -- --now to kill the agent immediately)"
+    cmds:
+      - bash scripts/loop/loopctl.sh stop {{.CLI_ARGS}}
+
+  loop:status:
+    desc: Show loop state, caps, failure streak and whether the supervisor runs
+    cmds:
+      - bash scripts/loop/loopctl.sh status
+
+  loop:attach:
+    desc: Attach to the loops window of the dev session
+    cmds:
+      - bash scripts/loop/loopctl.sh attach
+
+  loop:agent:
+    desc: Run the supervised Remote Control loop agent (used by the loops:agent pane)
+    cmds:
+      - bash scripts/loop/supervisor.sh
+
+  loop:labels:
+    desc: Create the GitHub labels the loop uses (idempotent)
+    cmds:
+      - bash scripts/loop/bootstrap-labels.sh
+
+  loop:check:
+    desc: Static checks for the loop machinery (shellcheck, state script, guard hook, skill present)
+    cmds:
+      - shellcheck -x scripts/loop/*.sh scripts/dev_session.sh scripts/pr_merge.sh
+      - python3 -I scripts/loop/state.py summary >/dev/null
+      - bash scripts/loop/guard_test.sh
+      - test -f .claude/skills/treemand-loop/SKILL.md
+
+  visual:check:
+    desc: Capture the TUI and the site (desktop + mobile) into .loop/shots/ for review
+    cmds:
+      - bash scripts/loop/visual-check.sh
+
+  doctor:
+    desc: Show what else is running on this machine before touching real infrastructure
+    cmds:
+      - tmux ls 2>/dev/null || echo "no tmux sessions"
+      - ss -ltnp 2>/dev/null | grep -E ':(1313|18080)\b' || echo "dev ports free"
+      - git worktree list
+      - bash scripts/loop/loopctl.sh status
+
+  # ── composite gates ──────────────────────────────────────────────────────
+
+  setup:
+    desc: One-time install of tooling deps and git hooks
+    cmds:
+      - bash scripts/setup-hooks.sh
+      - go install golang.org/x/vuln/cmd/govulncheck@latest
+      - pre-commit install || true
+      - echo "also needed on PATH - golangci-lint, hugo (extended), tmux, tmuxinator, watchexec, gh, jq, shellcheck, gitleaks"
+
+  format:
+    desc: Format everything
+    cmds:
+      - task: fmt
+
+  ci:
+    desc: All quality gates; needs no live services
+    cmds:
+      - task: fmt:check
+      - task: vet
+      - task: lint
+      - task: vuln
+      - task: test-race
+      - task: build
+      - task: dev:check
+      - task: loop:check
+      - task: docs:check
+
+  fmt:check:
+    desc: Fail if any Go file needs formatting
+    cmds:
+      - test -z "$(gofmt -l ./cli/treemand)"
+
+  docs:check:
+    desc: Every `task X` named in docs, scripts, CI or the loop skill must exist in this Taskfile
+    cmds:
+      - bash scripts/check_task_refs.sh
+
+  pr:merge:
+    desc: "Pass the PR's CI gate, then merge with a merge commit: task pr:merge -- N"
+    cmds:
+      - bash scripts/pr_merge.sh {{.CLI_ARGS}}
 
   # ── hooks ────────────────────────────────────────────────────────────────
 

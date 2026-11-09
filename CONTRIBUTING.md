@@ -5,7 +5,7 @@
 ```bash
 git clone https://github.com/aallbrig/treemand.git
 cd treemand
-task dev    # runs tests + installs binary
+task dev:install    # runs tests + installs binary
 ```
 
 Requires Go 1.25+ and [go-task](https://taskfile.dev) (`brew install go-task` or `go install github.com/go-task/task/v3/cmd/task@latest`).
@@ -21,7 +21,7 @@ bash scripts/setup-hooks.sh
 ## Development Loop
 
 ```bash
-task dev          # run tests + install binary (recommended)
+task dev:install  # run tests + install binary (recommended)
 task build        # compile local binary only
 task test         # run all tests
 task lint         # run golangci-lint
@@ -99,3 +99,18 @@ www/treemand/       Hugo documentation site
 - Go code is linted with `golangci-lint`
 - Run `task lint` before submitting PRs
 - Tests live alongside source files (`*_test.go`)
+
+## Dev session and the autonomous loop
+
+```bash
+task dev            # tmuxinator session: dev, watch, sites, loops windows (attaches if running)
+task dev:recycle    # kill and restart the session
+task loop:start     # start the autonomous dev loop in the loops window (runs until stopped)
+task loop:stop      # stop it at the next phase boundary (-- --now kills it immediately)
+task loop:status    # state, daily caps, failure streak
+task visual:check   # TUI + site screenshots into .loop/shots/
+```
+
+The loop is the `treemand-loop` skill (`.claude/skills/treemand-loop/`). One cycle
+ships one issue as one release. File issues labelled `loop:ready` to feed it, or
+`human:wip` to keep it away from something you are touching.

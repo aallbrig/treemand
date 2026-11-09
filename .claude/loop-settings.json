@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Bash(git:*)",
+      "Bash(gh:*)",
+      "Bash(task:*)",
+      "Bash(go:*)",
+      "Bash(gofmt:*)",
+      "Bash(golangci-lint:*)",
+      "Bash(govulncheck:*)",
+      "Bash(hugo:*)",
+      "Bash(tmux:*)",
+      "Bash(jq:*)",
+      "Bash(curl:*)",
+      "Bash(npx --yes playwright@*)",
+      "Bash(python3 -I scripts/loop/state.py:*)",
+      "Bash(bash scripts/loop/*)",
+      "Bash(bash scripts/*)",
+      "Bash(shellcheck:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(sed:*)",
+      "Bash(mkdir:*)",
+      "Bash(rm:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(sleep:*)",
+      "Bash(date:*)",
+      "Bash(tar:*)",
+      "Bash(sha256sum:*)",
+      "Read",
+      "Edit",
+      "Write",
+      "Agent",
+      "Skill",
+      "WebFetch",
+      "WebSearch",
+      "PushNotification",
+      "ScheduleWakeup"
+    ],
+    "deny": [
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push origin main:*)",
+      "Bash(gh secret:*)",
+      "Bash(gh repo delete:*)",
+      "Bash(sudo:*)",
+      "Edit(.git/**)",
+      "Write(.git/**)",
+      "Edit(.env*)",
+      "Write(.env*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/loop/guard.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
