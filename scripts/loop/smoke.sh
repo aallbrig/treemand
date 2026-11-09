@@ -20,7 +20,11 @@ tar -xzf "$work/$asset" -C "$work"
 out="$("$work/treemand_${os}_${arch}" --version)"
 echo "smoke: binary says: $out"
 case "$out" in *"${tag#v}"*) ;; *) echo "smoke: version mismatch (wanted ${tag#v})" >&2; exit 1 ;; esac
-"$work/treemand_${os}_${arch}" --depth=1 --output=json ls >/dev/null
+"$work/treemand_${os}_${arch}" --depth=1 --output=json ls >/dev/null 2>"$work/stderr.txt"
+if grep -q "could not open cache" "$work/stderr.txt"; then
+  echo "smoke: binary cannot open its cache: $(cat "$work/stderr.txt")" >&2
+  exit 1
+fi
 
 echo "smoke: site $site"
 ok=""
