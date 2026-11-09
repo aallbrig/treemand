@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
-    "defaultMode": "acceptEdits",
+    "defaultMode": "auto",
     "allow": [
       "Bash(git:*)",
       "Bash(gh:*)",
@@ -50,9 +50,7 @@
       "Bash(gh repo delete:*)",
       "Bash(sudo:*)",
       "Edit(.git/**)",
-      "Write(.git/**)",
-      "Edit(.env*)",
-      "Write(.env*)"
+      "Edit(.env*)"
     ]
   },
   "hooks": {

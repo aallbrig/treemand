@@ -15,7 +15,7 @@ while :; do
   fi
   started=$(date +%s)
   echo "[loop] $(date -u +%FT%TZ) starting '$LOOP_REMOTE_NAME'"
-  "$LOOP_CLAUDE_BIN" --settings "$LOOP_ROOT/.claude/loop-settings.json" --remote-control "$LOOP_REMOTE_NAME" "/loop /treemand-loop"
+  "$LOOP_CLAUDE_BIN" --permission-mode auto --settings "$LOOP_ROOT/.claude/loop-settings.json" --remote-control "$LOOP_REMOTE_NAME" "/loop /treemand-loop"
   rc=$?
   ran=$(( $(date +%s) - started ))
   echo "[loop] $(date -u +%FT%TZ) claude exited rc=$rc after ${ran}s"
