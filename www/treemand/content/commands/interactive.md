@@ -9,7 +9,7 @@ The interactive mode launches a full-screen terminal explorer with three panes:
 a live **preview bar**, a navigable **tree pane**, and a **help pane** that shows
 `--help` output for the currently selected node.
 
-<img src="/treemand/demos/cmd_interactive.gif" alt="treemand TUI demo" width="100%">
+{{< demo src="demos/cmd_interactive.gif" alt="treemand TUI demo" >}}
 
 ## Launch
 

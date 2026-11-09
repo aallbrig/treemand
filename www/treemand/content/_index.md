@@ -73,4 +73,4 @@ Or download a [pre-built binary](https://github.com/aallbrig/treemand/releases).
 
 ## Demo
 
-<img src="/treemand/demo.gif" alt="treemand demo" width="100%">
+{{< demo src="demo.gif" alt="treemand demo" >}}

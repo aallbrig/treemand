@@ -9,7 +9,7 @@ Generate shell completion scripts for bash, zsh, fish, or PowerShell. Once set
 up, pressing `Tab` after `treemand` suggests CLIs you've already explored from
 the cache.
 
-<img src="/treemand/demos/cmd_completion.gif" alt="treemand completion demo" width="100%">
+{{< demo src="demos/cmd_completion.gif" alt="treemand completion demo" >}}
 
 ## Setup
 

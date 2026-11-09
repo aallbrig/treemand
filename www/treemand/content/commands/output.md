@@ -8,7 +8,7 @@ weight: 2
 treemand can emit the discovered tree as JSON or YAML for scripting, diffing,
 and integration with other tools.
 
-<img src="/treemand/demos/cmd_output.gif" alt="treemand JSON/YAML output demo" width="100%">
+{{< demo src="demos/cmd_output.gif" alt="treemand JSON/YAML output demo" >}}
 
 ## Usage
 

@@ -9,7 +9,7 @@ weight: 1
 color-coded tree. Point it at anything: `git`, `kubectl`, `docker`, `aws`, your
 own tools.
 
-<img src="/treemand/demos/cmd_tree.gif" alt="treemand tree demo" width="100%">
+{{< demo src="demos/cmd_tree.gif" alt="treemand tree demo" >}}
 
 ## Basic usage
 

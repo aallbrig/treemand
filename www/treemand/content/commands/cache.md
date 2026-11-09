@@ -8,7 +8,7 @@ weight: 4
 treemand caches discovered CLI trees in an SQLite database so repeat lookups are
 instant. The `cache` subcommand lets you inspect and manage those entries.
 
-<img src="/treemand/demos/cmd_cache.gif" alt="treemand cache demo" width="100%">
+{{< demo src="demos/cmd_cache.gif" alt="treemand cache demo" >}}
 
 ## Commands
 
