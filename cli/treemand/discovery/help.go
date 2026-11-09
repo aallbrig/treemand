@@ -84,10 +84,11 @@ func (h *HelpDiscoverer) discover(ctx context.Context, cliName string, args []st
 			for _, sub := range parsed.Subcommands {
 				subFull := append(append([]string{}, fullPath...), sub)
 				node.Children = append(node.Children, &models.Node{
-					Name:       sub,
-					FullPath:   subFull,
-					Discovered: false,
-					Stub:       true,
+					Name:        sub,
+					FullPath:    subFull,
+					Discovered:  false,
+					Stub:        true,
+					Description: parsed.SubcommandDescs[sub],
 				})
 			}
 			return node, nil
@@ -145,6 +146,9 @@ func (h *HelpDiscoverer) discover(ctx context.Context, cliName string, args []st
 		}
 		wg.Wait()
 		for _, r := range results {
+			if r.child != nil && r.child.Description == "" {
+				r.child.Description = parsed.SubcommandDescs[r.child.Name]
+			}
 			if r.child != nil {
 				node.Children = append(node.Children, r.child)
 			}
@@ -269,7 +273,10 @@ type ParsedHelp struct {
 	Flags       []models.Flag
 	Positionals []models.Positional
 	Subcommands []string
-	DocsURL     string
+	// SubcommandDescs holds the one-line description each subcommand has in
+	// this command's own command list; used when the child's help has none.
+	SubcommandDescs map[string]string
+	DocsURL         string
 	// Sections holds named flag groups (e.g. Godot's "General options:",
 	// "Debug options:"). Only populated when multiple distinct sections exist.
 	Sections []ParsedSection
@@ -684,6 +691,12 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 				if !seenSubs[name] && !skipSubcmdWords[name] && name != selfName {
 					seenSubs[name] = true
 					result.Subcommands = append(result.Subcommands, name)
+					if m[2] != "" {
+						if result.SubcommandDescs == nil {
+							result.SubcommandDescs = map[string]string{}
+						}
+						result.SubcommandDescs[name] = strings.TrimSpace(m[2])
+					}
 				}
 			}
 		case secExamples, secAliases, secDesc:
