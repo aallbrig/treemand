@@ -27,3 +27,6 @@ Replaced cgo go-sqlite3 with pure-Go modernc.org/sqlite so CGO_ENABLED=0 release
 
 ### Cycle 5 - 2026-11-09 - released - #20 v0.3.7
 Idle audit of docs-try-page: all 15 sitemap URLs return 200 but the logo linked to the github.io root (404) because relURL of "/" ignores baseURL. Added site:check (in task ci) to catch root-relative links outside /treemand/. GitHub CI does not run task ci or Hugo, so this gate is local only.
+
+### Cycle 6 - 2026-11-09 - released - #24 v0.3.8
+Perf audit: cached runs 0.1-0.3s, cold gh 23s (224 nodes), no races or flakes. Found a hang: an orphan child holding stdout blocked CombinedOutput past --timeout; fixed with cmd.WaitDelay. Check labels exist before gh issue create (area:perf, not area:performance) and verify the issue number is non-empty before using it.
