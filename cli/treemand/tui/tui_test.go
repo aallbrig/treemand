@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/aallbrig/treemand/config"
 	"github.com/aallbrig/treemand/models"
@@ -3466,4 +3467,39 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func footerLine(t *testing.T, width int) string {
+	t.Helper()
+	m := tui.NewModel(sampleTree(), config.DefaultConfig())
+	m.Update(tea.WindowSizeMsg{Width: width, Height: 24})
+	lines := strings.Split(m.View(), "\n")
+	return lines[len(lines)-1]
+}
+
+func TestFooter_80Columns_NoMidTokenTruncation(t *testing.T) {
+	line := footerLine(t, 80)
+	if w := lipgloss.Width(line); w > 80 {
+		t.Errorf("footer width %d exceeds 80: %q", w, line)
+	}
+	for _, want := range []string{"q:quit", "H:help", "Enter:pick"} {
+		if !strings.Contains(line, want) {
+			t.Errorf("80-col footer missing %q: %q", want, line)
+		}
+	}
+	if strings.Contains(line, "...") || strings.Contains(line, "…") {
+		t.Errorf("footer truncated: %q", line)
+	}
+}
+
+func TestFooter_120Columns_FitsWithCoreHints(t *testing.T) {
+	line := footerLine(t, 120)
+	if w := lipgloss.Width(line); w > 120 {
+		t.Errorf("footer width %d exceeds 120: %q", w, line)
+	}
+	for _, want := range []string{"↑↓:nav", "Enter:pick", "/:filter", "H:help", "q:quit"} {
+		if !strings.Contains(line, want) {
+			t.Errorf("120-col footer missing %q: %q", want, line)
+		}
+	}
 }
