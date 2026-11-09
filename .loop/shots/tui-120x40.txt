@@ -1,0 +1,39 @@
+ [1m[38;5;75m► [38;5;231mgit[0m
+[38;5;59m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────[39m
+[38;5;75m╭────────────────────────────────────────────────────────────────╮[38;5;59m╭────────────────────────────────────────────────────╮
+[38;5;75m│[1m[38;5;16m[48;5;39m▼ [38;5;231mgit[0m                                                           [38;5;75m│[38;5;59m│[1m[39mHelp: git [31%][0m                                     [38;5;59m│
+[38;5;75m│[2;3m[39m  ▷ Subcommands (22)[0m                                            [38;5;75m│[38;5;59m│[39m[--exec-path[=<path>]] [--html-path] [--man-path]   [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39m[--info-path]                                       [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39m                                                    [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39mSubcommands:                                        [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39m  clone  Clone a repository into a new directory    [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39m  init  Create an empty Git repository or           [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39mreinitialize an existing                            [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39m  add  Add file contents to the index               [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39m  mv  Move or rename a file, a directory, or a      [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39msymlink                                             [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39m  restore  Restore working tree files               [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39m  rm  Remove files from the working tree and from   [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39mthe index                                           [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39m  bisect  Use binary search to find the commit      [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39mthat introduced a bug                               [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39m  diff  Show changes between commits, commit and    [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39mworking tree, etc                                   [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39m  grep  Print lines matching a pattern              [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39m  log  Show commit logs                             [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39m  show  Show various types of objects               [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39m  status  Show the working tree status              [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39m  branch  List, create, or delete branches          [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39m  commit  Record changes to the repository          [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39m  merge  Join two or more development histories     [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39mtogether                                            [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39m  rebase  Reapply commits on top of another base    [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39mtip                                                 [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39m  reset  Reset current HEAD to the specified state  [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39m  switch  Switch branches                           [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39m  tag  Create, list, delete or verify a tag         [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39mobject signed with GPG                              [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39m  fetch  Download objects and refs from another     [38;5;59m│
+[38;5;75m│[39m                                                                [38;5;75m│[38;5;59m│[39mrepository                                          [38;5;59m│
+[38;5;75m╰────────────────────────────────────────────────────────────────╯[38;5;59m╰────────────────────────────────────────────────────╯
+[1m[39mgit[0m [2m[arrows] ↑↓:nav  ←→:expand/collapse  Enter:pick  e/E:expand/collapse all  Shift+←→:subtree  S:sections  f:flags  /:f
