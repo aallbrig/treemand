@@ -24,3 +24,6 @@ Idle audit of discovery-quality: parents list a one-line description per subcomm
 
 ### Cycle 4 - 2026-11-09 - released - #16 v0.3.6
 Replaced cgo go-sqlite3 with pure-Go modernc.org/sqlite so CGO_ENABLED=0 release binaries keep the cache; smoke.sh now fails on "could not open cache". Existing tests run under CGO_ENABLED=0 made the red test.
+
+### Cycle 5 - 2026-11-09 - released - #20 v0.3.7
+Idle audit of docs-try-page: all 15 sitemap URLs return 200 but the logo linked to the github.io root (404) because relURL of "/" ignores baseURL. Added site:check (in task ci) to catch root-relative links outside /treemand/. GitHub CI does not run task ci or Hugo, so this gate is local only.
