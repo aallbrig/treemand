@@ -3,6 +3,7 @@
 color-coded tree. Point it at anything: &lt;code&gt;git&lt;/code&gt;, &lt;code&gt;kubectl&lt;/code&gt;, &lt;code&gt;docker&lt;/code&gt;, &lt;code&gt;aws&lt;/code&gt;, your
 own tools.&lt;/p&gt;
 &lt;img src="https://aallbrig.github.io/treemand/demos/cmd_tree.gif" alt="treemand tree demo" width="100%"&gt;
+
 &lt;h2 id="basic-usage"&gt;Basic usage&lt;/h2&gt;
 &lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand git &lt;span style="color:#75715e"&gt;# full tree at default depth (3)&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand --depth&lt;span style="color:#f92672"&gt;=&lt;/span&gt;&lt;span style="color:#ae81ff"&gt;2&lt;/span&gt; kubectl &lt;span style="color:#75715e"&gt;# limit recursion depth&lt;/span&gt;
@@ -14,6 +15,7 @@ own tools.&lt;/p&gt;
 &lt;p&gt;treemand can emit the discovered tree as JSON or YAML for scripting, diffing,
 and integration with other tools.&lt;/p&gt;
 &lt;img src="https://aallbrig.github.io/treemand/demos/cmd_output.gif" alt="treemand JSON/YAML output demo" width="100%"&gt;
+
 &lt;h2 id="usage"&gt;Usage&lt;/h2&gt;
 &lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand --output&lt;span style="color:#f92672"&gt;=&lt;/span&gt;json git &lt;span style="color:#75715e"&gt;# full tree as JSON&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand --output&lt;span style="color:#f92672"&gt;=&lt;/span&gt;yaml git &lt;span style="color:#75715e"&gt;# full tree as YAML&lt;/span&gt;
@@ -67,6 +69,7 @@ and integration with other tools.&lt;/p&gt;
 a live &lt;strong&gt;preview bar&lt;/strong&gt;, a navigable &lt;strong&gt;tree pane&lt;/strong&gt;, and a &lt;strong&gt;help pane&lt;/strong&gt; that shows
 &lt;code&gt;--help&lt;/code&gt; output for the currently selected node.&lt;/p&gt;
 &lt;img src="https://aallbrig.github.io/treemand/demos/cmd_interactive.gif" alt="treemand TUI demo" width="100%"&gt;
+
 &lt;h2 id="launch"&gt;Launch&lt;/h2&gt;
 &lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand -i git
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand -i kubectl
@@ -140,6 +143,7 @@ a live &lt;strong&gt;preview bar&lt;/strong&gt;, a navigable &lt;strong&gt;tree 
 &lt;p&gt;treemand caches discovered CLI trees in an SQLite database so repeat lookups are
 instant. The &lt;code&gt;cache&lt;/code&gt; subcommand lets you inspect and manage those entries.&lt;/p&gt;
 &lt;img src="https://aallbrig.github.io/treemand/demos/cmd_cache.gif" alt="treemand cache demo" width="100%"&gt;
+
 &lt;h2 id="commands"&gt;Commands&lt;/h2&gt;
 &lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand cache list &lt;span style="color:#75715e"&gt;# list all cached CLIs with age and size&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand cache clear git &lt;span style="color:#75715e"&gt;# clear the cached entry for git&lt;/span&gt;
@@ -288,6 +292,7 @@ treemand cache [clear|list]
 &lt;p&gt;Print version, git commit, and build date.&lt;/p&gt;</description></item><item><title>config</title><link>https://aallbrig.github.io/treemand/commands/config/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://aallbrig.github.io/treemand/commands/config/</guid><description>&lt;h1 id="treemand-config"&gt;&lt;code&gt;treemand config&lt;/code&gt;&lt;/h1&gt;
 &lt;p&gt;Manage treemand&amp;rsquo;s optional YAML configuration file without opening it manually.&lt;/p&gt;
 &lt;img src="https://aallbrig.github.io/treemand/demos/cmd_config.gif" alt="treemand config demo" width="100%"&gt;
+
 &lt;h2 id="commands"&gt;Commands&lt;/h2&gt;
 &lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand config view &lt;span style="color:#75715e"&gt;# show merged config + file path&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand config validate &lt;span style="color:#75715e"&gt;# check for errors or unknown keys&lt;/span&gt;
@@ -301,6 +306,7 @@ treemand cache [clear|list]
 &lt;p&gt;treemand searches for the config file in this order:&lt;/p&gt;</description></item><item><title>version</title><link>https://aallbrig.github.io/treemand/commands/version/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://aallbrig.github.io/treemand/commands/version/</guid><description>&lt;h1 id="treemand-version"&gt;&lt;code&gt;treemand version&lt;/code&gt;&lt;/h1&gt;
 &lt;p&gt;Print the version, git commit, and build date of the installed binary.&lt;/p&gt;
 &lt;img src="https://aallbrig.github.io/treemand/demos/cmd_version.gif" alt="treemand version demo" width="100%"&gt;
+
 &lt;h2 id="usage"&gt;Usage&lt;/h2&gt;
 &lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand version
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# treemand v0.3.0 (abc1234) built 2026-05-11&lt;/span&gt;
@@ -310,6 +316,7 @@ Development builds show &lt;code&gt;dev&lt;/code&gt; when no tag is present.&lt;
 up, pressing &lt;code&gt;Tab&lt;/code&gt; after &lt;code&gt;treemand&lt;/code&gt; suggests CLIs you&amp;rsquo;ve already explored from
 the cache.&lt;/p&gt;
 &lt;img src="https://aallbrig.github.io/treemand/demos/cmd_completion.gif" alt="treemand completion demo" width="100%"&gt;
+
 &lt;h2 id="setup"&gt;Setup&lt;/h2&gt;
 &lt;h3 id="bash"&gt;Bash&lt;/h3&gt;
 &lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;&lt;span style="color:#75715e"&gt;# Add to ~/.bashrc&lt;/span&gt;
