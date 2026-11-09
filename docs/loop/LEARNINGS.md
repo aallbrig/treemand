@@ -21,3 +21,6 @@ Hardcoded /treemand/ paths broke under baseURL=/; use the demo shortcode (relURL
 
 ### Cycle 3 - 2026-11-09 - released - #14 v0.3.5
 Idle audit of discovery-quality: parents list a one-line description per subcommand that was being dropped (gh 137 to 0 descriptionless nodes). Audit with --no-cache; edit only in a worktree. Release binaries have no cache (CGO_ENABLED=0), filed as an issue.
+
+### Cycle 4 - 2026-11-09 - released - #16 v0.3.6
+Replaced cgo go-sqlite3 with pure-Go modernc.org/sqlite so CGO_ENABLED=0 release binaries keep the cache; smoke.sh now fails on "could not open cache". Existing tests run under CGO_ENABLED=0 made the red test.
