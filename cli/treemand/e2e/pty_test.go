@@ -31,8 +31,13 @@ type session struct {
 
 func startInteractive(t *testing.T, args ...string) *session {
 	t.Helper()
+	return startWithEnv(t, nil, args...)
+}
+
+func startWithEnv(t *testing.T, extraEnv []string, args ...string) *session {
+	t.Helper()
 	cmd := exec.Command(binPath, args...)
-	cmd.Env = env(t)
+	cmd.Env = env(t, extraEnv...)
 	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: 30, Cols: 100})
 	if err != nil {
 		t.Fatalf("starting treemand on a pty: %v", err)
@@ -175,4 +180,44 @@ func TestInteractive_missingCLIFailsFastWithoutAScreen(t *testing.T) {
 		t.Error("exit 0 for a missing CLI, want non-zero")
 	}
 	mustContain(t, "terminal output", s.screen(), "not found")
+}
+
+// sgr matches a color/style escape sequence (ESC [ ... m).
+var sgr = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+// raw returns the output with escape sequences intact.
+func (s *session) raw() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.buf.String()
+}
+
+func TestColorOnATerminal(t *testing.T) {
+	t.Run("colors by default", func(t *testing.T) {
+		s := startWithEnv(t, nil, "--no-cache", "fakecobra")
+		if code := s.exitCode(20 * time.Second); code != 0 {
+			t.Fatalf("exit %d", code)
+		}
+		if !sgr.MatchString(s.raw()) {
+			t.Errorf("no color sequences on a terminal:\n%q", s.raw())
+		}
+	})
+	for name, c := range map[string]struct {
+		env  []string
+		args []string
+	}{
+		"NO_COLOR":   {env: []string{"NO_COLOR=1"}, args: []string{"--no-cache", "fakecobra"}},
+		"--no-color": {args: []string{"--no-cache", "--no-color", "fakecobra"}},
+	} {
+		t.Run(name+" turns color off", func(t *testing.T) {
+			s := startWithEnv(t, c.env, c.args...)
+			if code := s.exitCode(20 * time.Second); code != 0 {
+				t.Fatalf("exit %d", code)
+			}
+			if m := sgr.FindString(s.raw()); m != "" {
+				t.Errorf("color sequence %q although color is off:\n%q", m, s.raw())
+			}
+			mustContain(t, "tree", s.screen(), "build", "deploy")
+		})
+	}
 }

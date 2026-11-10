@@ -84,7 +84,7 @@ Examples:
   treemand treemand                   # introspect treemand itself
 
 Docs: https://aallbrig.github.io/treemand`,
-	Args:          cobra.ExactArgs(1),
+	Args:          rootArgs,
 	SilenceErrors: true,
 	SilenceUsage:  true,
 	RunE:          runRoot,
@@ -137,6 +137,10 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr}).Level(logLevel)
 
 	cliName := args[0]
+	// A mistake in how treemand was invoked is reported before any probing.
+	if err := checkOutputFormat(cfgOutput); err != nil {
+		return err
+	}
 	discovery.SetMaxConcurrentHelp(cfgJobs)
 	discovery.OnOutputTruncated = func(name string, a []string, limit int) {
 		log.Debug().Str("command", name).Strs("args", a).Int("limit_bytes", limit).Msg("help output truncated at the read cap")
@@ -309,9 +313,10 @@ func Execute() {
 	rootCmd.AddCommand(genDocsCmd)
 	rootCmd.AddCommand(completionCmd)
 	rootCmd.ValidArgsFunction = completeCLIName
+	rootCmd.SetFlagErrorFunc(flagError)
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, "Error:", err)
-		os.Exit(1)
+		fmt.Fprintln(os.Stderr, FormatError(err))
+		os.Exit(ExitCodeFor(err))
 	}
 }
 
@@ -321,11 +326,12 @@ func NewRootCmd() *cobra.Command {
 		Use:           rootCmd.Use,
 		Short:         rootCmd.Short,
 		Long:          rootCmd.Long,
-		Args:          cobra.ExactArgs(1),
+		Args:          rootArgs,
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		RunE:          runRoot,
 	}
+	c.SetFlagErrorFunc(flagError)
 	c.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file")
 	c.PersistentFlags().BoolVarP(&cfgInteractive, "interactive", "i", false, "Launch interactive TUI")
 	c.PersistentFlags().StringVarP(&cfgStrategy, "strategy", "s", "help", "Discovery strategies")
