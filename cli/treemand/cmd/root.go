@@ -103,8 +103,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgOutput, "output", "text", "Output format: text, json, yaml")
 	rootCmd.PersistentFlags().BoolVar(&cfgNoColor, "no-color", false, "Disable color output")
 	rootCmd.PersistentFlags().BoolVar(&cfgNoCache, "no-cache", false, "Disable caching")
-	rootCmd.PersistentFlags().IntVar(&cfgExpandStubs, "expand-stubs", 0, "Expand undiscovered (stub) nodes N levels deep before output (slow on huge CLIs; disables cache)")
-	_ = rootCmd.PersistentFlags().MarkHidden("expand-stubs")
+	rootCmd.PersistentFlags().IntVar(&cfgExpandStubs, "expand-stubs", 0, "Expand undiscovered (stub, marked (…)) nodes N levels deep before output: gets their descriptions and children (slow on huge CLIs; disables cache)")
 	rootCmd.PersistentFlags().IntVar(&cfgTimeout, "timeout", 30, "Discovery timeout in seconds")
 	rootCmd.PersistentFlags().BoolVar(&cfgDebug, "debug", false, "Enable debug logging")
 	rootCmd.PersistentFlags().StringVar(&cfgIcons, "icons", "", "Icon preset: unicode (default), ascii, nerd")
@@ -265,7 +264,28 @@ func output(cmd *cobra.Command, node *models.Node, cfg *config.Config) error {
 		DescLineLength: cfg.DescLineLength,
 	}
 	r := render.New(opts)
-	return r.Render(cmd.OutOrStdout(), node)
+	if err := r.Render(cmd.OutOrStdout(), node); err != nil {
+		return err
+	}
+	if cfgOutput == "" || cfgOutput == "text" {
+		if n := countStubs(node); n > 0 {
+			// stderr, so stdout stays clean for pipes.
+			fmt.Fprintf(cmd.ErrOrStderr(), "\n%d undiscovered subcommands are marked (…). Use -i to expand them on demand, or --expand-stubs=1 for a complete snapshot (slow on large CLIs).\n", n)
+		}
+	}
+	return nil
+}
+
+// countStubs returns how many nodes below root were not discovered (lazily
+// created, shown as (…) in text output).
+func countStubs(root *models.Node) int {
+	n := 0
+	root.Walk(func(x *models.Node) {
+		if x.Stub && x != root {
+			n++
+		}
+	})
+	return n
 }
 
 // Execute runs the root command.
@@ -316,6 +336,7 @@ func NewRootCmd() *cobra.Command {
 	c.PersistentFlags().StringVar(&cfgIcons, "icons", "", "Icon preset")
 	c.PersistentFlags().IntVar(&cfgLineLength, "line-length", 0, "Max description line length")
 	c.PersistentFlags().IntVar(&cfgStubThreshold, "stub-threshold", 0, "Stub threshold")
+	c.PersistentFlags().IntVar(&cfgExpandStubs, "expand-stubs", 0, "Expand undiscovered (stub) nodes N levels deep before output")
 	c.AddCommand(versionCmd)
 	c.AddCommand(cacheCmd)
 	c.AddCommand(configCmd)
