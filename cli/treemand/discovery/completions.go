@@ -2,7 +2,6 @@ package discovery
 
 import (
 	"context"
-	"os/exec"
 	"strings"
 
 	"github.com/aallbrig/treemand/models"
@@ -50,9 +49,7 @@ func (c *CompletionsDiscoverer) Discover(ctx context.Context, cliName string, ar
 // runCommand executes cliName with args and returns combined stdout+stderr.
 func runCommand(ctx context.Context, cliName string, args []string) (string, error) {
 	resolved := resolveBinary(cliName)
-	cmd := exec.CommandContext(ctx, resolved, args...) //nolint:gosec
-	cmd.WaitDelay = killWaitDelay
-	out, err := cmd.CombinedOutput()
+	out, _, err := runCapped(ctx, resolved, args, nil, MaxHelpBytes)
 	return strings.TrimSpace(string(out)), err
 }
 
