@@ -39,3 +39,6 @@ mcp-api-exploration is propose-only: filed #30 (stable JSON schema, then an MCP 
 
 ### Cycle 10 - 2026-11-10 - released - #31 v0.3.10
 Root description was a usage-block continuation line for git/tmux/ssh. Fix: skip usage blocks, list headings and list rows; root-only man NAME fallback; NAME lines accept em/en dash. Tightening listRowRe was needed after the aws fixture regressed (justified man text has double spaces), so run the fixtures after every parser heuristic. Untrusted open issues: 0.
+
+### Cycle 11 - 2026-11-10 - parked - #32
+Parked: aws root help lists services as bare bullets, so descriptions cannot be carried from the parent; per-service help is about 3s each (20 min cold). Stub marking (discovered:false, (...) in text) already exists. Verify an issue premise against real output before planning; filed findings on the issue with three re-scope options.
