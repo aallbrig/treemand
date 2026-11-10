@@ -33,3 +33,6 @@ Perf audit: cached runs 0.1-0.3s, cold gh 23s (224 nodes), no races or flakes. F
 
 ### Cycle 7 - 2026-11-10 - released - #26 v0.3.9
 Security/test audit: coverage 64-100% (cache lowest); govulncheck flagged two x/text advisories, not called by our code. Bumped x/text and added a ListEntries test (green on first run, so it only locks behaviour in). Daily release cap of 6 resets at UTC midnight; the loop correctly idled until then.
+
+### Cycle 8 - 2026-11-10 - idle - #30
+mcp-api-exploration is propose-only: filed #30 (stable JSON schema, then an MCP subcommand) as loop:proposed and waiting for a human thumbs-up. JSON output currently has no schema_version.
