@@ -2,6 +2,7 @@ package discovery_test
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -594,5 +595,70 @@ func TestHelpDiscoverer_outputAtTheCapIsNotTruncated(t *testing.T) {
 	}
 	if len(reported) == 0 {
 		t.Error("one byte over the cap must be reported through OnOutputTruncated")
+	}
+}
+
+// Timing must never change the result: the same CLI discovered repeatedly,
+// at different concurrency caps and with every invocation delayed by a
+// different pseudo-random amount (well under the per-command timeout), gives
+// byte-identical trees.
+func TestHelpDiscoverer_resultDoesNotDependOnTiming(t *testing.T) {
+	dir := t.TempDir()
+	var groups, leaves []string
+	for i := 1; i <= 6; i++ {
+		groups = append(groups, "g"+string(rune('0'+i)))
+	}
+	for i := 1; i <= 8; i++ {
+		leaves = append(leaves, "l"+string(rune('0'+i)))
+	}
+	rows := func(names []string, what string) string {
+		s := ""
+		for _, n := range names {
+			s += "  " + n + "   the " + n + " " + what + "\\n"
+		}
+		return s
+	}
+	script := "#!/bin/sh\n" +
+		"sleep 0.0$(( $$ % 10 ))\n" + // 0.00 .. 0.09s, different for every process
+		"case \"$1\" in\n" +
+		"g[1-6])\n" +
+		"  case \"$2\" in\n" +
+		"  l[1-8]) printf '%s %s leaf\\n\\nOptions:\\n  --flag-%s   a flag of %s\\n  -h, --help   help\\n' \"$1\" \"$2\" \"$2\" \"$2\"; exit 0;;\n" +
+		"  esac\n" +
+		"  printf '%s group\\n\\nCommands:\\n" + rows(leaves, "leaf") + "\\nFlags:\\n  -h, --help   help\\n' \"$1\"; exit 0;;\n" +
+		"esac\n" +
+		"printf 'root tool\\n\\nCommands:\\n" + rows(groups, "group") + "\\nFlags:\\n  -h, --help   help\\n'\n"
+	if err := os.WriteFile(filepath.Join(dir, "jittertool"), []byte(script), 0o755); err != nil { //nolint:gosec
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Cleanup(func() { discovery.SetMaxConcurrentHelp(0) })
+
+	var first string
+	for _, jobs := range []int{2, 5, 16, 3} {
+		discovery.SetMaxConcurrentHelp(jobs)
+		d := discovery.NewHelpDiscoverer(3)
+		d.Timeout = 10 * time.Second
+		node, err := d.Discover(context.Background(), "jittertool", nil)
+		if err != nil {
+			t.Fatalf("jobs=%d: %v", jobs, err)
+		}
+		b, err := json.Marshal(node)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if first == "" {
+			first = string(b)
+			if got := strings.Count(first, `"discovery_err"`); got != 0 {
+				t.Fatalf("the reference run has %d probe errors; the fixture is broken", got)
+			}
+			if got := strings.Count(first, `"full_path"`); got != 1+6+6*8 {
+				t.Fatalf("reference tree has %d nodes, want 55", got)
+			}
+			continue
+		}
+		if string(b) != first {
+			t.Fatalf("jobs=%d produced a different tree than jobs=2:\\n first: %.300s\\n  now:  %.300s", jobs, first, string(b))
+		}
 	}
 }

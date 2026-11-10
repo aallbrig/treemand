@@ -134,10 +134,12 @@ def compare(rows: list[dict[str, str]]) -> list[str]:
             bad.append(f"{r['cli']}: warm {p['warm_s']}s -> {r['warm_s']}s vs {prev_ver}")
         if f(r, "rss_mb") > f(p, "rss_mb") * 1.3 and f(r, "rss_mb") - f(p, "rss_mb") > 20:
             bad.append(f"{r['cli']}: memory {p['rss_mb']}MB -> {r['rss_mb']}MB vs {prev_ver}")
-        if f(p, "nodes") and f(r, "nodes") < f(p, "nodes") * 0.9:
+        # Quality metrics are deterministic (a fixed CLI gives the same tree every run),
+        # so they get tight thresholds; timing and memory above depend on machine state.
+        if f(p, "nodes") and f(r, "nodes") < f(p, "nodes") * 0.95 and f(p, "nodes") - f(r, "nodes") > 3:
             bad.append(f"{r['cli']}: nodes {p['nodes']} -> {r['nodes']} vs {prev_ver}")
         for k in ("no_desc", "no_flags"):
-            if f(r, k) > f(p, k) * 1.25 and f(r, k) - f(p, k) > 15:
+            if f(r, k) > f(p, k) * 1.10 and f(r, k) - f(p, k) > 3:
                 bad.append(f"{r['cli']}: {k} {p[k]} -> {r[k]} vs {prev_ver}")
     return bad
 
