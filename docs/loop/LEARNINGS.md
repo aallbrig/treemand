@@ -60,3 +60,6 @@ Committed a 16-CLI help-fixture corpus with a baseline gate in task ci. The firs
 
 ### Cycle 17 - 2026-11-10 - released - #37 v0.4.4
 Re-scoped #37 into floor + fuzz + cache/config now and cmd/tui/presets as #74-#76. A coverage floor must hold on GitHub CI, not just locally: cmd measured 67.9% here but 64.2% on the runner (tests use CLIs installed on a dev box), so the first push failed CI; floors are now the lower of the two environments. Fuzzing the parser (about 83k execs) and timing 800KB adversarial inputs found nothing, so the corpus-time determinism fix last cycle was the real find. After pushing, checks take a moment to register: pr:merge reports "no checks reported" if run too early.
+
+### Cycle 18 - 2026-11-10 - released - #53 v0.4.5
+Help, completion and list-commands probes now read through a 1MB cap and kill the process when it is hit: chaos-huge went from 1898MB and 25s to 21MB and 2.4s, and its xfail line is gone. The cap size mattered: sanitize+parse of 2MB is 0.9s normally but 18s under -race (instrumented regexes), so the default is 1MB and the flood test uses 256KB; always run a new slow-path test under -race before pushing. Largest real help seen is 14KB, so 1MB is generous.
