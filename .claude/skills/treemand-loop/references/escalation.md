@@ -1,5 +1,10 @@
 # Escalation ladder
 
+Before anything else: a failed workflow with no logs, or whose build job never
+appeared, is GitHub infrastructure. `gh run rerun <id>` first (release.sh does
+this automatically). v0.3.2/v0.3.3 were exactly this; the rerun succeeded.
+Never file `loop:blocked` or notify a human for something a rerun can fix.
+
 The maintainer is not a bottleneck. Climb only as far as needed.
 
 1. Failed cycle: retry once with the failure output.

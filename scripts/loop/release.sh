@@ -33,7 +33,20 @@ for _ in $(seq 1 30); do
   sleep 5
 done
 [ -n "$run_id" ] || { echo "release workflow never started" >&2; exit 4; }
-timeout "$((LOOP_CYCLE_BUDGET_MINUTES * 60))" gh run watch "$run_id" --exit-status
+# GitHub sometimes fails a run before the build job exists (no logs, jobs skipped).
+# That is infrastructure, not the code: rerun up to twice before calling it a failure.
+attempt=0
+until timeout "$((LOOP_CYCLE_BUDGET_MINUTES * 60))" gh run watch "$run_id" --exit-status; do
+  jobs_seen="$(gh run view "$run_id" --json jobs --jq '[.jobs[].name]|index("Build & Release")' 2>/dev/null || echo null)"
+  attempt=$((attempt + 1))
+  if [ "$jobs_seen" != "null" ] || [ "$attempt" -gt 2 ]; then
+    echo "release workflow failed (attempt $attempt)" >&2
+    exit 5
+  fi
+  echo "release run never started its build job; rerunning (attempt $attempt)"
+  gh run rerun "$run_id"
+  sleep 20
+done
 
 # Pages deploys from main pushes; wait for the latest Pages run on this sha, if any.
 bash "$LOOP_ROOT/scripts/loop/smoke.sh" "$next"
