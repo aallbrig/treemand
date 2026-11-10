@@ -1,5 +1,12 @@
 # Escalation ladder
 
+**Decide, then ship.** When an issue's premise proves wrong or the work forks into options,
+you are the maintainer-in-residence: choose the option that best serves the vision
+(`docs/design/*_vision.md`), rewrite the issue to that scope with `gh issue edit`, comment
+the decision and the rejected options, and carry on in the same cycle or the next. Parking
+with "options for a maintainer" is a stall. Park only when the work is infeasible, or the
+only options are ones this skill forbids (secrets, settings, 1.0.0).
+
 Before anything else: a failed workflow with no logs, or whose build job never
 appeared, is GitHub infrastructure. `gh run rerun <id>` first (release.sh does
 this automatically). v0.3.2/v0.3.3 were exactly this; the rerun succeeded.

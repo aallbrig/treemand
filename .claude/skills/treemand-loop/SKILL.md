@@ -65,8 +65,9 @@ mode the loop must not have; a cycle always ends in a state, never in a prompt.
 ## Failure handling
 
 - One retry of a failed Implement/Verify with the failure output as context.
-- Second failure: comment the findings on the issue, swap `loop:in-progress` for
-  `loop:blocked`, remove the worktree, `end-cycle parked`, move on next cycle.
+- Second failure, or a wrong premise: decide per [references/escalation.md](references/escalation.md)
+  (re-scope and continue) before parking. Park (`loop:blocked`, worktree removed,
+  `end-cycle parked`) only when the work is infeasible or needs something forbidden.
 - Anything that leaves the loop unable to ship: `end-cycle failed`.
 - Never use `--no-verify`, never skip tests to get green, never weaken a lint rule
   to pass. Fix the cause or park the issue.
