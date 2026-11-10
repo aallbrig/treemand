@@ -5,6 +5,7 @@
 #   bash scripts/check_coverage.sh --update   deliberately rewrite floors to today's coverage
 #                                             (rounded down); review and commit the diff
 # Floors are a ratchet: raise them as coverage improves, never lower them to get green.
+# A floor must hold on GitHub CI too: if CI measures lower than your machine, take the CI number.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
@@ -22,7 +23,7 @@ current="$(printf '%s\n' "$out" | awk '/^ok/ && /coverage:/ && /statements/ {
 
 if [ "${1:-}" = "--update" ]; then
   {
-    echo "# package<TAB>minimum statement coverage (%). Ratchet: raise, never lower. Rewrite with: task coverage:update-floor"
+    echo "# package<TAB>minimum statement coverage (%). Ratchet: raise, never lower. Floors must hold on GitHub CI as well as locally (cmd is lower on CI: some tests use CLIs installed here, see #38). Rewrite with: task coverage:update-floor"
     printf '%s\n' "$current" | awk '{ printf "%s\t%d\n", $1, int($2) }' | sort
   } >"$floors"
   echo "floors rewritten; review the diff"
