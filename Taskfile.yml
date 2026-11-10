@@ -172,11 +172,23 @@ tasks:
       - python3 -I scripts/loop/state.py summary >/dev/null
       - bash scripts/loop/guard_test.sh
       - test -f .claude/skills/treemand-loop/SKILL.md
+      - test -f .claude/skills/treemand-product-audit/SKILL.md
 
   visual:check:
     desc: Capture the TUI and the site (desktop + mobile) into .loop/shots/ for review
     cmds:
       - bash scripts/loop/visual-check.sh
+
+  corpus:
+    desc: Run treemand against real CLIs on this machine and print quality metrics (TSV)
+    cmds:
+      - bash scripts/loop/corpus.sh {{.CLI_ARGS}}
+
+  coverage:
+    desc: Per-package Go test coverage
+    dir: cli/treemand
+    cmds:
+      - go test -cover ./...
 
   doctor:
     desc: Show what else is running on this machine before touching real infrastructure
