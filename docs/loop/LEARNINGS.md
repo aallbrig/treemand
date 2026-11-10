@@ -78,3 +78,6 @@ TUI at scale: measured before changing. Real aws (422 stubs) was already fast (e
 
 ### Cycle 23 - 2026-11-10 - merged, no release - #42
 Competitive teardown from the peers published pages only: the permission policy denied installing and running third-party code, so nothing was run and every peer claim is labelled as theirs (hands-on follow-up filed as #101, loop:blocked). I did not look for a way around the denial. Reading the pages still paid off: it corrected stale versions (mandible is 0.9.0, not the linked 0.2.0) and produced 9 deduped gap issues (#92-#100) plus an honest README section. When a tool is denied, do the part that needs no new permission, say plainly what was not done, and file the rest for a human. Run and cold-start comparisons remain open.
+
+### Cycle 24 - 2026-11-10 - released - #55 v0.6.1
+Warm runs were slow because the cache key ran `<cli> --version` (aws 2.5s, pip 0.9s start an interpreter), not because of the cache read (4.9ms). Keyed on the executable on disk (resolved path, size, mtime) instead: warm aws 2.9s to 0.03s, pip 0.98s to 0.03s. It also fixed a latent staleness bug (a CLI without --version never invalidated). Profile by timing each phase before assuming where the time goes: the obvious suspect (sqlite and JSON decode) cost 4ms. The version string is now display-only and read concurrently with discovery.
