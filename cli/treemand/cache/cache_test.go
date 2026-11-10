@@ -233,3 +233,42 @@ func TestCacheListCLIs(t *testing.T) {
 func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
+
+func TestCacheListEntries(t *testing.T) {
+	c, err := cache.Open(t.TempDir())
+	if err != nil {
+		t.Fatalf("Open() error: %v", err)
+	}
+	defer c.Close()
+
+	for _, cli := range []string{"zed", "git"} {
+		node := &models.Node{Name: cli}
+		key := cache.Key(cli, "1.0", []string{"help"})
+		if err := c.Put(key, cli, "1.0", "help", node); err != nil {
+			t.Fatalf("Put(%s) error: %v", cli, err)
+		}
+	}
+
+	before := time.Now().Add(-time.Minute)
+	entries, err := c.ListEntries()
+	if err != nil {
+		t.Fatalf("ListEntries() error: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("got %d entries, want 2", len(entries))
+	}
+	if entries[0].CLI != "git" || entries[1].CLI != "zed" {
+		t.Errorf("entries not ordered by CLI: %q, %q", entries[0].CLI, entries[1].CLI)
+	}
+	for _, e := range entries {
+		if e.Version != "1.0" || e.Strategy != "help" {
+			t.Errorf("entry %+v has wrong version/strategy", e)
+		}
+		if e.SizeBytes <= 0 {
+			t.Errorf("entry %s SizeBytes = %d, want > 0", e.CLI, e.SizeBytes)
+		}
+		if e.CachedAt.Before(before) || e.CachedAt.After(time.Now().Add(time.Minute)) {
+			t.Errorf("entry %s CachedAt = %v, want about now", e.CLI, e.CachedAt)
+		}
+	}
+}
