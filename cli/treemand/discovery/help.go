@@ -911,6 +911,13 @@ func detectSection(lower string) string {
 	// "required arguments:", "available services:", etc.
 	// Only apply to short candidates (section headers are rarely > 30 chars);
 	// this prevents false-positives on lines like "Usage: ls [OPTION]... [FILE]..."
+	// A real header is plain words: it never starts with "-" (a flag line) or
+	// uses column spacing (a "name   description" row). Without this guard
+	// "-v, --verbose   verbose output" is taken as an "output" header and the
+	// flag, and the rest of its section, is lost.
+	if strings.HasPrefix(candidate, "-") || strings.Contains(candidate, "  ") {
+		return secNone
+	}
 	if len(candidate) <= 30 {
 		// A header can match several keywords ("environment commands" matches
 		// both "commands" and "environment"). Choose deterministically: sections
