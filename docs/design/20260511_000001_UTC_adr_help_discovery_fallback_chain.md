@@ -86,3 +86,29 @@ and succeed at step 4.
 - Any CLI whose first help line legitimately contains "unknown command" as part
   of description text will be misclassified as error output. This is judged
   acceptable: such a CLI would need to be handled case-by-case.
+
+## Addendum 2026-11-10: command-list fallback (root only)
+
+Some CLIs have no per-command help and expose their commands through a
+command instead. tmux is the example: `tmux --help` prints only a usage line,
+while `tmux list-commands` prints one `name (alias) [synopsis]` line per command.
+
+**Decision.** After the help fallbacks, at the root only, when `--help` yielded
+no subcommands, run `<cli> list-commands`. Accept the output only if it exits 0
+and is clearly a list (at least four entries, at least 80% of non-empty lines
+are `name (alias) synopsis` entries), so prose and error text never match.
+
+- Flags come from the synopsis: a bracketed letter cluster such as `[-dE]` is
+  boolean flags, and `[-c working-directory]` is a flag taking a value.
+- Descriptions come from the man page: the first sentence of the paragraph
+  after the command's heading in its COMMANDS section. The alias is appended
+  as `(alias: x)`. Without a man page the node still has name, alias and flags.
+- `commands` is deliberately not probed: as a bare word it is too likely to be
+  something else.
+
+**make and other target runners are out of scope.** Their "commands" are
+project-specific targets, not part of the tool, and probing `make <name>` can
+execute a user's build rule. `make`, `gmake`, `bmake`, `ninja`, `just`, `task`
+and `rake` are explicitly skipped by the list-commands probe. A future
+target-listing feature would need an explicit opt-in flag (for example
+`make -qp` or `just --list` behind a flag), not default discovery.
