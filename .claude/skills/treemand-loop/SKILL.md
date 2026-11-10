@@ -34,7 +34,10 @@ further wakeup) and say so.
    test first (use the `tdd` skill if available). Delegate large exploration or
    multi-file work to subagents so this context stays small. Never touch the main
    checkout's working tree. Skip issues labelled `human:wip`.
-5. **Verify**: `task ci` must pass in the worktree. For anything user-visible also
+5. **Verify**: `task ci` must pass in the worktree (it includes `task chaos`). When the
+   change touches `cli/treemand`, also run `task perf:compare`: a REGRESSION line blocks
+   the merge unless the issue is about that trade-off, and then the PR says so. An
+   issue that fixes a chaos case also deletes its line from `scripts/loop/chaos.xfail`. For anything user-visible also
    run `task visual:check` and score the evidence against the newest
    `docs/design/*_design_rubric.md`; any fail blocks the merge (fix it, or park).
 6. **Ship**: push the branch, open a PR (`## Summary` / `## Test plan`, closes the
@@ -44,7 +47,8 @@ further wakeup) and say so.
    and smoke-tests the published binary and site. Never release `1.0.0`.
    If it fails: `bash scripts/loop/rollback.sh && bash scripts/loop/release.sh patch`.
    If that fails too, `state.py request-escalation "<what broke>"`.
-8. **Retro**: append `### Cycle N - date - outcome - #issue vX.Y.Z` plus one to
+8. **Retro**: run `task perf:record -- --version <tag>` after a release and commit the new
+   `docs/perf/history.tsv` rows with the retro. Then append `### Cycle N - date - outcome - #issue vX.Y.Z` plus one to
    three lines of *what you learned* to `docs/loop/LEARNINGS.md` (commit it on the
    next cycle's branch or via a tiny PR - never push to main). Then
    `state.py touch-area <area>` and `state.py end-cycle <released|idle|parked|failed>`.

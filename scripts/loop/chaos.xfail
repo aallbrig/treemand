@@ -1,0 +1,3 @@
+# Known reliability bugs: a case listed here may fail without failing the suite.
+# When the bug is fixed the case passes, the suite reports XPASS, and the line must be removed.
+chaos-huge

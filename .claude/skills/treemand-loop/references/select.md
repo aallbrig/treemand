@@ -8,11 +8,15 @@ means the author is untrusted: skip it.
 Pick the first that applies:
 
 1. **FIX_MAIN** from preflight.
-2. First line of `bash scripts/loop/issues.sh ready` (oldest trusted `loop:ready`
+2. **Every third cycle** (cycle number divisible by 3): the first line of
+   `issues.sh ready area:perf,area:reliability`, when one exists. Speed and
+   robustness are treemand's standing priority; this keeps them moving even while
+   features queue up.
+3. First line of `bash scripts/loop/issues.sh ready` (oldest trusted `loop:ready`
    issue that is not `human:wip`, `loop:blocked` or `loop:in-progress`).
-3. First line of `issues.sh proposed` that carries a `loop:ready`-promoting comment
+4. First line of `issues.sh proposed` that carries a `loop:ready`-promoting comment
    from a trusted author. Do not self-promote your own proposals.
-4. **Audit**: nothing queued, so invoke the `treemand-product-audit` skill. It files a
+5. **Audit**: nothing queued, so invoke the `treemand-product-audit` skill. It files a
    ranked backlog and returns the first issue to ship; continue with that issue.
    `python3 -I scripts/loop/state.py pick-area` breaks ties between equal-value issues:
    take the one in the least-recently-touched area.

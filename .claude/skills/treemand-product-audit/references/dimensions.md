@@ -68,8 +68,9 @@ exit codes for scripts; feasibility notes for an MCP server or `treemand mcp`.
 3 = documented schema with a compatibility promise; MCP/API proposals filed as `loop:proposed`.
 
 ## 12. Performance and reliability
-Probe: corpus timings, memory (`/usr/bin/time -v`), cached versus cold, `task test-race`,
-hung-CLI behaviour (`--timeout`), huge output, odd locales.
+Probe: `task perf:show` (trend across releases), `task perf` (now), `task chaos` (hostile CLIs;
+every line in `scripts/loop/chaos.xfail` is an open reliability bug), `task test-race`, odd locales.
+Add a new hostile case to `chaos.sh` for every failure mode you can imagine that is not covered.
 3 = cold < 10s for the largest corpus CLI, cached < 300ms, no hangs, no races.
 
 ## 13. Security and supply chain

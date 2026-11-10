@@ -168,7 +168,7 @@ tasks:
   loop:check:
     desc: Static checks for the loop machinery (shellcheck, state script, guard hook, skill present)
     cmds:
-      - shellcheck -x scripts/loop/*.sh scripts/dev_session.sh scripts/pr_merge.sh
+      - shellcheck -x -S warning scripts/loop/*.sh scripts/dev_session.sh scripts/pr_merge.sh scripts/check_*.sh
       - python3 -I scripts/loop/state.py summary >/dev/null
       - bash scripts/loop/guard_test.sh
       - test -f .claude/skills/treemand-loop/SKILL.md
@@ -189,6 +189,36 @@ tasks:
     dir: cli/treemand
     cmds:
       - go test -cover ./...
+
+  chaos:
+    desc: Reliability suite - hostile fake CLIs must not hang, panic or exhaust memory
+    cmds:
+      - bash scripts/loop/chaos.sh
+
+  perf:
+    desc: Measure cold/warm time, memory and discovery quality on real CLIs (no files written)
+    cmds:
+      - python3 -I scripts/loop/perf.py measure
+
+  perf:compare:
+    desc: Measure and fail if any metric regressed against the last recorded version on this host
+    cmds:
+      - python3 -I scripts/loop/perf.py compare
+
+  "perf:record":
+    desc: "Append a measurement to docs/perf/history.tsv: task perf:record -- --version v0.4.0"
+    cmds:
+      - python3 -I scripts/loop/perf.py record {{.CLI_ARGS}}
+
+  perf:show:
+    desc: Performance and quality trend per CLI across recorded releases
+    cmds:
+      - python3 -I scripts/loop/perf.py show
+
+  loop:test-session:
+    desc: Exercise the dev session and loop control on an isolated tmux server with a stub agent
+    cmds:
+      - bash scripts/loop/session_test.sh
 
   doctor:
     desc: Show what else is running on this machine before touching real infrastructure
@@ -226,6 +256,8 @@ tasks:
       - task: loop:check
       - task: docs:check
       - task: site:check
+      - task: chaos
+      - task: loop:test-session
 
   fmt:check:
     desc: Fail if any Go file needs formatting

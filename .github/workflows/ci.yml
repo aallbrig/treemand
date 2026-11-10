@@ -65,6 +65,38 @@ jobs:
       - name: Build
         run: go build -o treemand .
 
+  gates:
+    name: Task ci (all gates)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/treemand/go.mod
+          cache-dependency-path: cli/treemand/go.sum
+
+      - uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install tooling
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq tmux tmuxinator shellcheck jq
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: "0.157.0"
+          extended: true
+
+      - name: task ci
+        run: task ci
+
   build-matrix:
     name: Cross-platform build
     runs-on: ubuntu-latest
