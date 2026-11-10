@@ -1,5 +1,6 @@
 ---
 title: "Getting Started"
+description: "Run treemand on git, kubectl or any CLI: print a command tree, explore it interactively, pipe JSON, and build a command."
 ---
 
 # Getting Started

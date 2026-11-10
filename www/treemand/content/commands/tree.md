@@ -1,5 +1,6 @@
 ---
 title: "Tree Output"
+description: "treemand tree output: how a CLI's subcommands and flags are printed as a command tree, with depth, filter and display options."
 weight: 1
 ---
 
@@ -9,7 +10,7 @@ weight: 1
 color-coded tree. Point it at anything: `git`, `kubectl`, `docker`, `aws`, your
 own tools.
 
-{{< demo src="demos/cmd_tree.gif" alt="treemand tree demo" >}}
+{{< demo src="demos/cmd_tree.gif" alt="treemand tree demo" width="900" height="420" >}}
 
 ## Basic usage
 

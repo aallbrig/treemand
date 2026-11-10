@@ -292,6 +292,7 @@ tasks:
       - task: loop:check
       - task: docs:check
       - task: site:check
+      - task: site:audit
       - task: corpus:test
       - task: coverage:check
       - task: chaos
@@ -306,6 +307,11 @@ tasks:
     desc: Every `task X` named in docs, scripts, CI or the loop skill must exist in this Taskfile
     cmds:
       - bash scripts/check_task_refs.sh
+
+  site:audit:
+    desc: Build and serve the site, then check every page at desktop and mobile sizes (SEO tags, accessibility, contrast, layout shift, console errors); needs hugo, node and Chrome
+    cmds:
+      - bash scripts/site_audit.sh
 
   site:check:
     desc: Fail if the built site links outside its baseURL

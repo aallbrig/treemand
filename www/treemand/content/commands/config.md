@@ -1,5 +1,6 @@
 ---
 title: "config"
+description: "treemand config: view and edit the config file, icons, colors, strategies and defaults."
 weight: 5
 ---
 
@@ -7,7 +8,7 @@ weight: 5
 
 Manage treemand's optional YAML configuration file without opening it manually.
 
-{{< demo src="demos/cmd_config.gif" alt="treemand config demo" >}}
+{{< demo src="demos/cmd_config.gif" alt="treemand config demo" width="900" height="420" >}}
 
 ## Commands
 

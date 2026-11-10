@@ -1,14 +1,15 @@
 ---
 title: "Treemand"
+description: "treemand maps any command-line tool's subcommands, flags and arguments into a tree you can browse in your terminal or browser, then build a command and copy or run it."
 ---
 
 <div class="hero">
   <h1>🌲 Treemand</h1>
   <p>Visualize and interact with any CLI command hierarchy as a beautiful tree.</p>
   <div class="badges">
-    <img src="https://img.shields.io/github/v/release/aallbrig/treemand" alt="release">
-    <img src="https://img.shields.io/github/actions/workflow/status/aallbrig/treemand/ci.yml" alt="CI">
-    <img src="https://img.shields.io/github/license/aallbrig/treemand" alt="license">
+    <img src="https://img.shields.io/github/v/release/aallbrig/treemand" alt="release" width="96" height="20">
+    <img src="https://img.shields.io/github/actions/workflow/status/aallbrig/treemand/ci.yml" alt="CI" width="92" height="20">
+    <img src="https://img.shields.io/github/license/aallbrig/treemand" alt="license" width="78" height="20">
   </div>
 </div>
 
@@ -73,4 +74,4 @@ Or download a [pre-built binary](https://github.com/aallbrig/treemand/releases).
 
 ## Demo
 
-{{< demo src="demo.gif" alt="treemand demo" >}}
+{{< demo src="demo.gif" alt="treemand demo" width="1100" height="650" >}}

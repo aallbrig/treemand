@@ -1,5 +1,6 @@
 ---
 title: "Installation"
+description: "Install treemand with Homebrew, a release binary for Linux, macOS or Windows, or go install, and check that it works."
 ---
 
 # Installation

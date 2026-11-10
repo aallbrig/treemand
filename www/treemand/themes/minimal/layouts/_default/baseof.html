@@ -3,7 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{ .Title }} | {{ .Site.Title }}</title>
+  {{- $title := cond .IsHome .Site.Params.homeTitle (printf "%s | %s" .Title .Site.Title) }}
+  {{- $desc := .Description | default .Site.Params.description }}
+  {{- $url := printf "%s%s" .Site.Params.origin .RelPermalink }}
+  {{- $image := printf "%s%s" .Site.Params.origin (.Site.Params.socialImage | relURL) }}
+  <title>{{ $title }}</title>
+  <meta name="description" content="{{ $desc }}">
+  <link rel="canonical" href="{{ $url }}">
+  <meta name="theme-color" content="#0d1117">
+  <link rel="icon" href="{{ "icon.svg" | relURL }}" type="image/svg+xml">
+  <link rel="icon" href="{{ "favicon-32.png" | relURL }}" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="{{ "apple-touch-icon.png" | relURL }}">
+  <meta property="og:type" content="{{ cond .IsHome "website" "article" }}">
+  <meta property="og:site_name" content="{{ .Site.Title }}">
+  <meta property="og:title" content="{{ $title }}">
+  <meta property="og:description" content="{{ $desc }}">
+  <meta property="og:url" content="{{ $url }}">
+  <meta property="og:image" content="{{ $image }}">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="treemand: a CLI command tree for git next to the treemand name and tagline">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ $title }}">
+  <meta name="twitter:description" content="{{ $desc }}">
+  <meta name="twitter:image" content="{{ $image }}">
   <link rel="stylesheet" href="{{ "css/main.css" | relURL }}">
 </head>
 <body>

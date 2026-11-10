@@ -58,7 +58,8 @@ for page in "" try/ installation/ getting-started/; do
   name="${page%/}"
   name="${name:-home}"
   for vp in "desktop:1280,800" "mobile:390,844"; do
-    $pw screenshot --viewport-size="${vp#*:}" --full-page "http://127.0.0.1:$port/$page" \
+    # The wait lets lazy-loaded images (the 1.5MB home demo) arrive before the capture.
+    $pw screenshot --viewport-size="${vp#*:}" --full-page --wait-for-timeout=2500 "http://127.0.0.1:$port/$page" \
       "$shots/site-$name-${vp%%:*}.png" >/dev/null
   done
 done

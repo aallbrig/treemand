@@ -1,5 +1,6 @@
 ---
 title: "Output Formats"
+description: "treemand output formats: text, JSON and YAML, with examples for scripts and jq."
 weight: 2
 ---
 
@@ -8,7 +9,7 @@ weight: 2
 treemand can emit the discovered tree as JSON or YAML for scripting, diffing,
 and integration with other tools.
 
-{{< demo src="demos/cmd_output.gif" alt="treemand JSON/YAML output demo" >}}
+{{< demo src="demos/cmd_output.gif" alt="treemand JSON/YAML output demo" width="900" height="420" >}}
 
 ## Usage
 

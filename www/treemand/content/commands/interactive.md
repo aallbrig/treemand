@@ -1,5 +1,6 @@
 ---
 title: "Interactive TUI"
+description: "The interactive treemand TUI: navigate a command tree, filter and search, pick flags and values, and copy or run the command you build."
 weight: 3
 ---
 
@@ -9,7 +10,7 @@ The interactive mode launches a full-screen terminal explorer with three panes:
 a live **preview bar**, a navigable **tree pane**, and a **help pane** that shows
 `--help` output for the currently selected node.
 
-{{< demo src="demos/cmd_interactive.gif" alt="treemand TUI demo" >}}
+{{< demo src="demos/cmd_interactive.gif" alt="treemand TUI demo" width="900" height="420" >}}
 
 ## Launch
 
