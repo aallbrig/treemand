@@ -229,6 +229,104 @@ async function checkAsset(page, path, kind, minWidth) {
   await checkAsset(BASE, "icon.svg", "favicon", 0);
 }
 
+// ── Installation page behaviour: OS detection, override, copy buttons ──────
+async function installPageScenarios() {
+  const url = new URL("installation/", BASE).href;
+  const UA = {
+    macos: { ua: "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36", platform: "MacIntel", md: "macOS" },
+    windows: { ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36", platform: "Win32", md: "Windows" },
+    linux: { ua: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36", platform: "Linux x86_64", md: "Linux" },
+    other: { ua: "Mozilla/5.0 (Unknown) Gecko/1.0", platform: "", md: "" },
+  };
+  const state = (p) => p.send("Runtime.evaluate", { returnByValue: true, expression: `({
+    visible: [...document.querySelectorAll(".os-panel")].filter((x) => !x.hidden).map((x) => x.dataset.os),
+    pressed: [...document.querySelectorAll(".os-btn")].filter((b) => b.getAttribute("aria-pressed") === "true").map((b) => b.dataset.os),
+    switchShown: !document.getElementById("os-switch").hidden,
+    note: document.getElementById("os-detected").hidden ? "" : document.getElementById("os-detected").textContent,
+  })` }).then((r) => r.result.value);
+  async function open(ua, { hash = "", jsOff = false, keepStorage = false } = {}) {
+    const p = await newPage();
+    await p.send("Page.enable");
+    await p.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
+    if (!keepStorage) await p.send("Storage.clearDataForOrigin", { origin, storageTypes: "local_storage" });
+    await p.send("Emulation.setScriptExecutionDisabled", { value: jsOff });
+    const u = UA[ua];
+    await p.send("Network.setUserAgentOverride", {
+      userAgent: u.ua, platform: u.platform,
+      userAgentMetadata: { platform: u.md, platformVersion: "1.0", architecture: "x86", model: "", mobile: false },
+    });
+    await p.send("Page.navigate", { url: url + hash });
+    await new Promise((r) => setTimeout(r, 700));
+    return p;
+  }
+  const expect = (name, got, want) => {
+    if (JSON.stringify(got) !== JSON.stringify(want)) add(url, "-", "install-page", `${name}: got ${JSON.stringify(got)}, want ${JSON.stringify(want)}`);
+  };
+
+  for (const [os, name] of [["macos", "macOS"], ["windows", "Windows"], ["linux", "Linux"]]) {
+    const p = await open(os);
+    const st = await state(p);
+    expect(`${name} browser shows its own panel`, st.visible, [os]);
+    expect(`${name} browser marks its button pressed`, st.pressed, [os]);
+    if (!st.switchShown) add(url, "-", "install-page", "the OS switch is hidden although JavaScript ran");
+    if (!st.note.includes(name)) add(url, "-", "install-page", `no 'we think you are on ${name}' note: "${st.note}"`);
+    p.close();
+  }
+  let p = await open("other");
+  expect("an unknown system falls back to Linux", (await state(p)).visible, ["linux"]);
+  p.close();
+
+  // Manual override wins, and is remembered across a reload.
+  p = await open("macos");
+  await p.send("Runtime.evaluate", { expression: 'document.querySelector(\'.os-btn[data-os="windows"]\').click()' });
+  let st = await state(p);
+  expect("clicking Windows shows only Windows", st.visible, ["windows"]);
+  expect("clicking Windows presses only its button", st.pressed, ["windows"]);
+  if (st.note) add(url, "-", "install-page", "the detection note stays after a manual choice");
+  p.close();
+  p = await open("macos", { keepStorage: true });
+  expect("a manual choice is remembered on the next visit", (await state(p)).visible, ["windows"]);
+  p.close();
+
+  // The URL hash is shareable and beats detection.
+  p = await open("linux", { hash: "#macos" });
+  expect("#macos selects macOS on a Linux browser", (await state(p)).visible, ["macos"]);
+  p.close();
+
+  // Without JavaScript every panel is visible and the switch stays hidden.
+  p = await open("macos", { jsOff: true });
+  st = await state(p);
+  expect("with JavaScript off all three panels show", st.visible.slice().sort(), ["linux", "macos", "windows"]);
+  if (st.switchShown) add(url, "-", "install-page", "the OS switch is shown although JavaScript is off");
+  p.close();
+
+  // Copy buttons: named, copy the exact commands, and announce the result.
+  p = await open("linux");
+  await p.send("Runtime.evaluate", { expression: `
+    window.__copied = null;
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: (t) => { window.__copied = t; return Promise.resolve(); } } });` });
+  const info = (await p.send("Runtime.evaluate", { returnByValue: true, expression: `(() => {
+    const panel = document.querySelector('.os-panel[data-os="linux"]');
+    const boxes = [...panel.querySelectorAll(".cmd")];
+    const btn = boxes[0].querySelector(".copy-btn");
+    const before = { count: boxes.length, buttons: boxes.filter((b) => b.querySelector(".copy-btn")).length, name: btn.getAttribute("aria-label"), text: btn.textContent };
+    btn.click();
+    return { before, code: boxes[0].querySelector("code").textContent };
+  })()` })).result.value;
+  await new Promise((r) => setTimeout(r, 200));
+  const after = (await p.send("Runtime.evaluate", { returnByValue: true, expression: `({
+    copied: window.__copied, label: document.querySelector('.os-panel[data-os="linux"] .copy-btn').textContent,
+    status: document.querySelector('#install-picker [role="status"].sr-only').textContent })` })).result.value;
+  if (info.before.count < 3 || info.before.buttons !== info.before.count) add(url, "-", "install-page", `${info.before.buttons} copy buttons for ${info.before.count} command blocks`);
+  if (!/^Copy .*commands$/.test(info.before.name || "")) add(url, "-", "install-page", `copy button accessible name: "${info.before.name}"`);
+  expect("the copy button copies exactly the commands shown", after.copied, info.code);
+  expect("the copy button confirms", after.label, "Copied");
+  if (!/Copied/.test(after.status)) add(url, "-", "install-page", `no screen-reader confirmation: "${after.status}"`);
+  if (!/curl -fsSL https:\/\/aallbrig\.github\.io\/treemand\/install\.sh \| sh/.test(info.code)) add(url, "-", "install-page", "the first Linux command is not the install script one-liner");
+  p.close();
+}
+await installPageScenarios();
+
 const titles = new Map();
 let audited = 0;
 for (const vp of VIEWPORTS) {

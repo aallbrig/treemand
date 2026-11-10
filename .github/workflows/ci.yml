@@ -127,3 +127,44 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 0
         run: go build -ldflags="-s -w" -o treemand_${{ matrix.goos }}_${{ matrix.goarch }} .
+
+  # The published install script against the real latest release, in clean
+  # containers (no Go, no treemand, minimal tools) and on macOS (shasum, not
+  # sha256sum). Needs network and an existing release.
+  install-script:
+    name: install.sh in a clean container (${{ matrix.image }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: debian:stable-slim
+            prep: apt-get update -qq && apt-get install -y -qq curl ca-certificates
+          - image: ubuntu:24.04
+            prep: apt-get update -qq && apt-get install -y -qq curl ca-certificates
+          - image: alpine:3
+            prep: apk add --no-cache curl ca-certificates
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the latest release, then a pinned one
+        run: |
+          docker run --rm -v "$PWD/www/treemand/static/install.sh:/install.sh:ro" ${{ matrix.image }} sh -c '
+            set -eu
+            ${{ matrix.prep }} >/dev/null
+            sh /install.sh
+            export PATH="$HOME/.local/bin:$PATH"
+            treemand version
+            test -f "$HOME/.local/share/man/man1/treemand.1"
+            sh /install.sh --version v0.5.0 --dir /tmp/pinned
+            /tmp/pinned/treemand version | grep -q v0.5.0'
+
+  install-script-macos:
+    name: install.sh on macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the latest release
+        run: |
+          sh www/treemand/static/install.sh
+          "$HOME/.local/bin/treemand" version
+

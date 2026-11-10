@@ -1,0 +1,23 @@
+{{- /* Install channels per OS from data/install.yaml. Every panel is plain HTML, so the page works without JavaScript; install.js adds OS detection, the manual switch and copy buttons. */ -}}
+{{- $data := .Site.Data.install -}}
+<div class="install-picker" id="install-picker">
+  <div class="os-switch" id="os-switch" role="group" aria-label="Show install steps for" hidden>
+    {{- range $data.os }}
+    <button type="button" class="os-btn" data-os="{{ .id }}" aria-pressed="false">{{ .name }}</button>
+    {{- end }}
+  </div>
+  <p class="os-detected" id="os-detected" role="status" hidden></p>
+  {{- range $data.os }}
+  <section class="os-panel" id="install-{{ .id }}" data-os="{{ .id }}" aria-labelledby="install-{{ .id }}-title">
+    <h2 id="install-{{ .id }}-title">{{ .name }}</h2>
+    {{- range .channels }}
+    <article class="channel{{ if .recommended }} recommended{{ end }}">
+      <h3>{{ .title }}{{ if .recommended }} <span class="tag">Recommended</span>{{ end }}</h3>
+      {{- with .note }}<p>{{ . | markdownify }}</p>{{ end }}
+      <div class="cmd"><pre><code>{{ delimit .commands "\n" }}</code></pre></div>
+    </article>
+    {{- end }}
+  </section>
+  {{- end }}
+</div>
+<script defer src="{{ "install.js" | relURL }}"></script>

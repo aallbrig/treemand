@@ -1,45 +1,28 @@
 ---
 title: "Installation"
-description: "Install treemand with Homebrew, a release binary for Linux, macOS or Windows, or go install, and check that it works."
+description: "Install treemand on macOS, Linux or Windows: Homebrew, a checksum-verified install script, release binaries or go install, with copy buttons for each."
 ---
 
 # Installation
 
-## Homebrew (macOS / Linux)
+Pick your system and copy the commands. We guess your system from your browser; use the buttons to change it. The install script and the release archives are checksum-verified, and nothing here needs admin rights unless you ask for `--system`.
+
+{{< install >}}
+
+## Install script options
+
+The script is [`install.sh`](https://aallbrig.github.io/treemand/install.sh): read it before you pipe it to a shell, and run it with `--help` for every option. The checksum guards against a corrupted or truncated download; it comes from the same GitHub release as the archive, so it does not defend against a compromised release.
 
 ```bash
-brew tap aallbrig/tap
-brew install treemand
+curl -fsSL https://aallbrig.github.io/treemand/install.sh | sh -s -- --version v0.6.1   # a specific release
+curl -fsSL https://aallbrig.github.io/treemand/install.sh | sh -s -- --dir ~/bin         # another directory
+curl -fsSL https://aallbrig.github.io/treemand/install.sh | sh -s -- --system            # /usr/local/bin, asks for admin rights only if needed
+curl -fsSL https://aallbrig.github.io/treemand/install.sh | sh -s -- --dry-run           # show what it would do
 ```
 
-## Go Install
+## Build from source
 
-```bash
-go install github.com/aallbrig/treemand/cli/treemand@latest
-```
-
-Requires Go 1.25+. The binary is placed in `$GOPATH/bin` (usually `~/go/bin`).
-
-## Pre-built Binaries
-
-Download the latest release for your platform from the [releases page](https://github.com/aallbrig/treemand/releases):
-
-| Platform | Architecture | Download |
-|----------|-------------|---------|
-| Linux | amd64 | `treemand_linux_amd64.tar.gz` |
-| Linux | arm64 | `treemand_linux_arm64.tar.gz` |
-| macOS | amd64 | `treemand_darwin_amd64.tar.gz` |
-| macOS | arm64 (Apple Silicon) | `treemand_darwin_arm64.tar.gz` |
-| Windows | amd64 | `treemand_windows_amd64.zip` |
-
-### Linux/macOS quick install
-
-```bash
-curl -L https://github.com/aallbrig/treemand/releases/latest/download/treemand_linux_amd64.tar.gz | tar xz
-sudo mv treemand /usr/local/bin/
-```
-
-## Build from Source
+Requires Go 1.26+.
 
 ```bash
 git clone https://github.com/aallbrig/treemand.git
@@ -47,7 +30,7 @@ cd treemand/cli/treemand
 go build -o treemand .
 ```
 
-## Shell Completions
+## Shell completions
 
 After installing, set up completions for your shell:
 
@@ -65,11 +48,13 @@ treemand completion fish > ~/.config/fish/completions/treemand.fish
 treemand completion powershell | Out-String | Invoke-Expression
 ```
 
-Once enabled, `treemand [Tab]` will suggest CLIs you've already explored from the cache.
-
-## Verify Installation
+## Verify the installation
 
 ```bash
 treemand version
-# treemand v0.2.0 (...)
+# prints the version, commit and build date
 ```
+
+## Update or uninstall
+
+Re-run the install script (or `brew upgrade treemand`) to update. To uninstall a script install, delete `~/.local/bin/treemand` and `~/.local/share/man/man1/treemand.1`; for Homebrew, `brew uninstall treemand`.
