@@ -205,6 +205,22 @@ tasks:
     cmds:
       - go test -cover ./...
 
+  coverage:check:
+    desc: Fail if any package is below its floor in scripts/coverage_floor.tsv
+    cmds:
+      - bash scripts/check_coverage.sh
+
+  coverage:update-floor:
+    desc: Deliberately ratchet the coverage floors to today's coverage (review the diff)
+    cmds:
+      - bash scripts/check_coverage.sh --update
+
+  fuzz:
+    desc: "Fuzz a help parser for a while: task fuzz -- FuzzParseHelpOutput 60s"
+    dir: cli/treemand
+    cmds:
+      - go test -run '^$' -fuzz={{index (splitList " " .CLI_ARGS) 0 | default "FuzzParseHelpOutput"}} -fuzztime={{index (splitList " " .CLI_ARGS) 1 | default "30s"}} ./discovery
+
   chaos:
     desc: Reliability suite - hostile fake CLIs must not hang, panic or exhaust memory
     cmds:
@@ -272,6 +288,7 @@ tasks:
       - task: docs:check
       - task: site:check
       - task: corpus:test
+      - task: coverage:check
       - task: chaos
       - task: loop:test-session
 
