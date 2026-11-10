@@ -189,6 +189,25 @@ subcommands, flags or the description of any of them. Currently covered:
 `ssh`, `systemctl`, `tar`, `tmux`. (`cargo` and `terraform` are planned: capture them on a
 machine that has them with `task corpus:capture -- cargo terraform`.)
 
+## How treemand compares
+
+Other tools turn `--help` into a tree: [helptree](https://pkg.go.dev/github.com/kwrkb/helptree) (Go),
+[cli-tree](https://www.pkgstats.com/pkg:@crafter/cli-tree) (JS), [mandible](https://docs.rs/crate/mandible/0.2.0)
+and [te-cli](https://docs.rs/te-cli/0.1.0) (Rust). A fair summary, from their published documentation
+(we have not run them side by side yet, so these are their claims):
+
+- **Where treemand is ahead:** it both browses the tree *and* assembles and runs the command, works
+  in a browser (the Try page), caches results so repeat runs are instant, prints JSON and YAML, runs on
+  Windows, and publishes its quality evidence (the [tested CLIs](#tested-clis) corpus, fuzzing and
+  end-to-end tests).
+- **Where peers are ahead:** mandible reads more sources (completion scripts, native protocols, user
+  overrides), has a `--doctor` report and never probes destructive tools; helptree and mandible open
+  instantly and fill the tree in (treemand waits for discovery); cli-tree reads help text from stdin and
+  can write HTML; te-cli keeps command history and presets; mandible ships `.deb` and `.rpm` packages.
+
+Each of those gaps is a tracked issue. The full comparison with sources is in
+[docs/research](docs/research/20261110_002254_UTC_landscape.md).
+
 ## Cache
 
 Discovered trees are cached in SQLite (`~/.treemand/cache.db`).
