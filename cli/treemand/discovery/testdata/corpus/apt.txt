@@ -1,0 +1,49 @@
+This is the Linux Mint "apt" command.
+
+This commands acts as a wrapper for the APT package manager and many other useful tools such as apt-get, apt-cache, apt-mark, dpkg, aptitude...etc.
+
+It is installed in /usr/local/bin/apt. To use the upstream apt command directly type /usr/bin/apt.
+
+Usage: apt command [options]
+       apt help command [options]
+
+Commands:
+  add-repository   - Add entries to apt sources.list
+  autoclean        - Erase cache for packages no longer available
+  autopurge        - Erase system-wide config files left by removed packages
+  autoremove       - Remove dependency packages no longer required
+  build            - Build binary or source packages from sources
+  build-dep        - Configure build-dependencies for source packages
+  changelog        - View a package's changelog
+  check            - Verify there are no broken dependencies
+  clean            - Erase downloaded archive files
+  contains         - List packages containing a file
+  content          - List files contained in and installed by a package(s)
+  deb              - Install a local .deb package
+  depends          - Show package dependency information
+  dist-upgrade     - Fully upgrade the system by allowing other package changes
+  download         - Download packages to the current working directory
+  edit-sources     - Edit /etc/apt/sources.list with your preferred text editor
+  dselect-upgrade  - Follow dselect selections
+  full-upgrade     - Same as 'dist-upgrade'
+  held             - List all held packages
+  help             - Show help for a command
+  hold             - Hold a package
+  install          - Install and/or upgrade packages
+  list             - List packages handled by the system (e.g., installed)
+  policy           - Show policy settings
+  purge            - Remove packages and their system-wide configuration files
+  recommends       - List missing recommended packages for a particular package
+  rdepends         - Show reverse dependency information for a package
+  reinstall        - Reinstall packages or install if not yet installed
+  remove           - Remove packages
+  search           - Search for a package by name and/or expression
+  show             - Display detailed information about a package
+  showhold         - Same as 'held'
+  showsrc          - Display source package records matching the given package
+  source           - Download source archives
+  sources          - Same as 'edit-sources'
+  unhold           - Unhold a package
+  update           - Download lists of new/upgradable packages
+  upgrade          - Perform a safe upgrade
+  version          - Show the installed version of a package

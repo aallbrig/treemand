@@ -126,6 +126,15 @@ treemand --no-color git            # disable color output
 treemand --no-cache git            # bypass the discovery cache
 ```
 
+## Tested CLIs
+
+Parser quality is guarded by a regression corpus: sanitized `--help` captures of real CLIs
+live in `cli/treemand/discovery/testdata/corpus/`, and `task ci` fails if a change loses
+subcommands, flags or the description of any of them. Currently covered:
+`apt`, `aws`, `curl`, `docker`, `gh`, `git`, `go`, `helm`, `jq`, `kubectl`, `npm`, `pip`,
+`ssh`, `systemctl`, `tar`, `tmux`. (`cargo` and `terraform` are planned: capture them on a
+machine that has them with `task corpus:capture -- cargo terraform`.)
+
 ## Cache
 
 Discovered trees are cached in SQLite (`~/.treemand/cache.db`).

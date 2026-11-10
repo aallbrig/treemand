@@ -726,3 +726,20 @@ func TestParseHelpOutput_kubectlOptionsStyle(t *testing.T) {
 		t.Errorf("--all-namespaces description = %q, want the next-line text", d)
 	}
 }
+
+// "Environment Commands:" matches both the commands and the free-text
+// "environment" keyword. Parsing must not depend on map iteration order: the
+// section holds commands, every time.
+func TestParseHelpOutput_ambiguousSectionHeaderIsDeterministic(t *testing.T) {
+	text := "Tool\n\nUsage:\n  tool [command]\n\nEnvironment Commands:\n" +
+		"  set-environment      Set one or more environment variables\n" +
+		"  unset-environment    Unset one or more environment variables\n" +
+		"  show-environment     Dump environment\n\n" +
+		"Options:\n  --help   Show help\n"
+	for i := 0; i < 200; i++ {
+		p := discovery.ParseHelpOutputFor(text, "tool")
+		if len(p.Subcommands) != 3 {
+			t.Fatalf("parse %d: got %d subcommands %v, want 3", i, len(p.Subcommands), p.Subcommands)
+		}
+	}
+}

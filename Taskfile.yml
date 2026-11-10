@@ -184,6 +184,21 @@ tasks:
     cmds:
       - bash scripts/loop/corpus.sh {{.CLI_ARGS}}
 
+  corpus:test:
+    desc: Parse the committed help fixtures and fail if any metric regressed against the baseline
+    cmds:
+      - go test -count=1 -run TestCorpus ./cli/treemand/discovery
+
+  corpus:update-baseline:
+    desc: Deliberately rewrite the corpus baseline from current parser output (review the diff)
+    cmds:
+      - go test -count=1 -run TestCorpus_noRegressionAgainstBaseline ./cli/treemand/discovery -update
+
+  corpus:capture:
+    desc: "Re-capture help fixtures from CLIs installed here: task corpus:capture -- [cli...]"
+    cmds:
+      - bash scripts/capture_corpus.sh {{.CLI_ARGS}}
+
   coverage:
     desc: Per-package Go test coverage
     dir: cli/treemand
@@ -256,6 +271,7 @@ tasks:
       - task: loop:check
       - task: docs:check
       - task: site:check
+      - task: corpus:test
       - task: chaos
       - task: loop:test-session
 
