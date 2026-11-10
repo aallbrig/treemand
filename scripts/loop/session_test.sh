@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Exercise the dev session and loop control on an ISOLATED tmux server with a stub
 # agent. Never touches the live tmux server or starts a real claude.
-# shellcheck disable=SC2015,SC2016,SC2317
+# shellcheck disable=SC2015,SC2016,SC2317,SC2329
 set -uo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(cd "$here/../.." && pwd)"
