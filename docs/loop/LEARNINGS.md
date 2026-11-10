@@ -57,3 +57,6 @@ v0.4.1 had already met #35 cold-time bar (all corpus CLIs under 10s), so I re-sc
 
 ### Cycle 16 - 2026-11-10 - released - #36 v0.4.3
 Committed a 16-CLI help-fixture corpus with a baseline gate in task ci. The first CI run caught real nondeterminism: detectSection ranged over a map, so "Environment Commands:" (matches commands and environment) parsed as commands or free text at random (systemctl 49 or 53 subcommands). Fixed with a ranked, deterministic choice. A regression corpus pays for itself immediately: run any new parse path 25 times. release.sh smoke hit a transient api.github.com error after a good release; re-running smoke.sh alone is the right recovery, not a rollback. Untested here: cargo and terraform fixtures (not installed).
+
+### Cycle 17 - 2026-11-10 - released - #37 v0.4.4
+Re-scoped #37 into floor + fuzz + cache/config now and cmd/tui/presets as #74-#76. A coverage floor must hold on GitHub CI, not just locally: cmd measured 67.9% here but 64.2% on the runner (tests use CLIs installed on a dev box), so the first push failed CI; floors are now the lower of the two environments. Fuzzing the parser (about 83k execs) and timing 800KB adversarial inputs found nothing, so the corpus-time determinism fix last cycle was the real find. After pushing, checks take a moment to register: pr:merge reports "no checks reported" if run too early.
