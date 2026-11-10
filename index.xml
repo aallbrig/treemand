@@ -347,56 +347,20 @@ terminal, plus JSON and YAML for piping into scripts and tools:&lt;/p&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;treemand --output&lt;span style="color:#ff7b72;font-weight:bold"&gt;=&lt;/span&gt;yaml git &lt;span style="color:#8b949e;font-style:italic"&gt;# YAML — same structure, easier to scan&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;JSON/YAML include the complete tree: subcommand names, descriptions, flags
 with types, and positional arguments. Pipe JSON to &lt;code&gt;jq&lt;/code&gt;:&lt;/p&gt;</description></item><item><title>Installation</title><link>https://aallbrig.github.io/treemand/installation/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://aallbrig.github.io/treemand/installation/</guid><description>&lt;h1 id="installation"&gt;Installation&lt;/h1&gt;
-&lt;h2 id="homebrew-macos--linux"&gt;Homebrew (macOS / Linux)&lt;/h2&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;brew tap aallbrig/tap
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;brew install treemand
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id="go-install"&gt;Go Install&lt;/h2&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;go install github.com/aallbrig/treemand/cli/treemand@latest
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Requires Go 1.25+. The binary is placed in &lt;code&gt;$GOPATH/bin&lt;/code&gt; (usually &lt;code&gt;~/go/bin&lt;/code&gt;).&lt;/p&gt;
-&lt;h2 id="pre-built-binaries"&gt;Pre-built Binaries&lt;/h2&gt;
-&lt;p&gt;Download the latest release for your platform from the &lt;a href="https://github.com/aallbrig/treemand/releases"&gt;releases page&lt;/a&gt;:&lt;/p&gt;
-&lt;table&gt;
- &lt;thead&gt;
- &lt;tr&gt;
- &lt;th&gt;Platform&lt;/th&gt;
- &lt;th&gt;Architecture&lt;/th&gt;
- &lt;th&gt;Download&lt;/th&gt;
- &lt;/tr&gt;
- &lt;/thead&gt;
- &lt;tbody&gt;
- &lt;tr&gt;
- &lt;td&gt;Linux&lt;/td&gt;
- &lt;td&gt;amd64&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;treemand_linux_amd64.tar.gz&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;Linux&lt;/td&gt;
- &lt;td&gt;arm64&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;treemand_linux_arm64.tar.gz&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;macOS&lt;/td&gt;
- &lt;td&gt;amd64&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;treemand_darwin_amd64.tar.gz&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;macOS&lt;/td&gt;
- &lt;td&gt;arm64 (Apple Silicon)&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;treemand_darwin_arm64.tar.gz&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;tr&gt;
- &lt;td&gt;Windows&lt;/td&gt;
- &lt;td&gt;amd64&lt;/td&gt;
- &lt;td&gt;&lt;code&gt;treemand_windows_amd64.zip&lt;/code&gt;&lt;/td&gt;
- &lt;/tr&gt;
- &lt;/tbody&gt;
-&lt;/table&gt;
-&lt;h3 id="linuxmacos-quick-install"&gt;Linux/macOS quick install&lt;/h3&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;curl -L https://github.com/aallbrig/treemand/releases/latest/download/treemand_linux_amd64.tar.gz | tar xz
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;sudo mv treemand /usr/local/bin/
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id="build-from-source"&gt;Build from Source&lt;/h2&gt;
-&lt;div class="highlight"&gt;&lt;pre tabindex="0" style="color:#e6edf3;background-color:#0d1117;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"&gt;&lt;code class="language-bash" data-lang="bash"&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;git clone https://github.com/aallbrig/treemand.git
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;cd treemand/cli/treemand
-&lt;/span&gt;&lt;/span&gt;&lt;span style="display:flex;"&gt;&lt;span&gt;go build -o treemand .
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h2 id="shell-completions"&gt;Shell Completions&lt;/h2&gt;
-&lt;p&gt;After installing, set up completions for your shell:&lt;/p&gt;</description></item><item><title>Try It</title><link>https://aallbrig.github.io/treemand/try/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://aallbrig.github.io/treemand/try/</guid><description/></item></channel></rss>
+&lt;p&gt;Pick your system and copy the commands. We guess your system from your browser; use the buttons to change it. The install script and the release archives are checksum-verified, and nothing here needs admin rights unless you ask for &lt;code&gt;--system&lt;/code&gt;.&lt;/p&gt;
+&lt;div class="install-picker" id="install-picker"&gt;
+ &lt;div class="os-switch" id="os-switch" role="group" aria-label="Show install steps for" hidden&gt;
+ &lt;button type="button" class="os-btn" data-os="macos" aria-pressed="false"&gt;macOS&lt;/button&gt;
+ &lt;button type="button" class="os-btn" data-os="linux" aria-pressed="false"&gt;Linux&lt;/button&gt;
+ &lt;button type="button" class="os-btn" data-os="windows" aria-pressed="false"&gt;Windows&lt;/button&gt;
+ &lt;/div&gt;
+ &lt;p class="os-detected" id="os-detected" role="status" hidden&gt;&lt;/p&gt;
+ &lt;section class="os-panel" id="install-macos" data-os="macos" aria-labelledby="install-macos-title"&gt;
+ &lt;h2 id="install-macos-title"&gt;macOS&lt;/h2&gt;
+ &lt;article class="channel recommended"&gt;
+ &lt;h3&gt;Homebrew &lt;span class="tag"&gt;Recommended&lt;/span&gt;&lt;/h3&gt;&lt;p&gt;Installs and updates treemand and its man page.&lt;/p&gt;
+ &lt;div class="cmd"&gt;&lt;pre&gt;&lt;code&gt;brew tap aallbrig/tap
+brew install treemand&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+ &lt;/article&gt;
+ &lt;article class="channel"&gt;
+ &lt;h3&gt;Install script&lt;/h3&gt;&lt;p&gt;Downloads the release for your Mac (Apple Silicon or Intel), verifies its SHA-256 checksum and installs to &lt;code&gt;~/.local/bin&lt;/code&gt;. No admin rights needed.&lt;/p&gt;</description></item><item><title>Try It</title><link>https://aallbrig.github.io/treemand/try/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://aallbrig.github.io/treemand/try/</guid><description/></item></channel></rss>
