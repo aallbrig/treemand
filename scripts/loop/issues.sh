@@ -2,7 +2,8 @@
 # The loop's only door to the work tracker. Everything it reads passes the
 # trusted-author filter (LOOP_TRUSTED_AUTHORS), so text written by anyone else
 # never reaches the agent as work or instructions.
-#   ready       open loop:ready issues by trusted authors, oldest first (TSV: number, title)
+#   ready [label,...]  open loop:ready issues by trusted authors, oldest first (TSV: number, title);
+#               with labels, only issues carrying one of them (e.g. area:perf,area:reliability)
 #   proposed    open loop:proposed issues by trusted authors
 #   view N      one issue: title, body and trusted-author comments; exit 3 if the author is untrusted
 #   untrusted   count of open issues by other authors (numbers only, for the retro log)
@@ -11,18 +12,19 @@ set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 trusted_json="$(jq -nc --arg t "$LOOP_TRUSTED_AUTHORS" '$t | split(",") | map(gsub("\\s";""))')"
 
-list() { # list <label>
+list() { # list <label> [any-of-labels]
   gh issue list --state open --label "$1" --limit 100 \
     --json number,title,author,labels,createdAt |
-    jq -r --argjson t "$trusted_json" '
+    jq -r --argjson t "$trusted_json" --arg any "${2:-}" '
       [ .[]
         | select(.author.login as $a | $t | index($a))
+        | select($any == "" or ([.labels[].name] | any(. as $l | ($any | split(",")) | index($l))))
         | select([.labels[].name] | any(. == "loop:blocked" or . == "human:wip" or . == "loop:in-progress") | not) ]
       | sort_by(.createdAt) | .[] | "\(.number)\t\(.title)"'
 }
 
 case "${1:-}" in
-  ready) list loop:ready ;;
+  ready) list loop:ready "${2:-}" ;;
   proposed) list loop:proposed ;;
   view)
     n="${2:?usage: issues.sh view N}"
