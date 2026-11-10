@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -222,6 +223,30 @@ func (t *TreeModel) Top() {
 }
 
 // Bottom jumps the cursor to the last row.
+// pageStep is how many rows a page key moves: a screenful less one, so the row
+// you were on stays in view as context.
+func (t *TreeModel) pageStep() int {
+	if step := t.height - 2 - 1; step > 1 {
+		return step
+	}
+	return 1
+}
+
+// PageDown moves the cursor down by a screenful, stopping at the last row.
+func (t *TreeModel) PageDown() {
+	if len(t.rows) == 0 {
+		return
+	}
+	t.cursor = min(t.cursor+t.pageStep(), len(t.rows)-1)
+	t.scrollIntoView()
+}
+
+// PageUp moves the cursor up by a screenful, stopping at the first row.
+func (t *TreeModel) PageUp() {
+	t.cursor = max(t.cursor-t.pageStep(), 0)
+	t.scrollIntoView()
+}
+
 func (t *TreeModel) Bottom() {
 	if len(t.rows) > 0 {
 		t.cursor = len(t.rows) - 1
@@ -542,7 +567,27 @@ func (t *TreeModel) ExpandAll() {
 	t.ExpandAllFrom(t.root, 0)
 	// Also expand all sections so flags/positionals are visible.
 	t.expandAllSections(t.root, 0)
+	t.reserveRows(estimateRows(t.root))
 	t.rebuild()
+}
+
+// estimateRows is an upper bound on the rows a fully expanded tree needs: the
+// node, one row per flag and positional, and a section header for each kind.
+func estimateRows(n *models.Node) int {
+	c := 1 + len(n.Flags) + len(n.Positionals) + 3
+	for _, ch := range n.Children {
+		if !ch.Virtual {
+			c += estimateRows(ch)
+		}
+	}
+	return c
+}
+
+// reserveRows makes room for n rows so a big rebuild appends without growing.
+func (t *TreeModel) reserveRows(n int) {
+	if cap(t.rows) < n {
+		t.rows = make([]treeRow, 0, n)
+	}
 }
 
 // expandAllSections recursively marks every section under node as expanded.
@@ -1125,7 +1170,9 @@ func (t *TreeModel) renderPositionalRow(row treeRow, selected bool, maxW int) st
 // ---------- rebuild ----------
 
 func (t *TreeModel) rebuild() {
-	t.rows = nil
+	// Keep the backing array: rebuilding after every expand/collapse must not
+	// reallocate and copy tens of thousands of rows on a big tree.
+	t.rows = t.rows[:0]
 	t.flattenNode(t.root, 0, "", true)
 	if t.cursor >= len(t.rows) && len(t.rows) > 0 {
 		t.cursor = len(t.rows) - 1
@@ -1199,7 +1246,7 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int, graphPrefix string
 				kind:           rowKindSection,
 				depth:          depth + 1,
 				sectionKey:     sKey,
-				sectionLabel:   fmt.Sprintf("Inherited flags (%d)", len(inheritedFlags)),
+				sectionLabel:   "Inherited flags (" + strconv.Itoa(len(inheritedFlags)) + ")",
 				sectionDefault: false,
 			})
 		}
@@ -1227,7 +1274,7 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int, graphPrefix string
 				kind:           rowKindSection,
 				depth:          depth + 1,
 				sectionKey:     sKey,
-				sectionLabel:   fmt.Sprintf("Flags (%d)", len(ownFlags)),
+				sectionLabel:   "Flags (" + strconv.Itoa(len(ownFlags)) + ")",
 				sectionDefault: flagDefault,
 			})
 		}
@@ -1255,7 +1302,7 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int, graphPrefix string
 				kind:           rowKindSection,
 				depth:          depth + 1,
 				sectionKey:     sKey,
-				sectionLabel:   fmt.Sprintf("Subcommands (%d)", len(visChildren)),
+				sectionLabel:   "Subcommands (" + strconv.Itoa(len(visChildren)) + ")",
 				sectionDefault: subDefault,
 			})
 		}
@@ -1284,7 +1331,7 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int, graphPrefix string
 				kind:           rowKindSection,
 				depth:          depth + 1,
 				sectionKey:     sKey,
-				sectionLabel:   fmt.Sprintf("Positional arguments (%d)", len(node.Positionals)),
+				sectionLabel:   "Positional arguments (" + strconv.Itoa(len(node.Positionals)) + ")",
 				sectionDefault: posDefault,
 			})
 		}
@@ -1326,7 +1373,7 @@ func (t *TreeModel) scrollIntoView() {
 // ---------- helpers ----------
 
 func nodeKey(n *models.Node, depth int) string {
-	return fmt.Sprintf("%s@%d", strings.Join(n.FullPath, "/"), depth)
+	return strings.Join(n.FullPath, "/") + "@" + strconv.Itoa(depth)
 }
 
 func pathsEqual(a, b []string) bool {

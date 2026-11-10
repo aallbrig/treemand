@@ -153,6 +153,16 @@ func (m *Model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.syncSelected()
 		return m, nil
 
+	// Page keys work in every navigation scheme.
+	case "pgdown", "ctrl+d":
+		m.tree.PageDown()
+		m.syncSelected()
+		return m, m.lazyExpandIfStub()
+	case "pgup", "ctrl+u":
+		m.tree.PageUp()
+		m.syncSelected()
+		return m, m.lazyExpandIfStub()
+
 	// g: first press sets pendingG; second 'g' triggers jump to top.
 	case "g":
 		m.pendingG = true

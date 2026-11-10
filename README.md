@@ -91,12 +91,14 @@ The preview bar at the top updates live as you build the command.
 | `→` or `l` | Expand node (first press); enter first child (second press) |
 | `←` or `h` | Collapse node (first press); go to parent (second press) |
 | `Shift+→`/`Shift+←` | Expand / collapse entire subtree |
+| `PgUp`/`PgDn` or `Ctrl+U`/`Ctrl+D` | Move up / down a screenful (handy on 400-command CLIs like `aws`) |
 | `gg` / `G` | Jump to top / bottom of tree |
+| `Space` | Toggle expand / collapse |
 | `Enter` | Set command in preview / add flag / fill positional |
 | `f` / `F` | Open flag picker modal |
 | `e` / `E` | Expand all / collapse all |
 | `S` | Toggle section headers (Sub commands, Flags, etc.) |
-| `T` | Cycle display style (default → columns → compact → graph) |
+| `t` / `T` | Cycle display style (default → columns → compact → graph) |
 | `H` / `Ctrl+P` | Toggle help pane (uppercase `H` only; lowercase `h` is Left in vim mode) |
 | `Tab` / `Shift+Tab` | Cycle pane focus |
 | `/` | Fuzzy filter |
@@ -105,8 +107,8 @@ The preview bar at the top updates live as you build the command.
 | `Ctrl+K` | Clear the preview bar |
 | `Ctrl+E` | Copy or execute the assembled command |
 | `Ctrl+S` | Cycle navigation scheme (arrows → vim → WASD) |
-| `R` | Re-discover / refresh children of selected node |
-| `?` | Show all key bindings |
+| `r` / `R` | Re-discover / refresh children of selected node |
+| `?` | Show all key bindings (also named in the footer: `?:keys`) |
 | `q` / `Esc` | Quit |
 
 ### Mouse Support
