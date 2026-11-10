@@ -42,9 +42,22 @@ func (h *HelpDiscoverer) Name() string { return "help" }
 func (h *HelpDiscoverer) Discover(ctx context.Context, cliName string, args []string) (*models.Node, error) {
 	node, err := h.discover(ctx, cliName, args, 0)
 	if err == nil && node != nil {
+		if node.Description == "" && len(args) == 0 {
+			node.Description = manOneLiner(ctx, cliName)
+		}
 		models.MarkInheritedFlags(node)
 	}
 	return node, err
+}
+
+// manOneLiner returns the NAME one-liner from cliName's man page, or "" when
+// there is no man page. Used when --help is only a usage synopsis.
+func manOneLiner(ctx context.Context, cliName string) string {
+	plain, err := NewManDiscoverer().fetchManPage(ctx, cliName)
+	if err != nil || plain == "" {
+		return ""
+	}
+	return ParseHelpOutput(plain).Description
 }
 
 func (h *HelpDiscoverer) discover(ctx context.Context, cliName string, args []string, depth int) (*models.Node, error) {
@@ -389,7 +402,7 @@ var (
 	// used as the command description.
 	manpageHeaderRe = regexp.MustCompile(`^[A-Z][A-Z0-9_.-]+\(\d*\)\s`)
 	// nameSectionDescRe matches the NAME section body: "   git-clone - Short desc"
-	nameSectionDescRe = regexp.MustCompile(`^[\s\t]+\S.*?\s+-\s+(.+)$`)
+	nameSectionDescRe = regexp.MustCompile(`^[\s\t]+\S.*?\s+[-\x{2013}\x{2014}]\s+(.+)$`)
 	// subcommand line: 2–8 leading spaces, lowercase word; args like [PATTERN...] may appear
 	// between name and description (e.g. systemctl's "  list-units [PAT...]   description")
 	subcmdRe = regexp.MustCompile(`^\s{2,8}([a-z][a-z0-9_-]*)(?:.*?\s{2,}(.+))?$`)
@@ -528,9 +541,18 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 		}
 	}
 
+	// inUsageBlock is true from a "usage:" line through its indented
+	// continuation lines, which are synopsis text and never a description.
+	inUsageBlock := false
 	for i, rawLine := range lines {
 		trimmed := strings.TrimSpace(rawLine)
 		lower := strings.ToLower(trimmed)
+		switch {
+		case strings.HasPrefix(lower, "usage:"):
+			inUsageBlock = true
+		case trimmed == "" || (rawLine[0] != ' ' && rawLine[0] != '\t'):
+			inUsageBlock = false
+		}
 
 		// Flush a pending AWS-style flag when we encounter a non-empty line.
 		if pendingFlag != nil && trimmed != "" {
@@ -601,7 +623,8 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 		}
 		// Priority 2 — first non-empty, non-header, non-flag line in first 10 lines.
 		// Skip man-page header lines like "GIT-CLONE(1)   Git Manual".
-		if result.Description == "" && i < 10 && trimmed != "" &&
+		if result.Description == "" && i < 10 && trimmed != "" && !inUsageBlock &&
+			!introducesIndentedList(lines, i) && !listRowRe.MatchString(rawLine) &&
 			!manpageHeaderRe.MatchString(trimmed) &&
 			!strings.HasPrefix(trimmed, "-") &&
 			!strings.HasSuffix(trimmed, " -") && // empty man NAME body: "aws -"
@@ -913,6 +936,22 @@ func SanitizeHelp(s string) string {
 
 // isUsageLine reports whether line is a bare usage synopsis such as
 // "stripe charges <operation> [parameters...]" rather than prose.
+// listRowRe matches an indented "name   text" row of a command list. Needs 3+
+// spaces so double-spaced justified man-page prose is not mistaken for a row.
+var listRowRe = regexp.MustCompile(`^[ \t]+[a-z][a-z0-9_-]*[ \t]{3,}\S`)
+
+// introducesIndentedList reports whether line i is a heading for the indented
+// block right below it (git's "start a working area (...)" followed by its
+// commands), which makes it a section title rather than a description.
+func introducesIndentedList(lines []string, i int) bool {
+	if i+1 >= len(lines) || lines[i+1] == "" {
+		return false
+	}
+	next := lines[i+1]
+	return (next[0] == ' ' || next[0] == '\t') && strings.TrimSpace(next) != "" &&
+		(lines[i][0] != ' ' && lines[i][0] != '\t')
+}
+
 func isUsageLine(line, cliName string) bool {
 	return strings.HasPrefix(line, cliName+" ") && strings.ContainsAny(line, "<[")
 }
