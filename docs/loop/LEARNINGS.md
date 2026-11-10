@@ -48,3 +48,6 @@ Re-scoped #32 instead of leaving it parked (new rule: decide, then ship): stubs 
 
 ### Cycle 13 - 2026-11-10 - released - #33 v0.4.0
 Added a root-only list-commands fallback (tmux: 1 node to 91, all with man-derived descriptions and synopsis flags). make and other target runners are out of scope and skipped, because probing a target can execute project build rules; documented in the fallback-chain ADR. Minor bump for a new capability.
+
+### Cycle 14 - 2026-11-10 - released - #34 v0.4.1
+#34 had three causes: a per-child 5s deadline shared by a whole subtree (docker/gh), kubectl flag syntax (=false: with the next-line description), and each node running help up to 4 times. Fixing the last cut cold times 2-4x (gh 23s to 7s, npm 30s to 9s), so #35 is mostly addressed. perf:compare flagged apt memory 18 to 118MB, but that is a child process (apt changelog) and the main binary measures the same on this host; history swings 118/17/18, so the apt rss gate is noisy. Never `cd` out of a worktree between commands: edits once landed in the main checkout and had to be moved.
