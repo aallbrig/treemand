@@ -680,3 +680,49 @@ func TestParseHelpOutput_manNameEmDash(t *testing.T) {
 		t.Errorf("description = %q, want %q", p.Description, want)
 	}
 }
+
+const mockKubectlGetHelp = "Display one or many resources.\n\n" +
+	"Examples:\n  # List all pods in ps output format\n  kubectl get pods\n\n" +
+	"Options:\n" +
+	"    -A, --all-namespaces=false:\n" +
+	"\tIf present, list the requested object(s) across all namespaces.\n\n" +
+	"    --chunk-size=500:\n" +
+	"\tReturn large lists in chunks rather than all at once.\n\n" +
+	"    --field-selector='':\n" +
+	"\tSelector (field query) to filter on.\n\n" +
+	"    -f, --filename=[]:\n" +
+	"\tFilename, directory, or URL to files identifying the resource to get from a server.\n\n" +
+	"    -o, --output='':\n" +
+	"\tOutput format.\n\n" +
+	"Usage:\n  kubectl get [(-o|--output=)json|yaml] [options]\n"
+
+func TestParseHelpOutput_kubectlOptionsStyle(t *testing.T) {
+	p := discovery.ParseHelpOutputFor(mockKubectlGetHelp, "kubectl")
+	got := map[string]models.Flag{}
+	for _, f := range p.Flags {
+		got[f.Name] = f
+	}
+	want := map[string]string{
+		"--all-namespaces": "bool",
+		"--chunk-size":     "int",
+		"--field-selector": "string",
+		"--filename":       "list",
+		"--output":         "string",
+	}
+	for name, vt := range want {
+		f, ok := got[name]
+		if !ok {
+			t.Errorf("missing flag %s (have %d flags)", name, len(p.Flags))
+			continue
+		}
+		if f.ValueType != vt {
+			t.Errorf("%s value type = %q, want %q", name, f.ValueType, vt)
+		}
+	}
+	if got["--all-namespaces"].ShortName != "A" {
+		t.Errorf("--all-namespaces short = %q, want A", got["--all-namespaces"].ShortName)
+	}
+	if d := got["--all-namespaces"].Description; !strings.Contains(d, "across all namespaces") {
+		t.Errorf("--all-namespaces description = %q, want the next-line text", d)
+	}
+}
