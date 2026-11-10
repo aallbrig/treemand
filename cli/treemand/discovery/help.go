@@ -61,6 +61,12 @@ func manOneLiner(ctx context.Context, cliName string) string {
 }
 
 func (h *HelpDiscoverer) discover(ctx context.Context, cliName string, args []string, depth int) (*models.Node, error) {
+	return h.discoverWithHelp(ctx, cliName, args, depth, "")
+}
+
+// discoverWithHelp is discover for a node whose help text the caller already
+// has (knownHelp != ""), so the command is not run a second time.
+func (h *HelpDiscoverer) discoverWithHelp(ctx context.Context, cliName string, args []string, depth int, knownHelp string) (*models.Node, error) {
 	fullPath := make([]string, 0, 1+len(args))
 	fullPath = append(fullPath, cliName)
 	fullPath = append(fullPath, args...)
@@ -71,7 +77,10 @@ func (h *HelpDiscoverer) discover(ctx context.Context, cliName string, args []st
 		Discovered: true,
 	}
 
-	helpText, err := h.runHelp(ctx, cliName, args)
+	helpText, err := knownHelp, error(nil)
+	if helpText == "" {
+		helpText, err = h.runHelp(ctx, cliName, args)
+	}
 	if err != nil || helpText == "" {
 		node.DiscoveryErr = fmt.Sprintf("could not get help: %v", err)
 		return node, nil
@@ -130,11 +139,9 @@ func (h *HelpDiscoverer) discover(ctx context.Context, cliName string, args []st
 				defer wg.Done()
 				sem <- struct{}{}
 				defer func() { <-sem }()
-				subCtx, cancel := context.WithTimeout(ctx, h.Timeout)
-				defer cancel()
 				subArgs := append(append([]string{}, args...), sub)
 				subFull := append(append([]string{}, fullPath...), sub)
-				childHelp, err := h.runHelp(subCtx, cliName, subArgs)
+				childHelp, err := h.runHelp(ctx, cliName, subArgs)
 				if err != nil || childHelp == "" {
 					results[i] = result{i, &models.Node{
 						Name:         sub,
@@ -158,7 +165,7 @@ func (h *HelpDiscoverer) discover(ctx context.Context, cliName string, args []st
 					}
 				} else {
 					var cerr error
-					child, cerr = h.discover(subCtx, cliName, subArgs, depth+1)
+					child, cerr = h.discoverWithHelp(ctx, cliName, subArgs, depth+1, childHelp)
 					if cerr != nil {
 						child = &models.Node{Name: sub, FullPath: subFull}
 					}
@@ -236,6 +243,14 @@ var truncatedHelpRe = regexp.MustCompile(`(?i)--help all|--help <category>|not t
 // keeps CombinedOutput blocked long after the timeout.
 const killWaitDelay = time.Second
 
+// commandTimeout is the time allowed for one help command.
+func (h *HelpDiscoverer) commandTimeout() time.Duration {
+	if h.Timeout <= 0 {
+		return 5 * time.Second
+	}
+	return h.Timeout
+}
+
 // runHelp tries to get help text for args under cliName.
 // It attempts --help / -h first, then `help` as a positional fallback
 // (needed for tools like aws that use "aws help" instead of "aws --help").
@@ -243,8 +258,12 @@ func (h *HelpDiscoverer) runHelp(ctx context.Context, cliName string, args []str
 	resolved := resolveBinary(cliName)
 
 	// Helper that runs a command with pager env vars and returns trimmed output.
+	// h.Timeout bounds each single command. It must not wrap a whole subtree:
+	// a deadline shared by a group's children starves the later ones.
 	run := func(cmdArgs []string) string {
-		cmd := exec.CommandContext(ctx, resolved, cmdArgs...) //nolint:gosec
+		cctx, cancel := context.WithTimeout(ctx, h.commandTimeout())
+		defer cancel()
+		cmd := exec.CommandContext(cctx, resolved, cmdArgs...) //nolint:gosec
 		cmd.Env = append(os.Environ(), pagerEnv...)
 		cmd.WaitDelay = killWaitDelay
 		out, _ := cmd.CombinedOutput()
@@ -268,6 +287,8 @@ func (h *HelpDiscoverer) runHelp(ctx context.Context, cliName string, args []str
 		if firstOut == "" {
 			firstOut = s
 		}
+		// --help worked; -h would only be tried if it had not.
+		break
 	}
 
 	// Fallback 1: `<cli> [sub...] help` — used by tools like aws, man wrappers.
@@ -398,8 +419,9 @@ var (
 			`(--[A-Za-z][A-Za-z0-9_-]*)` + // long: --flag
 			`(?:` +
 			`(?:\[=[A-Za-z][A-Za-z0-9_-]*\])` + // [=WHEN] GNU optional-value style
-			`|(?:[= ](?:<([^>]+)>|\[([^\]]+)\]|([A-Za-z][A-Za-z0-9_-]*)))` + // =<type> or =type
+			`|(?:[= ](?:<([^>]+)>|\[([^\]]+)\]|([A-Za-z][A-Za-z0-9_-]*|'[^']*'|\[\]|\d+(?:\.\d+)?)))` + // =<type>, =type, kubectl =false / ='' / =[] / =500
 			`)?` +
+			`:?` + // kubectl: "--flag=false:" with the description on the next line
 			`(?:\s+(.*))?$`, // description (1+ spaces gap)
 	)
 	// short-only flag: -v or -v <value>
@@ -673,6 +695,11 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 				continue
 			}
 			if f, ok := parseFlag(rawLine); ok {
+				// kubectl style: "--flag=false:" then the description on the next line.
+				if f.Description == "" && strings.HasSuffix(trimmed, ":") {
+					pendingFlag = &f
+					continue
+				}
 				addFlag(f)
 			}
 		case secCommands:
@@ -842,7 +869,7 @@ func parseFlag(line string) (models.Flag, bool) {
 		case m[4] != "":
 			f.ValueType = m[4]
 		case m[5] != "":
-			f.ValueType = m[5]
+			f.ValueType = normalizeFlagDefault(m[5])
 		default:
 			f.ValueType = "bool"
 		}
@@ -867,6 +894,22 @@ func parseFlag(line string) (models.Flag, bool) {
 		return f, true
 	}
 	return models.Flag{}, false
+}
+
+// normalizeFlagDefault turns a kubectl-style default shown in place of a type
+// (=false, =500, =”, =[]) into a value type; real type names pass through.
+func normalizeFlagDefault(v string) string {
+	switch {
+	case v == "true" || v == "false":
+		return "bool"
+	case v == "[]":
+		return "list"
+	case strings.HasPrefix(v, "'"):
+		return "string"
+	case v != "" && v[0] >= '0' && v[0] <= '9':
+		return "int"
+	}
+	return v
 }
 
 // positionalPlaceholders are all-caps words in usage lines that represent

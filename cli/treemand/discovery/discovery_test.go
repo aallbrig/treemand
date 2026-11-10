@@ -372,3 +372,97 @@ func TestHelpDiscoverer_rootDescriptionFallsBackToManName(t *testing.T) {
 		t.Errorf("Description = %q, want %q", node.Description, want)
 	}
 }
+
+// The per-command timeout must not become a deadline for a whole subtree: a
+// group with many slow children needs more total time than Timeout, but every
+// single command is fast enough.
+func TestHelpDiscoverer_timeoutIsPerCommandNotPerSubtree(t *testing.T) {
+	dir := t.TempDir()
+	var kids []string
+	for i := 0; i < 16; i++ {
+		kids = append(kids, "k"+string(rune('a'+i)))
+	}
+	script := "#!/bin/sh\n" +
+		"case \"$1\" in\n" +
+		"grp) if [ \"$2\" = \"--help\" ] || [ \"$2\" = \"-h\" ]; then printf 'group help\\n\\nCommands:\\n" + func() string {
+		s := ""
+		for _, k := range kids {
+			s += "  " + k + "   the " + k + " command\\n"
+		}
+		return s
+	}() + "'; exit 0; fi ;;\n" +
+		"esac\n" +
+		"if [ \"$2\" = \"--help\" ] || [ \"$3\" = \"--help\" ] || [ \"$2\" = \"-h\" ] || [ \"$3\" = \"-h\" ]; then sleep 0.5; printf 'leaf help\\n\\nOptions:\\n  --x   an option\\n'; exit 0; fi\n" +
+		"printf 'tool\\n\\nCommands:\\n  grp   a group\\n'\n"
+	if err := os.WriteFile(filepath.Join(dir, "tool"), []byte(script), 0o755); err != nil { //nolint:gosec
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	d := discovery.NewHelpDiscoverer(3)
+	d.Timeout = 1500 * time.Millisecond
+	node, err := d.Discover(context.Background(), "tool", nil)
+	if err != nil {
+		t.Fatalf("Discover() error: %v", err)
+	}
+	var grp *models.Node
+	for _, c := range node.Children {
+		if c.Name == "grp" {
+			grp = c
+		}
+	}
+	if grp == nil {
+		t.Fatalf("grp not discovered; children: %d", len(node.Children))
+	}
+	if len(grp.Children) != 16 {
+		t.Fatalf("grp has %d children, want 16", len(grp.Children))
+	}
+	failed := 0
+	for _, c := range grp.Children {
+		if c.DiscoveryErr != "" {
+			failed++
+		}
+	}
+	if failed > 0 {
+		t.Errorf("%d of 16 children failed discovery although each command takes 0.5s (Timeout 1.5s)", failed)
+	}
+}
+
+// Each node's help should be fetched once: not once for the comparison with
+// the parent and again for the recursion, and not both --help and -h.
+func TestHelpDiscoverer_oneHelpInvocationPerNode(t *testing.T) {
+	dir := t.TempDir()
+	logPath := filepath.Join(dir, "calls.log")
+	script := "#!/bin/sh\n" +
+		"echo \"$@\" >> " + logPath + "\n" +
+		"case \"$1\" in\n" +
+		"alpha|bravo|charlie) printf '%s help\\n\\nOptions:\\n  --x   an option\\n' \"$1\"; exit 0;;\n" +
+		"esac\n" +
+		"printf 'root help\\n\\nCommands:\\n  alpha   first\\n  bravo   second\\n  charlie   third\\n'\n"
+	if err := os.WriteFile(filepath.Join(dir, "tool"), []byte(script), 0o755); err != nil { //nolint:gosec
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	node, err := discovery.NewHelpDiscoverer(2).Discover(context.Background(), "tool", nil)
+	if err != nil {
+		t.Fatalf("Discover() error: %v", err)
+	}
+	if len(node.Children) != 3 {
+		t.Fatalf("got %d children, want 3", len(node.Children))
+	}
+	raw, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	calls := map[string]int{}
+	for _, line := range strings.Split(strings.TrimSpace(string(raw)), "\n") {
+		first := strings.Fields(line)[0]
+		calls[first]++
+	}
+	for _, name := range []string{"alpha", "bravo", "charlie"} {
+		if calls[name] != 1 {
+			t.Errorf("%s help was run %d times, want 1 (all calls: %v)", name, calls[name], calls)
+		}
+	}
+}
