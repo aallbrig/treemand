@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="treemand">
+  <rect width="64" height="64" rx="12" fill="#0d1117"/>
+  <g stroke="#58a6ff" stroke-width="4" stroke-linecap="round" fill="none">
+    <path d="M16 14v36M16 24h18M16 38h18M16 50h18"/>
+  </g>
+  <circle cx="16" cy="14" r="6" fill="#79c0ff"/>
+  <g fill="#58a6ff">
+    <circle cx="40" cy="24" r="5"/>
+    <circle cx="40" cy="38" r="5"/>
+    <circle cx="40" cy="50" r="5"/>
+  </g>
+</svg>

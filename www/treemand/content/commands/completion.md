@@ -1,5 +1,6 @@
 ---
 title: "completion"
+description: "treemand completion: install shell completion for bash, zsh, fish and PowerShell."
 weight: 7
 ---
 
@@ -9,7 +10,7 @@ Generate shell completion scripts for bash, zsh, fish, or PowerShell. Once set
 up, pressing `Tab` after `treemand` suggests CLIs you've already explored from
 the cache.
 
-{{< demo src="demos/cmd_completion.gif" alt="treemand completion demo" >}}
+{{< demo src="demos/cmd_completion.gif" alt="treemand completion demo" width="900" height="420" >}}
 
 ## Setup
 

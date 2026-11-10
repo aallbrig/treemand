@@ -3,14 +3,25 @@ languageCode = "en-us"
 title = "Treemand"
 theme = "minimal"
 
+# Tag and category pages are never used and have no h1 or content.
+disableKinds = ["taxonomy", "term"]
+
 [markup]
+  # github-dark keeps code comments readable (4.5:1 or better) on the dark page;
+  # Hugo's default style draws them at 3.5:1.
+  [markup.highlight]
+    style = "github-dark"
   [markup.goldmark]
     [markup.goldmark.renderer]
       unsafe = true
 
 [params]
-  description = "Visualize CLI command hierarchies as a tree"
+  description = "treemand maps any command-line tool's subcommands, flags and arguments into a tree you can browse in your terminal or browser, then build a command and copy or run it."
+  homeTitle = "treemand: explore any CLI as a command tree"
   author = "aallbrig"
+  # Absolute origin for canonical and social-card URLs (baseURL is path-only).
+  origin = "https://aallbrig.github.io"
+  socialImage = "social-card.png"
 
 [menu]
   [[menu.main]]

@@ -1,5 +1,6 @@
 ---
 title: "version"
+description: "treemand version: print the version, commit and build date of your treemand binary."
 weight: 6
 ---
 
@@ -7,7 +8,7 @@ weight: 6
 
 Print the version, git commit, and build date of the installed binary.
 
-{{< demo src="demos/cmd_version.gif" alt="treemand version demo" >}}
+{{< demo src="demos/cmd_version.gif" alt="treemand version demo" width="900" height="420" >}}
 
 ## Usage
 

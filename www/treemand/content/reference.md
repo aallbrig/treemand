@@ -1,5 +1,6 @@
 ---
 title: "Reference"
+description: "Every treemand flag, output format, key binding and configuration option in one place."
 weight: 4
 ---
 

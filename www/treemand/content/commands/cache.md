@@ -1,5 +1,6 @@
 ---
 title: "cache"
+description: "treemand cache: list, clear and understand the discovery cache that makes repeat runs instant."
 weight: 4
 ---
 
@@ -8,7 +9,7 @@ weight: 4
 treemand caches discovered CLI trees in an SQLite database so repeat lookups are
 instant. The `cache` subcommand lets you inspect and manage those entries.
 
-{{< demo src="demos/cmd_cache.gif" alt="treemand cache demo" >}}
+{{< demo src="demos/cmd_cache.gif" alt="treemand cache demo" width="900" height="420" >}}
 
 ## Commands
 

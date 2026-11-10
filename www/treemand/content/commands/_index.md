@@ -1,5 +1,6 @@
 ---
 title: "Commands"
+description: "The treemand commands: the tree view, interactive TUI, output formats, cache, config, completion and version."
 weight: 5
 ---
 
