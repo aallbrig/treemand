@@ -51,3 +51,6 @@ Added a root-only list-commands fallback (tmux: 1 node to 91, all with man-deriv
 
 ### Cycle 14 - 2026-11-10 - released - #34 v0.4.1
 #34 had three causes: a per-child 5s deadline shared by a whole subtree (docker/gh), kubectl flag syntax (=false: with the next-line description), and each node running help up to 4 times. Fixing the last cut cold times 2-4x (gh 23s to 7s, npm 30s to 9s), so #35 is mostly addressed. perf:compare flagged apt memory 18 to 118MB, but that is a child process (apt changelog) and the main binary measures the same on this host; history swings 118/17/18, so the apt rss gate is noisy. Never `cd` out of a worktree between commands: edits once landed in the main checkout and had to be moved.
+
+### Cycle 15 - 2026-11-10 - released - #35 v0.4.2
+v0.4.1 had already met #35 cold-time bar (all corpus CLIs under 10s), so I re-scoped: a global slot pool caps concurrent help processes (--jobs, default 2 x CPUs within 4..16) and TUI streaming split to #68. Take the slot before the per-command timeout starts, or waiting counts against the command. Host load average was 48 from other sessions, so timings vary by 2x between runs: compare A/B in the same minute and repeat three times.
