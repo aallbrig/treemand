@@ -56,6 +56,10 @@ jobs:
       - name: Test with coverage
         run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
 
+      - name: Coverage floor
+        working-directory: .
+        run: bash scripts/check_coverage.sh
+
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         with:
