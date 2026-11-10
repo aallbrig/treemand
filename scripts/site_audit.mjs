@@ -30,8 +30,19 @@ const chrome = spawn(CHROME, [
   "--headless=new", "--no-sandbox", "--disable-gpu", "--remote-debugging-port=0",
   `--user-data-dir=${profile}`, "about:blank",
 ], { stdio: ["ignore", "ignore", "pipe"] });
-const cleanup = () => { chrome.kill(); rmSync(profile, { recursive: true, force: true }); };
-process.on("exit", cleanup);
+// Chrome keeps writing into its profile until it has exited, so deleting the
+// directory right after kill() races with it (ENOTEMPTY). Wait for the exit,
+// retry the delete, and never let cleanup change the audit's verdict.
+const removeProfile = () => {
+  try { rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch { /* best effort */ }
+};
+const chromeExited = new Promise((resolve) => chrome.once("exit", resolve));
+async function cleanup() {
+  chrome.kill();
+  await Promise.race([chromeExited, new Promise((r) => setTimeout(r, 5000))]);
+  removeProfile();
+}
+process.on("exit", () => { chrome.kill("SIGKILL"); removeProfile(); });
 
 const port = await new Promise((resolve, reject) => {
   let buf = "";
@@ -282,5 +293,5 @@ console.log(`site audit: ${pages.length} pages x ${VIEWPORTS.length} viewports (
 for (const f of merged.values()) console.log(`FAIL ${f.rule.padEnd(24)} ${f.page}  [${f.vp}]  ${f.detail}`);
 for (const w of warnings) console.log(`WARN ${w}`);
 if (merged.size === 0) console.log("PASS: no findings");
-cleanup();
+await cleanup();
 process.exit(merged.size === 0 ? 0 : 1);
