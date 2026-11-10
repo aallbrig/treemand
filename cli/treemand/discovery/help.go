@@ -315,10 +315,7 @@ func (h *HelpDiscoverer) runHelp(ctx context.Context, cliName string, args []str
 		defer release()
 		cctx, cancel := context.WithTimeout(ctx, h.commandTimeout())
 		defer cancel()
-		cmd := exec.CommandContext(cctx, resolved, cmdArgs...) //nolint:gosec
-		cmd.Env = append(os.Environ(), pagerEnv...)
-		cmd.WaitDelay = killWaitDelay
-		out, _ := cmd.CombinedOutput()
+		out, _, _ := runCapped(cctx, resolved, cmdArgs, pagerEnv, MaxHelpBytes)
 		return SanitizeHelp(string(out))
 	}
 

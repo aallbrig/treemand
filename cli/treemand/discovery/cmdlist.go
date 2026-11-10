@@ -2,7 +2,6 @@ package discovery
 
 import (
 	"context"
-	"os/exec"
 	"regexp"
 	"strings"
 
@@ -153,9 +152,7 @@ func (h *HelpDiscoverer) commandListChildren(ctx context.Context, cliName string
 	}
 	cctx, cancel := context.WithTimeout(ctx, h.Timeout)
 	defer cancel()
-	cmd := exec.CommandContext(cctx, resolveBinary(cliName), "list-commands") //nolint:gosec
-	cmd.WaitDelay = killWaitDelay
-	out, err := cmd.Output()
+	out, _, err := runCapped(cctx, resolveBinary(cliName), []string{"list-commands"}, nil, MaxHelpBytes)
 	if err != nil {
 		return nil
 	}

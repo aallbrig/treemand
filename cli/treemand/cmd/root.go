@@ -138,6 +138,9 @@ func runRoot(cmd *cobra.Command, args []string) error {
 
 	cliName := args[0]
 	discovery.SetMaxConcurrentHelp(cfgJobs)
+	discovery.OnOutputTruncated = func(name string, a []string, limit int) {
+		log.Debug().Str("command", name).Strs("args", a).Int("limit_bytes", limit).Msg("help output truncated at the read cap")
+	}
 
 	// Fail early with a clear message if the binary cannot be found.
 	if err := discovery.CheckAvailable(cliName); err != nil {

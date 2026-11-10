@@ -526,3 +526,73 @@ func TestHelpDiscoverer_capsConcurrentProcesses(t *testing.T) {
 		t.Error("no concurrency recorded; the fake CLI did not run")
 	}
 }
+
+// A CLI that floods stdout must neither exhaust memory nor outlive the
+// timeout: output is read through a hard cap and the process is stopped once
+// it is reached.
+func TestHelpDiscoverer_capsHugeOutput(t *testing.T) {
+	dir := t.TempDir()
+	script := "#!/bin/sh\nyes 'Commands: lots of text that goes on and on and on' | head -c 50000000\n"
+	if err := os.WriteFile(filepath.Join(dir, "floodcli"), []byte(script), 0o755); err != nil { //nolint:gosec
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	// A small cap keeps this fast under -race, where parsing is about 18x slower.
+	oldMax := discovery.MaxHelpBytes
+	t.Cleanup(func() { discovery.MaxHelpBytes = oldMax })
+	discovery.MaxHelpBytes = 256 << 10
+
+	start := time.Now()
+	node, err := discovery.NewHelpDiscoverer(1).Discover(context.Background(), "floodcli", nil)
+	elapsed := time.Since(start)
+	if err != nil {
+		t.Fatalf("Discover() error: %v", err)
+	}
+	if elapsed > 5*time.Second {
+		t.Errorf("Discover took %v on a 50MB flood, want well under the 5s command timeout", elapsed)
+	}
+	if limit := discovery.MaxHelpBytes + 1024; len(node.HelpText) > limit {
+		t.Errorf("kept %d bytes of help text, want at most %d", len(node.HelpText), limit)
+	}
+	if len(node.HelpText) == 0 {
+		t.Error("the capped prefix should still be kept")
+	}
+	if oldMax < 512<<10 {
+		t.Errorf("default cap %d bytes is too small for real help text", oldMax)
+	}
+}
+
+func TestHelpDiscoverer_outputAtTheCapIsNotTruncated(t *testing.T) {
+	dir := t.TempDir()
+	// Exactly the cap in bytes: must be kept whole and not reported as truncated.
+	script := "#!/bin/sh\nhead -c 1000 /dev/zero | tr '\\0' 'a'\n"
+	if err := os.WriteFile(filepath.Join(dir, "exactcli"), []byte(script), 0o755); err != nil { //nolint:gosec
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	oldMax, oldHook := discovery.MaxHelpBytes, discovery.OnOutputTruncated
+	t.Cleanup(func() { discovery.MaxHelpBytes, discovery.OnOutputTruncated = oldMax, oldHook })
+	discovery.MaxHelpBytes = 1000
+	var reported []string
+	discovery.OnOutputTruncated = func(name string, _ []string, _ int) { reported = append(reported, name) }
+
+	node, err := discovery.NewHelpDiscoverer(1).Discover(context.Background(), "exactcli", nil)
+	if err != nil {
+		t.Fatalf("Discover() error: %v", err)
+	}
+	if len(node.HelpText) != 1000 {
+		t.Errorf("kept %d bytes, want all 1000", len(node.HelpText))
+	}
+	if len(reported) != 0 {
+		t.Errorf("output exactly at the cap must not be reported as truncated, got %v", reported)
+	}
+
+	discovery.MaxHelpBytes = 999
+	_, err = discovery.NewHelpDiscoverer(1).Discover(context.Background(), "exactcli", nil)
+	if err != nil {
+		t.Fatalf("Discover() error: %v", err)
+	}
+	if len(reported) == 0 {
+		t.Error("one byte over the cap must be reported through OnOutputTruncated")
+	}
+}
