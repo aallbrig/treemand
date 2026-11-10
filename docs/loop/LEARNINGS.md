@@ -63,3 +63,6 @@ Re-scoped #37 into floor + fuzz + cache/config now and cmd/tui/presets as #74-#7
 
 ### Cycle 18 - 2026-11-10 - released - #53 v0.4.5
 Help, completion and list-commands probes now read through a 1MB cap and kill the process when it is hit: chaos-huge went from 1898MB and 25s to 21MB and 2.4s, and its xfail line is gone. The cap size mattered: sanitize+parse of 2MB is 0.9s normally but 18s under -race (instrumented regexes), so the default is 1MB and the flood test uses 256KB; always run a new slow-path test under -race before pushing. Largest real help seen is 14KB, so 1MB is generous.
+
+### Cycle 19 - 2026-11-10 - released - #38 v0.4.6
+Added an e2e package (built binary, fake cobra/argparse/clap CLIs, real pty). It found a parser bug on its first run: detectSection read flag lines of 30 chars or less whose description ends in a section keyword (output, cache, config) as a header, so the flag and the rest of its section vanished (curl +20 flags, systemctl +8 recovered). Fake CLIs also exposed two gaps, filed as #81 (argparse subcommands) and #82 (clap child descriptions) with skipped, linked tests. A pty harness must answer cursor and color queries or every start waits about 5s. apt cold time flagged again (5s to 17s) but main measures the same on this host: apt speed tracks machine state, not code.
