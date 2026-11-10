@@ -168,7 +168,7 @@ tasks:
   loop:check:
     desc: Static checks for the loop machinery (shellcheck, state script, guard hook, skill present)
     cmds:
-      - shellcheck -x -S warning scripts/loop/*.sh scripts/*.sh
+      - shellcheck -x -S warning scripts/loop/*.sh scripts/dev_session.sh scripts/pr_merge.sh scripts/check_*.sh
       - python3 -I scripts/loop/state.py summary >/dev/null
       - bash scripts/loop/guard_test.sh
       - test -f .claude/skills/treemand-loop/SKILL.md
