@@ -17,13 +17,18 @@ command hierarchy into a navigable tree. Two modes:
 ## Install
 
 ```bash
+# One line (Linux, macOS): checksum-verified, installs to ~/.local/bin, no sudo.
+# Read it first: https://aallbrig.github.io/treemand/install.sh  (options: --help)
+curl -fsSL https://aallbrig.github.io/treemand/install.sh | sh
+
 # Homebrew (macOS / Linux) — tap: https://github.com/aallbrig/homebrew-tap
 brew tap aallbrig/tap && brew install treemand
 
 # Via go install
 go install github.com/aallbrig/treemand/cli/treemand@latest
 
-# Pre-built binaries: https://github.com/aallbrig/treemand/releases/latest
+# Pre-built binaries (and Windows): https://github.com/aallbrig/treemand/releases/latest
+# Step-by-step for your OS, with copy buttons: https://aallbrig.github.io/treemand/installation/
 
 # From source
 git clone https://github.com/aallbrig/treemand.git && cd treemand && task install

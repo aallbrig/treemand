@@ -168,7 +168,7 @@ tasks:
   loop:check:
     desc: Static checks for the loop machinery (shellcheck, state script, guard hook, skill present)
     cmds:
-      - shellcheck -x -S warning scripts/loop/*.sh scripts/dev_session.sh scripts/pr_merge.sh scripts/check_*.sh
+      - shellcheck -x -S warning scripts/loop/*.sh scripts/dev_session.sh scripts/pr_merge.sh scripts/check_*.sh scripts/install_test.sh scripts/site_audit.sh scripts/make_site_assets.sh www/treemand/static/install.sh
       - python3 -I scripts/loop/state.py summary >/dev/null
       - bash scripts/loop/guard_test.sh
       - test -f .claude/skills/treemand-loop/SKILL.md
@@ -188,6 +188,11 @@ tasks:
     desc: End-to-end tests of the built binary against fake CLIs (cobra, argparse, clap styles) and a pty
     cmds:
       - go test -count=1 -v ./cli/treemand/e2e
+
+  install:test:
+    desc: Test www/treemand/static/install.sh against a local fake release (checksums, versions, platforms, privileges) and that the docs agree with it
+    cmds:
+      - bash scripts/install_test.sh
 
   corpus:test:
     desc: Parse the committed help fixtures and fail if any metric regressed against the baseline
@@ -293,6 +298,7 @@ tasks:
       - task: docs:check
       - task: site:check
       - task: site:audit
+      - task: install:test
       - task: corpus:test
       - task: coverage:check
       - task: chaos
