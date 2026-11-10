@@ -13,7 +13,7 @@
   },
   "curl": {
     "subcommands": 0,
-    "flags": 228,
+    "flags": 248,
     "has_description": false,
     "description_is_synopsis": false
   },
@@ -79,7 +79,7 @@
   },
   "systemctl": {
     "subcommands": 53,
-    "flags": 46,
+    "flags": 54,
     "has_description": true,
     "description_is_synopsis": false
   },

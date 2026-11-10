@@ -184,6 +184,11 @@ tasks:
     cmds:
       - bash scripts/loop/corpus.sh {{.CLI_ARGS}}
 
+  e2e:
+    desc: End-to-end tests of the built binary against fake CLIs (cobra, argparse, clap styles) and a pty
+    cmds:
+      - go test -count=1 -v ./cli/treemand/e2e
+
   corpus:test:
     desc: Parse the committed help fixtures and fail if any metric regressed against the baseline
     cmds:

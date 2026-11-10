@@ -743,3 +743,26 @@ func TestParseHelpOutput_ambiguousSectionHeaderIsDeterministic(t *testing.T) {
 		}
 	}
 }
+
+// A short flag line whose description ends in a section keyword ("output",
+// "cache", "config") must still be parsed as a flag, not taken as a header
+// that swallows the rest of the section.
+func TestParseHelpOutput_flagLineEndingInSectionKeywordIsAFlag(t *testing.T) {
+	text := "tool does things\n\nUsage:\n  tool [command]\n\nFlags:\n" +
+		"  -h, --help      help for tool\n" +
+		"  -v, --verbose   verbose output\n" +
+		"  -q, --quiet     suppress output\n" +
+		"      --no-cache  disable cache\n" +
+		"  -c, --config    path to config\n" +
+		"      --last      one more flag\n"
+	p := discovery.ParseHelpOutputFor(text, "tool")
+	got := map[string]bool{}
+	for _, f := range p.Flags {
+		got[f.Name] = true
+	}
+	for _, want := range []string{"--help", "--verbose", "--quiet", "--no-cache", "--config", "--last"} {
+		if !got[want] {
+			t.Errorf("flag %s was lost (parsed: %v)", want, p.Flags)
+		}
+	}
+}

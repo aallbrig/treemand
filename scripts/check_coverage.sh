@@ -17,7 +17,7 @@ out="$(cd cli/treemand && go test -count=1 -cover ./... 2>&1)" || {
 }
 
 # "ok  <pkg>  <time>  coverage: 88.2% of statements" -> "<pkg> 88.2"
-current="$(printf '%s\n' "$out" | awk '/^ok/ && /coverage:/ && /statements/ {
+current="$(printf '%s\n' "$out" | awk '/^ok/ && /coverage:/ && /statements/ && !/no statements/ {
   for (i = 1; i <= NF; i++) if ($i == "coverage:") { pct = $(i + 1); sub(/%/, "", pct) }
   print $2, pct }')"
 
