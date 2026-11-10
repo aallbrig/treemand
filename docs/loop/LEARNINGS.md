@@ -42,3 +42,6 @@ Root description was a usage-block continuation line for git/tmux/ssh. Fix: skip
 
 ### Cycle 11 - 2026-11-10 - parked - #32
 Parked: aws root help lists services as bare bullets, so descriptions cannot be carried from the parent; per-service help is about 3s each (20 min cold). Stub marking (discovered:false, (...) in text) already exists. Verify an issue premise against real output before planning; filed findings on the issue with three re-scope options.
+
+### Cycle 12 - 2026-11-10 - released - #32 v0.3.11
+Re-scoped #32 instead of leaving it parked (new rule: decide, then ship): stubs get an honest stderr footer plus a public --expand-stubs; descriptions stay lazy because aws help has none and per-service help is about 3s. Under zsh, `2>&1 >/dev/null | wc` tees stdout (multios): redirect to files when checking stream separation.
