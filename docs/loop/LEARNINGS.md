@@ -36,3 +36,6 @@ Security/test audit: coverage 64-100% (cache lowest); govulncheck flagged two x/
 
 ### Cycle 8 - 2026-11-10 - idle - #30
 mcp-api-exploration is propose-only: filed #30 (stable JSON schema, then an MCP subcommand) as loop:proposed and waiting for a human thumbs-up. JSON output currently has no schema_version.
+
+### Cycle 10 - 2026-11-10 - released - #31 v0.3.10
+Root description was a usage-block continuation line for git/tmux/ssh. Fix: skip usage blocks, list headings and list rows; root-only man NAME fallback; NAME lines accept em/en dash. Tightening listRowRe was needed after the aws fixture regressed (justified man text has double spaces), so run the fixtures after every parser heuristic. Untrusted open issues: 0.
