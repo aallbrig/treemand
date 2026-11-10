@@ -126,6 +126,58 @@ treemand --no-color git            # disable color output
 treemand --no-cache git            # bypass the discovery cache
 ```
 
+## Scripting
+
+treemand is safe to use in pipelines.
+
+```bash
+treemand --output=json git | jq '.children[].name'   # machine-readable tree (json or yaml)
+treemand git | less -R                               # plain text when piped
+```
+
+- **Output goes to stdout, messages to stderr.** Errors never write to stdout, so a pipe only ever
+  sees a complete result. The progress spinner and the "undiscovered subcommands" note use stderr.
+- **Color is on only when stdout is a terminal.** Piped output has no escape codes. Set
+  [`NO_COLOR`](https://no-color.org) (to any value) or pass `--no-color` to turn color off on a
+  terminal too.
+- **Bounded runs.** `--timeout=SECONDS` limits discovery of a CLI that hangs, and a CLI that prints
+  a flood of help text is read only up to 1MB.
+
+### Exit codes
+
+| Code | Meaning | Examples |
+|------|---------|----------|
+| `0` | Success | the tree was printed |
+| `1` | Runtime failure | the CLI is not on `PATH`; discovery could not run |
+| `2` | Usage error | no CLI name, more than one, an unknown flag, a bad flag value, an unknown `--output` format or shell |
+
+A usage error prints what was wrong plus a hint, for example `treemand` alone prints
+`Error: missing CLI name` and shows `treemand git` as an example.
+
+## Shell completion
+
+One step per shell (open a new shell afterwards):
+
+```bash
+# bash
+mkdir -p ~/.local/share/bash-completion/completions
+treemand completion bash > ~/.local/share/bash-completion/completions/treemand
+# zsh: add this line to ~/.zshrc (after compinit)
+source <(treemand completion zsh)
+# fish
+treemand completion fish > ~/.config/fish/completions/treemand.fish
+# PowerShell
+treemand completion powershell | Out-String | Invoke-Expression
+```
+
+`treemand completion <shell> --help` shows the same steps, and `treemand completion` with no shell
+lists the supported ones. Completion also suggests CLI names from your `PATH`.
+
+## Man page
+
+Release archives and the Homebrew formula install `treemand.1` (`man treemand`). From a source
+checkout, generate it with `treemand gendocs -o ./docs` and read it with `man ./docs/man/treemand.1`.
+
 ## Tested CLIs
 
 Parser quality is guarded by a regression corpus: sanitized `--help` captures of real CLIs

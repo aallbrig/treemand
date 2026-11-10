@@ -190,25 +190,51 @@ func TestNonTTYOutputHasNoEscapeCodes(t *testing.T) {
 }
 
 func TestFailurePaths(t *testing.T) {
+	// Exit codes are part of the contract (documented in the README):
+	// 1 = runtime failure, 2 = usage error.
 	cases := []struct {
 		name       string
 		args       []string
-		wantStderr string
+		wantExit   int
+		wantStderr []string
 	}{
-		{"missing CLI", []string{"no-such-cli-xyz"}, "not found"},
-		{"no argument", nil, "accepts 1 arg"},
-		{"unknown flag", []string{"--no-such-flag", "fakecobra"}, "unknown flag"},
-		{"unknown output format", []string{"--output=xml", "fakecobra"}, "unknown output format"},
+		{"missing CLI", []string{"no-such-cli-xyz"}, 1, []string{"not found", "PATH"}},
+		{"no argument", nil, 2, []string{"missing CLI name", "treemand git", "--help"}},
+		{"extra argument", []string{"fakecobra", "build"}, 2, []string{"one CLI name", "fakecobra build"}},
+		{"unknown flag", []string{"--no-such-flag", "fakecobra"}, 2, []string{"unknown flag", "--help"}},
+		{"bad flag value", []string{"--depth=abc", "fakecobra"}, 2, []string{"--depth"}},
+		{"unknown output format", []string{"--output=xml", "fakecobra"}, 2, []string{"unknown output format", "text, json or yaml"}},
+		{"completion without shell", []string{"completion"}, 2, []string{"missing shell", "powershell"}},
+		{"completion unknown shell", []string{"completion", "tcsh"}, 2, []string{"unknown shell", "tcsh"}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			r := run(t, limit, nil, c.args...)
-			if r.exit == 0 {
-				t.Errorf("exit 0, want non-zero")
+			if r.exit != c.wantExit {
+				t.Errorf("exit %d, want %d (stderr: %s)", r.exit, c.wantExit, r.stderr)
 			}
-			mustContain(t, "stderr", r.stderr, c.wantStderr)
+			mustContain(t, "stderr", r.stderr, c.wantStderr...)
 			if strings.TrimSpace(r.stdout) != "" {
 				t.Errorf("errors must not write to stdout, got %q", r.stdout)
+			}
+		})
+	}
+}
+
+func TestSuccessExitsZero(t *testing.T) {
+	for _, args := range [][]string{
+		{"--version"},
+		{"--help"},
+		{"version"},
+		{"completion", "bash"},
+		{"completion", "zsh"},
+		{"completion", "fish"},
+		{"completion", "powershell"},
+	} {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			r := run(t, limit, nil, args...)
+			if r.exit != 0 || strings.TrimSpace(r.stdout) == "" {
+				t.Errorf("exit %d, stdout %q, stderr %q", r.exit, r.stdout, r.stderr)
 			}
 		})
 	}

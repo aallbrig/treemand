@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/spf13/viper"
 
@@ -631,5 +632,61 @@ func TestJobsFlag(t *testing.T) {
 	cli := bigCLI(t)
 	if _, err := runCmd("--no-cache", "--no-color", "--jobs=2", "--output=json", cli); err != nil {
 		t.Errorf("discovery with --jobs=2 failed: %v", err)
+	}
+}
+
+func TestExitCodes(t *testing.T) {
+	cases := []struct {
+		name     string
+		args     []string
+		wantCode int
+		wantMsg  []string
+	}{
+		{"no argument", nil, cmd.ExitUsage, []string{"missing CLI name", "treemand git", "--help"}},
+		{"two arguments", []string{"git", "remote"}, cmd.ExitUsage, []string{"one CLI name", "git remote"}},
+		{"unknown flag", []string{"--no-such-flag", "git"}, cmd.ExitUsage, []string{"unknown flag", "--help"}},
+		{"bad flag value", []string{"--depth=abc", "git"}, cmd.ExitUsage, []string{"--depth"}},
+		{"unknown output format", []string{"--output=xml", "git"}, cmd.ExitUsage, []string{"unknown output format", "text, json or yaml"}},
+		{"completion without shell", []string{"completion"}, cmd.ExitUsage, []string{"missing shell", "bash", "zsh", "fish", "powershell"}},
+		{"completion with unknown shell", []string{"completion", "tcsh"}, cmd.ExitUsage, []string{"unknown shell", "tcsh", "powershell"}},
+		{"CLI that does not exist", []string{"--no-cache", "definitely-not-installed-xyz"}, cmd.ExitFailure, []string{"not found", "PATH"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := runCmd(c.args...)
+			if err == nil {
+				t.Fatal("expected an error")
+			}
+			if got := cmd.ExitCodeFor(err); got != c.wantCode {
+				t.Errorf("exit code = %d, want %d (error: %v)", got, c.wantCode, err)
+			}
+			msg := cmd.FormatError(err)
+			for _, want := range c.wantMsg {
+				if !strings.Contains(msg, want) {
+					t.Errorf("message missing %q:\n%s", want, msg)
+				}
+			}
+		})
+	}
+}
+
+func TestExitCodeFor_plainErrorsAreFailures(t *testing.T) {
+	if got := cmd.ExitCodeFor(os.ErrNotExist); got != cmd.ExitFailure {
+		t.Errorf("ExitCodeFor(plain error) = %d, want %d", got, cmd.ExitFailure)
+	}
+	if got := cmd.ExitCodeFor(nil); got != cmd.ExitOK {
+		t.Errorf("ExitCodeFor(nil) = %d, want %d", got, cmd.ExitOK)
+	}
+}
+
+func TestOutputFormatIsValidatedBeforeDiscovery(t *testing.T) {
+	// A bad format must fail at once, not after probing the CLI.
+	start := time.Now()
+	_, err := runCmd("--no-cache", "--output=xml", "definitely-not-installed-xyz")
+	if err == nil || !strings.Contains(err.Error(), "unknown output format") {
+		t.Fatalf("error = %v, want the output-format error (not 'command not found')", err)
+	}
+	if time.Since(start) > 2*time.Second {
+		t.Errorf("validation took %v", time.Since(start))
 	}
 }

@@ -15,10 +15,11 @@ var completionCmd = &cobra.Command{
 	Short: "Generate shell completion scripts",
 	Long: `Generate shell completion scripts for treemand.
 
-Bash:
-  treemand completion bash > /etc/bash_completion.d/treemand
+Bash (user level; use /etc/bash_completion.d/treemand for all users):
+  mkdir -p ~/.local/share/bash-completion/completions
+  treemand completion bash > ~/.local/share/bash-completion/completions/treemand
 
-Zsh:
+Zsh (needs compinit; add this line to ~/.zshrc):
   source <(treemand completion zsh)
 
 Fish:
@@ -28,7 +29,7 @@ PowerShell:
   treemand completion powershell | Out-String | Invoke-Expression`,
 	DisableFlagsInUseLine: true,
 	ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
-	Args:                  cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
+	Args:                  completionArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		out := cmd.OutOrStdout()
 		switch args[0] {
