@@ -282,3 +282,46 @@ func TestCacheRoundTrip(t *testing.T) {
 		t.Error("no cache database was written under the home directory")
 	}
 }
+
+// A cache hit is near-instant: it must not run the CLI's own --version (aws
+// and pip take seconds to start). The cache key follows the binary on disk.
+func TestCacheHitDoesNotPayForTheVersionProbe(t *testing.T) {
+	home := t.TempDir()
+	shared := []string{"HOME=" + home, "XDG_CACHE_HOME=" + filepath.Join(home, "cache")}
+	first := run(t, limit, shared, "--output=json", "fakeslowver")
+	if first.exit != 0 {
+		t.Fatalf("first run exit %d: %s", first.exit, first.stderr)
+	}
+	second := run(t, limit, shared, "--output=json", "fakeslowver")
+	if second.exit != 0 || second.stdout != first.stdout {
+		t.Fatalf("second run differs or failed (exit %d)", second.exit)
+	}
+	if second.elapsed > time.Second {
+		t.Errorf("warm run took %v; --version takes 3s, so the cache key is still running it", second.elapsed)
+	}
+}
+
+// An upgraded CLI must not be served from the old cache entry.
+func TestCacheIsInvalidatedWhenTheCLIChanges(t *testing.T) {
+	home := t.TempDir()
+	shared := []string{"HOME=" + home, "XDG_CACHE_HOME=" + filepath.Join(home, "cache")}
+	path := filepath.Join(fakeDir, "fakeupgrade")
+	script := func(extra string) {
+		body := "#!/bin/sh\ncase \"$1\" in\nalpha) printf 'Alpha thing\\n';;\n*) printf 'fakeupgrade does things\\n\\nAvailable Commands:\\n  alpha   Alpha thing\\n" + extra + "';;\nesac\n"
+		if err := os.WriteFile(path, []byte(body), 0o755); err != nil { //nolint:gosec
+			t.Fatal(err)
+		}
+	}
+	t.Cleanup(func() { _ = os.Remove(path) })
+
+	script("")
+	before := parseJSON(t, run(t, limit, shared, "--output=json", "fakeupgrade").stdout)
+	if _, ok := before.child("beta"); ok {
+		t.Fatal("beta exists before the upgrade")
+	}
+	script("  beta    Beta thing\\n") // the "new version" adds a command and changes size
+	after := parseJSON(t, run(t, limit, shared, "--output=json", "fakeupgrade").stdout)
+	if _, ok := after.child("beta"); !ok {
+		t.Errorf("the upgraded CLI was served from a stale cache entry: %+v", after.Children)
+	}
+}
