@@ -210,7 +210,10 @@ Each of those gaps is a tracked issue. The full comparison with sources is in
 
 ## Cache
 
-Discovered trees are cached in SQLite (`~/.treemand/cache.db`).
+Discovered trees are cached in SQLite (`~/.treemand/cache.db`). A cache hit is near-instant (about
+30ms for `aws`, 422 services) because it never starts the CLI: entries are keyed on the executable on
+disk (its path, size and modification time), so upgrading a tool, by replacing the file or repointing a
+symlink, refreshes its entry on the next run. Entries also expire after 24 hours.
 
 ```bash
 treemand cache list                # show cached CLIs

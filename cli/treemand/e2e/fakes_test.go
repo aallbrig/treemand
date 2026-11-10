@@ -64,6 +64,15 @@ list) printf 'fakeclap-list 1.0\nList things\n\nUSAGE:\n    fakeclap list\n\nOPT
 esac
 `,
 
+	// A CLI whose --version is slow (like aws or pip, which start an interpreter):
+	// a cache hit must never pay for it.
+	"fakeslowver": `if [ "$1" = "--version" ]; then sleep 3; echo "fakeslowver 1.0"; exit 0; fi
+case "$1" in
+alpha) printf 'Alpha thing\n\nFlags:\n  -h, --help   help\n';;
+*) printf 'fakeslowver does things\n\nUsage:\n  fakeslowver [command]\n\nAvailable Commands:\n  alpha   Alpha thing\n\nFlags:\n  -h, --help   help\n';;
+esac
+`,
+
 	// A CLI that never answers: --timeout must bound discovery.
 	"fakehang": "exec sleep 600\n",
 

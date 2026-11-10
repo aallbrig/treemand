@@ -140,3 +140,123 @@ func TestCLIVersion_firstLineTruncationAndFailures(t *testing.T) {
 		t.Errorf("missing CLI = %q, want unknown", got)
 	}
 }
+
+func TestBinaryFingerprint_tracksTheBinaryNotItsOutput(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "tool")
+	write := func(body string) {
+		t.Helper()
+		if err := os.WriteFile(bin, []byte(body), 0o755); err != nil { //nolint:gosec
+			t.Fatal(err)
+		}
+	}
+	write("#!/bin/sh\necho one\n")
+	first := cache.BinaryFingerprint(bin)
+	if first == "" {
+		t.Fatal("no fingerprint for an existing file")
+	}
+	if again := cache.BinaryFingerprint(bin); again != first {
+		t.Errorf("fingerprint is not stable: %q then %q", first, again)
+	}
+
+	write("#!/bin/sh\necho a different and longer script\n")
+	if changed := cache.BinaryFingerprint(bin); changed == first {
+		t.Error("an upgraded binary (different size) must change the fingerprint")
+	}
+
+	same := cache.BinaryFingerprint(bin)
+	later := time.Now().Add(2 * time.Hour)
+	if err := os.Chtimes(bin, later, later); err != nil {
+		t.Fatal(err)
+	}
+	if touched := cache.BinaryFingerprint(bin); touched == same {
+		t.Error("a rebuilt binary of the same size (new mtime) must change the fingerprint")
+	}
+
+	if got := cache.BinaryFingerprint(filepath.Join(dir, "missing")); got != "" {
+		t.Errorf("fingerprint of a missing file = %q, want empty", got)
+	}
+}
+
+func TestBinaryFingerprint_followsSymlinkRetargets(t *testing.T) {
+	// Package managers often upgrade by repointing a "current" link.
+	dir := t.TempDir()
+	for _, name := range []string{"v1", "v2"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\necho "+name+"\n"), 0o755); err != nil { //nolint:gosec
+			t.Fatal(err)
+		}
+	}
+	link := filepath.Join(dir, "current")
+	if err := os.Symlink(filepath.Join(dir, "v1"), link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	before := cache.BinaryFingerprint(link)
+	if err := os.Remove(link); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(dir, "v2"), link); err != nil {
+		t.Fatal(err)
+	}
+	if after := cache.BinaryFingerprint(link); after == before || after == "" {
+		t.Errorf("repointing the link must change the fingerprint: %q then %q", before, after)
+	}
+}
+
+// largeTree is shaped like a cached aws run: a root with 18 flags and 422
+// service nodes.
+func largeTree() *models.Node {
+	root := &models.Node{Name: "aws", FullPath: []string{"aws"}, Discovered: true, HelpText: strings.Repeat("The AWS command line interface.\n", 1500)}
+	for i := 0; i < 18; i++ {
+		root.Flags = append(root.Flags, models.Flag{Name: "--global-" + strings.Repeat("x", i%5+1), ValueType: "string", Description: "a global flag"})
+	}
+	for i := 0; i < 422; i++ {
+		name := "svc" + strings.Repeat("a", i%7+1) + string(rune('a'+i%26))
+		root.Children = append(root.Children, &models.Node{Name: name, FullPath: []string{"aws", name}, Stub: true, Description: "service " + name})
+	}
+	return root
+}
+
+// BenchmarkGetLargeTree is the cost of a cache hit on a 400-node tree: the
+// SQLite read plus JSON decode (a few milliseconds).
+func BenchmarkGetLargeTree(b *testing.B) {
+	c, err := cache.Open(b.TempDir())
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer c.Close()
+	key := cache.Key("aws", "bench", []string{"help"})
+	if err := c.Put(key, "aws", "bench", "help", largeTree()); err != nil {
+		b.Fatal(err)
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if n, err := c.Get(key, 0); err != nil || n == nil {
+			b.Fatalf("Get: %v %v", n, err)
+		}
+	}
+}
+
+// A hit on a 400-node tree must stay far below the 300ms budget for a whole
+// warm run; this guards the cache read itself.
+func TestGetLargeTreeIsFast(t *testing.T) {
+	c, _ := openCache(t)
+	key := cache.Key("aws", "t", []string{"help"})
+	if err := c.Put(key, "aws", "t", "help", largeTree()); err != nil {
+		t.Fatal(err)
+	}
+	best := time.Hour
+	for i := 0; i < 5; i++ {
+		start := time.Now()
+		got, err := c.Get(key, 0)
+		if err != nil || got == nil || len(got.Children) != 422 {
+			t.Fatalf("Get returned %v, %v", got, err)
+		}
+		if d := time.Since(start); d < best {
+			best = d
+		}
+	}
+	if best > 100*time.Millisecond {
+		t.Errorf("cache read of a 422-node tree took %v, want well under 100ms", best)
+	}
+}

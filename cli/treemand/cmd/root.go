@@ -202,13 +202,27 @@ func runRoot(cmd *cobra.Command, args []string) error {
 			log.Warn().Err(err).Msg("could not open cache, running without")
 		} else {
 			defer cacheInst.Close()
-			ver := cache.CLIVersion(cliName)
+			// Key on the binary on disk, not on its --version output: starting
+			// aws or pip just to read a version costs seconds on every cache
+			// hit, and a CLI with no --version would never be invalidated.
+			ver := cache.BinaryFingerprint(discovery.ResolveBinary(cliName))
+			if ver == "" {
+				ver = cache.CLIVersion(cliName)
+			}
 			cacheKey = cache.KeyWith(cliName, ver, strategies, cacheExtra)
 			if node, err := cacheInst.Get(cacheKey, 24*time.Hour); err == nil && node != nil {
 				log.Debug().Str("cli", cliName).Msg("cache hit")
 				return output(cmd, node, cfg)
 			}
 		}
+	}
+
+	// The version string is only shown by `cache list`. Read it while discovery
+	// runs so a slow --version (aws, pip) adds nothing to a cold run.
+	var versionCh chan string
+	if cacheInst != nil && cacheKey != "" {
+		versionCh = make(chan string, 1)
+		go func() { versionCh <- cache.CLIVersion(cliName) }()
 	}
 
 	// Discover tree
@@ -248,7 +262,7 @@ func runRoot(cmd *cobra.Command, args []string) error {
 
 	// Persist to cache
 	if cacheInst != nil && cacheKey != "" {
-		ver := cache.CLIVersion(cliName)
+		ver := <-versionCh
 		if putErr := cacheInst.Put(cacheKey, cliName, ver, cfgStrategy, node); putErr != nil {
 			log.Warn().Err(putErr).Msg("cache write failed")
 		}

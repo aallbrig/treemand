@@ -196,6 +196,10 @@ func resolveBinary(cliName string) string {
 	return p
 }
 
+// ResolveBinary returns the path the CLI named cliName runs from, as discovery
+// will execute it.
+func ResolveBinary(cliName string) string { return resolveBinary(cliName) }
+
 // resolveBinaryOrError is like resolveBinary but returns an error when the
 // binary cannot be located anywhere on the system.
 func resolveBinaryOrError(cliName string) (string, error) {
