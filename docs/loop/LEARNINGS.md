@@ -54,3 +54,6 @@ Added a root-only list-commands fallback (tmux: 1 node to 91, all with man-deriv
 
 ### Cycle 15 - 2026-11-10 - released - #35 v0.4.2
 v0.4.1 had already met #35 cold-time bar (all corpus CLIs under 10s), so I re-scoped: a global slot pool caps concurrent help processes (--jobs, default 2 x CPUs within 4..16) and TUI streaming split to #68. Take the slot before the per-command timeout starts, or waiting counts against the command. Host load average was 48 from other sessions, so timings vary by 2x between runs: compare A/B in the same minute and repeat three times.
+
+### Cycle 16 - 2026-11-10 - released - #36 v0.4.3
+Committed a 16-CLI help-fixture corpus with a baseline gate in task ci. The first CI run caught real nondeterminism: detectSection ranged over a map, so "Environment Commands:" (matches commands and environment) parsed as commands or free text at random (systemctl 49 or 53 subcommands). Fixed with a ranked, deterministic choice. A regression corpus pays for itself immediately: run any new parse path 25 times. release.sh smoke hit a transient api.github.com error after a good release; re-running smoke.sh alone is the right recovery, not a rollback. Untested here: cargo and terraform fixtures (not installed).
