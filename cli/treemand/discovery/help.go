@@ -83,6 +83,15 @@ func (h *HelpDiscoverer) discover(ctx context.Context, cliName string, args []st
 	node.Flags = parsed.Flags
 	node.Positionals = parsed.Positionals
 
+	// No subcommands in --help at the root: some CLIs (tmux) list their
+	// commands through "list-commands" instead.
+	if depth == 0 && len(args) == 0 && len(parsed.Subcommands) == 0 {
+		if kids := h.commandListChildren(ctx, cliName, fullPath); len(kids) > 0 {
+			node.Children = kids
+			return node, nil
+		}
+	}
+
 	if depth < h.MaxDepth && len(parsed.Subcommands) > 0 {
 		// When a command has a very large number of subcommands (e.g. aws
 		// with 200+ services), eagerly running --help on every child would
