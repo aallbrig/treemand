@@ -69,3 +69,6 @@ Added an e2e package (built binary, fake cobra/argparse/clap CLIs, real pty). It
 
 ### Cycle 20 - 2026-11-10 - released - #39 v0.5.0
 First-run audit: usage errors now exit 2 (runtime failures 1), with a hint on every usage error; README gained Scripting, Exit codes, Shell completion and Man page sections, each claim backed by a unit or e2e test (including NO_COLOR on a real pty). Minor bump because the exit code of usage errors changed. Walk the real paths with the built binary before writing docs: the audit found only 3 real defects and 5 undocumented behaviours that already worked. perf:compare apt memory flaps 17-118MB between runs (child process), so judge it by a main-vs-branch A/B, not one reading. Filed #85 (--timeout=0).
+
+### Cycle 21 - 2026-11-10 - merged, no release - #54
+The nondeterminism in #54 was already fixed by v0.4.1 (per-command timeout) and v0.4.3 (map-order section detection); this cycle proved it (10 cold runs each of npm, gh, docker identical) and guarded it with a jitter test plus tighter perf thresholds for the deterministic metrics (nodes, no_desc, no_flags), validated by replaying the recorded history. No release: a test and a loop script do not change the binary, and a no-op tag only burns the daily cap. When an issue is already fixed, verify with the issue acceptance command first and spend the cycle on the guard.
