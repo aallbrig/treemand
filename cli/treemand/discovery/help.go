@@ -8,8 +8,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/aallbrig/treemand/models"
@@ -243,6 +245,49 @@ var truncatedHelpRe = regexp.MustCompile(`(?i)--help all|--help <category>|not t
 // keeps CombinedOutput blocked long after the timeout.
 const killWaitDelay = time.Second
 
+// helpSlots bounds how many help processes run at once across the whole
+// discovery, however deep or wide the tree is.
+var helpSlots atomic.Pointer[chan struct{}]
+
+// DefaultMaxConcurrentHelp is the default cap: twice the CPU count, within 4..16.
+func DefaultMaxConcurrentHelp() int {
+	n := runtime.NumCPU() * 2
+	if n < 4 {
+		n = 4
+	}
+	if n > 16 {
+		n = 16
+	}
+	return n
+}
+
+// SetMaxConcurrentHelp sets the cap on concurrent help processes; n <= 0
+// restores the default.
+func SetMaxConcurrentHelp(n int) {
+	if n <= 0 {
+		n = DefaultMaxConcurrentHelp()
+	}
+	ch := make(chan struct{}, n)
+	helpSlots.Store(&ch)
+}
+
+// acquireHelpSlot waits for a free process slot (or ctx to end) and returns
+// the function that gives it back.
+func acquireHelpSlot(ctx context.Context) (func(), bool) {
+	p := helpSlots.Load()
+	if p == nil {
+		SetMaxConcurrentHelp(0)
+		p = helpSlots.Load()
+	}
+	ch := *p
+	select {
+	case ch <- struct{}{}:
+		return func() { <-ch }, true
+	case <-ctx.Done():
+		return nil, false
+	}
+}
+
 // commandTimeout is the time allowed for one help command.
 func (h *HelpDiscoverer) commandTimeout() time.Duration {
 	if h.Timeout <= 0 {
@@ -261,6 +306,13 @@ func (h *HelpDiscoverer) runHelp(ctx context.Context, cliName string, args []str
 	// h.Timeout bounds each single command. It must not wrap a whole subtree:
 	// a deadline shared by a group's children starves the later ones.
 	run := func(cmdArgs []string) string {
+		// Take a process slot first: time spent waiting for one must not
+		// count against the command's own timeout.
+		release, ok := acquireHelpSlot(ctx)
+		if !ok {
+			return ""
+		}
+		defer release()
 		cctx, cancel := context.WithTimeout(ctx, h.commandTimeout())
 		defer cancel()
 		cmd := exec.CommandContext(cctx, resolved, cmdArgs...) //nolint:gosec

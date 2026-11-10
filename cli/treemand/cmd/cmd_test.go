@@ -619,3 +619,17 @@ func TestExpandStubsFlagIsPublic(t *testing.T) {
 		t.Errorf("--help should list --expand-stubs:\n%s", out)
 	}
 }
+
+func TestJobsFlag(t *testing.T) {
+	out, err := runCmd("--help")
+	if err != nil {
+		t.Fatalf("help error: %v", err)
+	}
+	if !strings.Contains(out, "--jobs") {
+		t.Errorf("--help should list --jobs:\n%s", out)
+	}
+	cli := bigCLI(t)
+	if _, err := runCmd("--no-cache", "--no-color", "--jobs=2", "--output=json", cli); err != nil {
+		t.Errorf("discovery with --jobs=2 failed: %v", err)
+	}
+}
