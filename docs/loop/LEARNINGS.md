@@ -45,3 +45,6 @@ Parked: aws root help lists services as bare bullets, so descriptions cannot be 
 
 ### Cycle 12 - 2026-11-10 - released - #32 v0.3.11
 Re-scoped #32 instead of leaving it parked (new rule: decide, then ship): stubs get an honest stderr footer plus a public --expand-stubs; descriptions stay lazy because aws help has none and per-service help is about 3s. Under zsh, `2>&1 >/dev/null | wc` tees stdout (multios): redirect to files when checking stream separation.
+
+### Cycle 13 - 2026-11-10 - released - #33 v0.4.0
+Added a root-only list-commands fallback (tmux: 1 node to 91, all with man-derived descriptions and synopsis flags). make and other target runners are out of scope and skipped, because probing a target can execute project build rules; documented in the fallback-chain ADR. Minor bump for a new capability.

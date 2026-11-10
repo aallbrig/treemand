@@ -23,3 +23,15 @@ date	version	host	cli	cold_s	warm_s	rss_mb	nodes	no_desc	no_flags	rc
 2026-11-10	v0.3.11	unicorn-tp	systemctl	0.42	0.11	24	54	0	0	0
 2026-11-10	v0.3.11	unicorn-tp	tar	0.09	0.04	17	9	0	5	0
 2026-11-10	v0.3.11	unicorn-tp	aws	7.12	2.68	69	423	422	422	0
+2026-11-10	v0.4.0	unicorn-tp	git	1.71	0.09	25	23	0	1	0
+2026-11-10	v0.4.0	unicorn-tp	docker	18.11	0.10	46	204	3	123	0
+2026-11-10	v0.4.0	unicorn-tp	kubectl	11.36	0.18	46	123	1	109	0
+2026-11-10	v0.4.0	unicorn-tp	gh	21.96	0.36	48	222	0	139	0
+2026-11-10	v0.4.0	unicorn-tp	npm	27.55	0.32	87	74	4	15	0
+2026-11-10	v0.4.0	unicorn-tp	pip	15.34	1.23	44	18	0	0	0
+2026-11-10	v0.4.0	unicorn-tp	go	0.38	0.03	18	33	0	32	0
+2026-11-10	v0.4.0	unicorn-tp	helm	6.25	0.19	45	59	0	0	0
+2026-11-10	v0.4.0	unicorn-tp	apt	9.06	0.14	18	40	0	38	0
+2026-11-10	v0.4.0	unicorn-tp	systemctl	0.37	0.10	24	50	0	0	0
+2026-11-10	v0.4.0	unicorn-tp	tar	0.08	0.05	18	9	0	5	0
+2026-11-10	v0.4.0	unicorn-tp	aws	7.24	2.98	70	423	422	422	0
