@@ -3,6 +3,7 @@ package cmd_test
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -567,4 +568,54 @@ func TestSpinner_doubleStop_noPanic(t *testing.T) {
 	s.Start("x")
 	s.Stop()
 	s.Stop() // second stop must be safe
+}
+
+// bigCLI puts a fake CLI with many subcommands on PATH and returns its name.
+func bigCLI(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	script := "#!/bin/sh\nprintf 'bigcli does many things\\n\\nUsage:\\n  bigcli [command]\\n\\nAvailable Commands:\\n'\n" +
+		"for s in alpha bravo charlie delta echo1 foxtrot golf hotel; do printf '  %s   the %s service\\n' $s $s; done\n"
+	if err := os.WriteFile(filepath.Join(dir, "bigcli"), []byte(script), 0o755); err != nil { //nolint:gosec
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	return "bigcli"
+}
+
+func TestStubFooter_textOutputExplainsStubs(t *testing.T) {
+	cli := bigCLI(t)
+	out, err := runCmd("--no-cache", "--no-color", "--stub-threshold=3", cli)
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	for _, want := range []string{"8 undiscovered", "--expand-stubs", "-i"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("text output missing %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestStubFooter_notInJSON(t *testing.T) {
+	cli := bigCLI(t)
+	out, err := runCmd("--no-cache", "--output=json", "--stub-threshold=3", cli)
+	if err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	if strings.Contains(out, "undiscovered") {
+		t.Errorf("JSON output must stay machine-clean, got footer:\n%s", out)
+	}
+	if !strings.Contains(out, `"stub": true`) && !strings.Contains(out, `"stub":true`) {
+		t.Errorf("JSON should mark stubs, got:\n%s", out)
+	}
+}
+
+func TestExpandStubsFlagIsPublic(t *testing.T) {
+	out, err := runCmd("--help")
+	if err != nil {
+		t.Fatalf("help error: %v", err)
+	}
+	if !strings.Contains(out, "--expand-stubs") {
+		t.Errorf("--help should list --expand-stubs:\n%s", out)
+	}
 }
