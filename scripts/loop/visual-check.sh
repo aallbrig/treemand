@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Produce visual evidence for review under .loop/shots/:
-#   tui-<cols>x<rows>.txt   the real TUI captured from an isolated tmux server (ANSI kept)
+#   tui-<cols>x<rows>.txt   the real TUI at 80x24, 120x40 and 200x50 from an isolated tmux server (ANSI kept)
 #   site-<name>.png         the built Hugo site at desktop and mobile widths
 # Exits non-zero if the TUI fails to render or the site fails to build/serve.
 # The judging against docs/design rubric is done by the loop (it reads the files).
@@ -26,7 +26,7 @@ go build -o "$bin" ./cli/treemand
 
 # ── TUI ────────────────────────────────────────────────────────────────────
 target="${VISUAL_TARGET:-git}"
-for size in 80x24 120x40; do
+for size in 80x24 120x40 200x50; do
   cols="${size%x*}"
   rows="${size#*x}"
   tm kill-server 2>/dev/null || true

@@ -147,11 +147,11 @@ func (m *Model) renderStatusBar() string {
 func (m *Model) schemeHints() string {
 	switch m.scheme {
 	case SchemeVim:
-		return "j/k:nav  h/l:expand/collapse  Enter:pick  e/E:expand/collapse all  Shift+h/l:subtree  S:sections  f:flags  /:filter  Ctrl+P:help  Ctrl+E:exec  gg/G:top/bottom  n/N:search  q:quit"
+		return "j/k:nav  h/l:expand/collapse  Enter:pick  e/E:expand/collapse all  Shift+h/l:subtree  S:sections  f:flags  /:filter  Ctrl+P:help  Ctrl+E:exec  gg/G:top/bottom  n/N:search  ?:keys  q:quit"
 	case SchemeWASD:
-		return "w/s:nav  a/d:expand/collapse  Enter:pick  e/E:expand/collapse all  Shift+a/d:subtree  S:sections  f:flags  /:filter  H:help  Ctrl+E:exec  gg/G:top/bottom  n/N:search  q:quit"
+		return "w/s:nav  a/d:expand/collapse  Enter:pick  e/E:expand/collapse all  Shift+a/d:subtree  S:sections  f:flags  /:filter  H:help  Ctrl+E:exec  gg/G:top/bottom  n/N:search  ?:keys  q:quit"
 	default:
-		return "↑↓:nav  ←→:expand/collapse  Enter:pick  e/E:expand/collapse all  Shift+←→:subtree  S:sections  f:flags  /:filter  H:help  Ctrl+E:exec  gg/G:top/bottom  n/N:search  q:quit"
+		return "↑↓:nav  ←→:expand/collapse  Enter:pick  e/E:expand/collapse all  Shift+←→:subtree  S:sections  f:flags  /:filter  H:help  Ctrl+E:exec  gg/G:top/bottom  n/N:search  ?:keys  q:quit"
 	}
 }
 

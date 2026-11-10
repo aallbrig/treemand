@@ -26,8 +26,10 @@ const keybindText = `Navigation
   ← / h / a                          Collapse node; go to parent (2nd press)
   Shift+→ / Shift+L / Shift+D        Expand entire subtree
   Shift+← / Shift+H / Shift+A        Collapse entire subtree
+  PgUp / PgDn  or  Ctrl+U / Ctrl+D  Move up / down a screenful
   gg                                  Jump to top
   G                                   Jump to bottom
+  Space                               Toggle expand / collapse
 
 Tree
   /        Fuzzy filter tree (Esc clears, Enter keeps)
@@ -36,13 +38,13 @@ Tree
   n / N    Next / previous search match
   e / E    Expand all / collapse all
   S        Toggle section headers
-  T        Cycle display style (default → columns → compact → graph)
-  R        Re-discover selected node (refresh children)
+  t / T    Cycle display style (default → columns → compact → graph)
+  r / R    Re-discover selected node (refresh children)
 
 Building Commands
   Enter    Set command / add flag / fill positional
   f / F    Open flag picker modal
-  Backspace  Remove last token from preview
+  Backspace / Delete  Remove last token from preview
   Ctrl+K   Clear entire preview bar
   Ctrl+E   Copy or execute the assembled command
 
@@ -53,8 +55,13 @@ View
   Ctrl+S   Cycle navigation scheme (arrows → vim → WASD)
   ?        Show this help
 
+Mouse
+  Click        Select a node or flag
+  Click ▶ / ▼  Expand / collapse
+  Wheel        Scroll the tree
+
 Quit
-  q / Esc    Quit`
+  q / Esc / Ctrl+C    Quit`
 
 func (m *Model) updateKeybindModal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
@@ -77,8 +84,46 @@ func (m *Model) updateKeybindModal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// wrapHanging wraps one line of the key bindings text to width columns. An
+// entry "  keys      description" continues under its description column, so a
+// wrapped description stays readable; other lines wrap plainly.
+func wrapHanging(line string, width int) []string {
+	if lipgloss.Width(line) <= width {
+		return []string{line}
+	}
+	lead := len(line) - len(strings.TrimLeft(line, " "))
+	gap := strings.Index(line[lead:], "  ")
+	if gap < 0 {
+		return strings.Split(lipgloss.NewStyle().Width(width).Render(line), "\n")
+	}
+	start := lead + gap
+	for start < len(line) && line[start] == ' ' {
+		start++
+	}
+	prefix := line[:start]
+	col := lipgloss.Width(prefix)
+	if col >= width-10 {
+		return strings.Split(lipgloss.NewStyle().Width(width).Render(line), "\n")
+	}
+	indent := strings.Repeat(" ", col)
+	var rows []string
+	row, empty := prefix, true
+	for _, word := range strings.Fields(line[start:]) {
+		if !empty && lipgloss.Width(row)+1+lipgloss.Width(word) > width {
+			rows = append(rows, row)
+			row, empty = indent, true
+		}
+		if !empty {
+			row += " "
+		}
+		row += word
+		empty = false
+	}
+	return append(rows, row)
+}
+
 func (m *Model) renderKeybindModal() string {
-	modalW := min(m.width-6, 64)
+	modalW := min(m.width-6, 76)
 	if modalW < 40 {
 		modalW = 40
 	}
@@ -86,7 +131,13 @@ func (m *Model) renderKeybindModal() string {
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#5EA4F5"))
 	hintStyle := lipgloss.NewStyle().Faint(true)
 
-	lines := strings.Split(keybindText, "\n")
+	// Wrap each source line to the box's inner width first, so one entry is one
+	// screen row and the scroll window below counts rows, not source lines.
+	innerW := modalW - 6 // border (2) + horizontal padding (4)
+	var lines []string
+	for _, src := range strings.Split(keybindText, "\n") {
+		lines = append(lines, wrapHanging(src, innerW)...)
+	}
 	maxVisible := m.height - 10
 	if maxVisible < 5 {
 		maxVisible = 5
