@@ -350,3 +350,25 @@ func TestHelpDiscoverer_hangingCLI_honoursContext(t *testing.T) {
 		t.Errorf("Discover took %v after a 1s context timeout", elapsed)
 	}
 }
+
+// A CLI whose help is only a usage synopsis gets its root description from the
+// man page NAME one-liner instead of a synopsis fragment.
+func TestHelpDiscoverer_rootDescriptionFallsBackToManName(t *testing.T) {
+	dir := t.TempDir()
+	cli := "#!/bin/sh\nprintf 'usage: tool [-ab] [-c file]\\n           [command [flags]]\\n'\n"
+	man := "#!/bin/sh\nprintf 'NAME\\n       tool - a friendly terminal tool\\n\\nSYNOPSIS\\n       tool [-ab]\\n'\n"
+	for name, body := range map[string]string{"tool": cli, "man": man} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o755); err != nil { //nolint:gosec
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	node, err := discovery.NewHelpDiscoverer(1).Discover(context.Background(), "tool", nil)
+	if err != nil {
+		t.Fatalf("Discover() error: %v", err)
+	}
+	if want := "a friendly terminal tool"; node.Description != want {
+		t.Errorf("Description = %q, want %q", node.Description, want)
+	}
+}

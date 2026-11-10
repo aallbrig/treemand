@@ -1,6 +1,7 @@
 package discovery_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/aallbrig/treemand/discovery"
@@ -634,5 +635,48 @@ func TestParseHelpOutput_subcommandDescriptions(t *testing.T) {
 		if got := p.SubcommandDescs[name]; got != desc {
 			t.Errorf("SubcommandDescs[%q] = %q, want %q", name, got, desc)
 		}
+	}
+}
+
+const mockGitUsageOnlyHelp = `usage: git [-v | --version] [-h | --help] [-C <path>] [-c <name>=<value>]
+           [--exec-path[=<path>]] [--html-path] [--man-path] [--info-path]
+           [-p | --paginate | -P | --no-pager] [--no-replace-objects] [--bare]
+           [--git-dir=<path>] [--work-tree=<path>] [--namespace=<name>]
+           <command> [<args>]
+
+These are common Git commands used in various situations:
+
+start a working area (see also: git help tutorial)
+   clone     Clone a repository into a new directory
+`
+
+const mockTmuxUsageOnlyHelp = `usage: tmux [-2CDlNuVv] [-c shell-command] [-f file] [-L socket-name]
+            [-S socket-path] [-T features] [command [flags]]
+`
+
+func TestParseHelpOutput_usageContinuationIsNotDescription(t *testing.T) {
+	cases := map[string]struct{ help, name string }{
+		"git":  {mockGitUsageOnlyHelp, "git"},
+		"tmux": {mockTmuxUsageOnlyHelp, "tmux"},
+	}
+	for name, c := range cases {
+		p := discovery.ParseHelpOutputFor(c.help, c.name)
+		if strings.Contains(p.Description, "[") || strings.Contains(p.Description, "<") {
+			t.Errorf("%s: description is a synopsis fragment: %q", name, p.Description)
+		}
+	}
+}
+
+func TestParseHelpOutput_listHeadingIsNotDescription(t *testing.T) {
+	p := discovery.ParseHelpOutputFor(mockGitUsageOnlyHelp, "git")
+	if p.Description != "" {
+		t.Errorf("description = %q, want empty (no prose one-liner in this help)", p.Description)
+	}
+}
+
+func TestParseHelpOutput_manNameEmDash(t *testing.T) {
+	p := discovery.ParseHelpOutput("NAME\n       tmux \u2014 terminal multiplexer\n\nSYNOPSIS\n       tmux [-2CDlNuVv]\n")
+	if want := "terminal multiplexer"; p.Description != want {
+		t.Errorf("description = %q, want %q", p.Description, want)
 	}
 }
