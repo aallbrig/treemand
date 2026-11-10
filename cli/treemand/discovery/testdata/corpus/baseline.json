@@ -1,0 +1,98 @@
+{
+  "apt": {
+    "subcommands": 39,
+    "flags": 0,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
+  "aws": {
+    "subcommands": 422,
+    "flags": 18,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
+  "curl": {
+    "subcommands": 0,
+    "flags": 228,
+    "has_description": false,
+    "description_is_synopsis": false
+  },
+  "docker": {
+    "subcommands": 53,
+    "flags": 11,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
+  "gh": {
+    "subcommands": 41,
+    "flags": 2,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
+  "git": {
+    "subcommands": 22,
+    "flags": 0,
+    "has_description": false,
+    "description_is_synopsis": false
+  },
+  "go": {
+    "subcommands": 19,
+    "flags": 0,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
+  "helm": {
+    "subcommands": 26,
+    "flags": 20,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
+  "jq": {
+    "subcommands": 0,
+    "flags": 29,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
+  "kubectl": {
+    "subcommands": 45,
+    "flags": 0,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
+  "npm": {
+    "subcommands": 68,
+    "flags": 0,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
+  "pip": {
+    "subcommands": 17,
+    "flags": 25,
+    "has_description": false,
+    "description_is_synopsis": false
+  },
+  "ssh": {
+    "subcommands": 0,
+    "flags": 0,
+    "has_description": false,
+    "description_is_synopsis": false
+  },
+  "systemctl": {
+    "subcommands": 53,
+    "flags": 46,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
+  "tar": {
+    "subcommands": 8,
+    "flags": 141,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
+  "tmux": {
+    "subcommands": 0,
+    "flags": 0,
+    "has_description": false,
+    "description_is_synopsis": false
+  }
+}

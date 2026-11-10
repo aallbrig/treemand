@@ -872,6 +872,23 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 	return result
 }
 
+// sectionRank orders sections when a header matches more than one keyword;
+// lower wins.
+var sectionRank = map[string]int{
+	secCommands: 0, secFlags: 1, secUsage: 2, secName: 3, secAliases: 4, secExamples: 5, secDesc: 6,
+}
+
+// betterSection reports whether (sec, kw) should replace (bestSec, bestKw).
+func betterSection(sec, kw, bestSec, bestKw string) bool {
+	if sectionRank[sec] != sectionRank[bestSec] {
+		return sectionRank[sec] < sectionRank[bestSec]
+	}
+	if len(kw) != len(bestKw) {
+		return len(kw) > len(bestKw)
+	}
+	return kw < bestKw
+}
+
 // detectSection returns a section constant if the line is a recognized header.
 // Handles "Title Case:" (cobra/click style) and "UPPER CASE" (man/AWS style).
 func detectSection(lower string) string {
@@ -898,11 +915,20 @@ func detectSection(lower string) string {
 	// Only apply to short candidates (section headers are rarely > 30 chars);
 	// this prevents false-positives on lines like "Usage: ls [OPTION]... [FILE]..."
 	if len(candidate) <= 30 {
+		// A header can match several keywords ("environment commands" matches
+		// both "commands" and "environment"). Choose deterministically: sections
+		// that hold lists (commands, flags) beat free-text ones, then the longer
+		// keyword, then the keyword itself, so the result never depends on map order.
+		bestSec, bestKw := secNone, ""
 		for kw, sec := range sectionHeaders {
-			if strings.HasPrefix(candidate, kw) || strings.HasSuffix(candidate, kw) {
-				return sec
+			if !strings.HasPrefix(candidate, kw) && !strings.HasSuffix(candidate, kw) {
+				continue
+			}
+			if bestSec == secNone || betterSection(sec, kw, bestSec, bestKw) {
+				bestSec, bestKw = sec, kw
 			}
 		}
+		return bestSec
 	}
 	return secNone
 }
