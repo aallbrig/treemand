@@ -35,6 +35,7 @@ var (
 	cfgNoCache       bool
 	cfgTimeout       int
 	cfgExpandStubs   int
+	cfgJobs          int
 	cfgDebug         bool
 	cfgIcons         string
 	cfgLineLength    int
@@ -103,6 +104,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgOutput, "output", "text", "Output format: text, json, yaml")
 	rootCmd.PersistentFlags().BoolVar(&cfgNoColor, "no-color", false, "Disable color output")
 	rootCmd.PersistentFlags().BoolVar(&cfgNoCache, "no-cache", false, "Disable caching")
+	rootCmd.PersistentFlags().IntVar(&cfgJobs, "jobs", 0, "Max concurrent help processes during discovery (0 = auto: 2 x CPUs, between 4 and 16)")
 	rootCmd.PersistentFlags().IntVar(&cfgExpandStubs, "expand-stubs", 0, "Expand undiscovered (stub, marked (…)) nodes N levels deep before output: gets their descriptions and children (slow on huge CLIs; disables cache)")
 	rootCmd.PersistentFlags().IntVar(&cfgTimeout, "timeout", 30, "Discovery timeout in seconds")
 	rootCmd.PersistentFlags().BoolVar(&cfgDebug, "debug", false, "Enable debug logging")
@@ -135,6 +137,7 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr}).Level(logLevel)
 
 	cliName := args[0]
+	discovery.SetMaxConcurrentHelp(cfgJobs)
 
 	// Fail early with a clear message if the binary cannot be found.
 	if err := discovery.CheckAvailable(cliName); err != nil {
@@ -336,6 +339,7 @@ func NewRootCmd() *cobra.Command {
 	c.PersistentFlags().StringVar(&cfgIcons, "icons", "", "Icon preset")
 	c.PersistentFlags().IntVar(&cfgLineLength, "line-length", 0, "Max description line length")
 	c.PersistentFlags().IntVar(&cfgStubThreshold, "stub-threshold", 0, "Stub threshold")
+	c.PersistentFlags().IntVar(&cfgJobs, "jobs", 0, "Max concurrent help processes")
 	c.PersistentFlags().IntVar(&cfgExpandStubs, "expand-stubs", 0, "Expand undiscovered (stub) nodes N levels deep before output")
 	c.AddCommand(versionCmd)
 	c.AddCommand(cacheCmd)

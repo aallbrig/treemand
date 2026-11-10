@@ -466,3 +466,63 @@ func TestHelpDiscoverer_oneHelpInvocationPerNode(t *testing.T) {
 		}
 	}
 }
+
+// However deep or wide the tree, no more than the configured number of help
+// processes run at once.
+func TestHelpDiscoverer_capsConcurrentProcesses(t *testing.T) {
+	dir := t.TempDir()
+	runDir := filepath.Join(dir, "run")
+	if err := os.MkdirAll(runDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	maxFile := filepath.Join(dir, "max")
+	var kids []string
+	for i := 0; i < 12; i++ {
+		kids = append(kids, "k"+string(rune('a'+i)))
+	}
+	listing := ""
+	for _, k := range kids {
+		listing += "  " + k + "   the " + k + " command\\n"
+	}
+	script := "#!/bin/sh\n" +
+		"case \"$1\" in\n" +
+		"k*) touch " + runDir + "/$$; sleep 0.3; n=$(ls " + runDir + " | wc -l); " +
+		"echo $n >> " + maxFile + "; rm " + runDir + "/$$; printf 'leaf help\\n\\nOptions:\\n  --x   an option\\n'; exit 0;;\n" +
+		"esac\n" +
+		"printf 'root help\\n\\nCommands:\\n" + listing + "'\n"
+	if err := os.WriteFile(filepath.Join(dir, "tool"), []byte(script), 0o755); err != nil { //nolint:gosec
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	discovery.SetMaxConcurrentHelp(3)
+	t.Cleanup(func() { discovery.SetMaxConcurrentHelp(0) })
+
+	node, err := discovery.NewHelpDiscoverer(2).Discover(context.Background(), "tool", nil)
+	if err != nil {
+		t.Fatalf("Discover() error: %v", err)
+	}
+	if len(node.Children) != 12 {
+		t.Fatalf("got %d children, want 12", len(node.Children))
+	}
+	raw, err := os.ReadFile(maxFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	peak := 0
+	for _, f := range strings.Fields(string(raw)) {
+		n := 0
+		for _, r := range f {
+			n = n*10 + int(r-'0')
+		}
+		if n > peak {
+			peak = n
+		}
+	}
+	if peak > 3 {
+		t.Errorf("saw %d help processes at once, want at most 3", peak)
+	}
+	if peak == 0 {
+		t.Error("no concurrency recorded; the fake CLI did not run")
+	}
+}
