@@ -84,7 +84,9 @@ func TestHelpDiscoverer_listCommandsFallback(t *testing.T) {
 		"if [ \"$1\" = list-commands ]; then\n" +
 		"  printf 'attach-session (attach) [-dE] [-t target-session]\\nkill-server\\nlist-commands [-F format]\\nnew-session (new) [-s session-name]\\nrename-window (renamew) [-t target-window] new-name\\n'\n" +
 		"else printf 'usage: lc [-2CDlNuVv] [command [flags]]\\n'; fi\n"
-	man := "#!/bin/sh\nprintf 'NAME\\n       lc - a multiplexer\\n\\nCOMMANDS\\n       kill-server\\n               Kill the server and all sessions.\\n'\n"
+	// Like tmux's, the man page documents list-commands; that is what makes
+	// treemand ask for it.
+	man := "#!/bin/sh\nprintf 'NAME\\n       lc - a multiplexer\\n\\nCOMMANDS\\n       kill-server\\n               Kill the server and all sessions.\\n       list-commands [-F format]\\n               List the syntax of all commands.\\n'\n"
 	for name, body := range map[string]string{"lc": cli, "man": man} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o755); err != nil {
 			t.Fatal(err)
@@ -115,5 +117,29 @@ func TestHelpDiscoverer_listCommandsFallback(t *testing.T) {
 	}
 	if got := strings.Join(attach.FullPath, " "); got != "lc attach-session" {
 		t.Errorf("FullPath = %q, want %q", got, "lc attach-session")
+	}
+}
+
+// A CLI with no subcommands that does not document list-commands must never
+// be given it: "touch list-commands" creates a file, "mkdir" a directory.
+func TestHelpDiscoverer_neverSendsListCommandsToACLIThatDoesNotDocumentIt(t *testing.T) {
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "acted")
+	cli := "#!/bin/sh\n" +
+		"if [ \"$1\" = list-commands ]; then touch '" + marker + "'; fi\n" +
+		"printf 'Usage: plain [OPTION]... FILE...\\nUpdate the access times of each FILE.\\n\\n  -a   change only the access time\\n'\n"
+	man := "#!/bin/sh\nprintf 'NAME\\n       plain - change file timestamps\\n'\n"
+	for name, body := range map[string]string{"plain": cli, "man": man} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	if _, err := discovery.NewHelpDiscoverer(2).Discover(context.Background(), "plain", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(marker); err == nil {
+		t.Error("list-commands was passed to a CLI that does not document it")
 	}
 }

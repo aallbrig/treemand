@@ -102,7 +102,7 @@ func (h *HelpDiscoverer) discoverWithHelp(ctx context.Context, cliName string, a
 	// No subcommands in --help at the root: some CLIs (tmux) list their
 	// commands through "list-commands" instead.
 	if depth == 0 && len(args) == 0 && len(parsed.Subcommands) == 0 {
-		if kids := h.commandListChildren(ctx, cliName, fullPath); len(kids) > 0 {
+		if kids := h.commandListChildren(ctx, cliName, helpText, fullPath); len(kids) > 0 {
 			node.Children = kids
 			return node, nil
 		}
