@@ -7,13 +7,14 @@ on:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 jobs:
   release:
     name: Build & Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the GitHub Release
+      id-token: write # keyless cosign signing (GitHub OIDC -> Fulcio)
     defaults:
       run:
         working-directory: cli/treemand
@@ -72,6 +73,23 @@ jobs:
           (cd dist && sha256sum *.tar.gz *.zip 2>/dev/null > checksums.txt)
           cat dist/checksums.txt
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: v3.1.4
+
+      - name: Sign checksums.txt (keyless)
+        run: cosign sign-blob --yes --bundle dist/checksums.txt.sigstore.json dist/checksums.txt
+
+      # The identity install.sh pins; proving it here means no user sees a release it can't verify.
+      - name: Verify the signature
+        run: |
+          cosign verify-blob \
+            --bundle dist/checksums.txt.sigstore.json \
+            --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            dist/checksums.txt
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -79,6 +97,7 @@ jobs:
             cli/treemand/dist/*.tar.gz
             cli/treemand/dist/*.zip
             cli/treemand/dist/checksums.txt
+            cli/treemand/dist/checksums.txt.sigstore.json
           generate_release_notes: true
 
   update-homebrew:
@@ -187,25 +206,40 @@ jobs:
           git commit -m "chore: update treemand formula to v${VERSION}"
           git push
 
-  deploy-site:
-    name: Deploy Hugo Site
+  mirror:
+    name: Mirror to treemand.dev
     runs-on: ubuntu-latest
     needs: release
+    environment:
+      name: production
+      url: https://treemand.dev/releases/latest.txt
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Hugo
-        uses: peaceiris/actions-hugo@v3
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
-          hugo-version: "0.157.0"
-          extended: true
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+          mask-aws-account-id: true
 
-      - name: Build site
-        working-directory: www/treemand
-        run: hugo --minify --baseURL "https://aallbrig.github.io/treemand/"
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "$GITHUB_REF_NAME" --dir dist \
+            --pattern 'treemand_*.tar.gz' --pattern 'treemand_*.zip' --pattern 'checksums.txt*'
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: www/treemand/public
+      - name: Mirror release
+        run: bash scripts/infra/mirror_release.sh "$GITHUB_REF_NAME" dist
+
+  deploy-site:
+    name: Deploy treemand.dev
+    needs: mirror
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/site.yml
+    secrets: inherit
