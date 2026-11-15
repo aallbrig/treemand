@@ -100,6 +100,23 @@ func (h *HelpDiscoverer) discoverWithHelp(ctx context.Context, cliName string, a
 	node.Flags = parsed.Flags
 	node.Positionals = parsed.Positionals
 
+	// cleo apps (poetry, #166): --help is the help of their "list" command,
+	// which prints the real command list. Running "list" is safe only because
+	// the help itself documents it as the command that lists commands.
+	if depth == 0 && len(args) == 0 && len(parsed.Subcommands) == 0 && cleoListHelpRe.MatchString(helpText) {
+		var timedOut atomic.Bool
+		if out := h.runOne(ctx, resolveBinary(cliName), []string{"list"}, &timedOut); out != "" && !isErrorOutput(out) {
+			if listed := ParseHelpOutputFor(out, cliName); len(listed.Subcommands) > 0 {
+				helpText, parsed = out, listed
+				node.HelpText = out
+				node.Flags = listed.Flags
+				if listed.Description != "" {
+					node.Description = listed.Description
+				}
+			}
+		}
+	}
+
 	// No subcommands in --help at the root: some CLIs (tmux) list their
 	// commands through "list-commands" instead.
 	if depth == 0 && len(args) == 0 && len(parsed.Subcommands) == 0 {
@@ -883,7 +900,9 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 		// name ends in a header keyword such as "config" or "cache".
 		// Inside a command list, a line indented 4+ spaces belongs to the previous
 		// row's description (kingpin's "    examples:"), not a new section.
-		describesRow := section == secCommands && indentOf(rawLine) >= 4
+		// So is an indented bare word ("  cache", a cleo namespace label).
+		describesRow := section == secCommands &&
+			(indentOf(rawLine) >= 4 || (indentOf(rawLine) >= 1 && !strings.ContainsAny(trimmed, " :")))
 		if sec := detectSection(lower); sec != secNone && !awsBulletRe.MatchString(rawLine) && !describesRow {
 			// For named flag-group sections (e.g. "General options:", "Debug options:"),
 			// remember the human-readable name so flags get grouped under it.
@@ -1063,6 +1082,12 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 			// "git-clone(1)": the program's name, then the command.
 			if m := manRefRowRe.FindStringSubmatch(rawLine); m != nil && m[1] == selfName {
 				addChoice(m[2], "")
+				continue
+			}
+			// Namespaced command (cleo, #166): "  cache clear   Clears …": the
+			// namespace is the subcommand, its words below it.
+			if m := namespaceRowRe.FindStringSubmatch(rawLine); m != nil {
+				addChoice(m[1], "")
 				continue
 			}
 			// Bullet list (yarn 1, #157): "    - access".
@@ -1609,8 +1634,13 @@ var (
 	thorRowRe = regexp.MustCompile(`^\s+(\S+)\s+([a-z][a-z0-9_:-]*)\b[^#]*#\s*(.*)$`)
 	// manRefRowRe is a man-page command reference: "bundle install(1) …".
 	manRefRowRe = regexp.MustCompile(`^\s+(\S+?)[ -]([a-z][a-z0-9_-]*)\(\d+[a-z]*\)`)
+	// cleoListHelpRe recognizes the help of a cleo app's "list" command:
+	// "Usage:" followed by "  list [options] …" (what "poetry --help" prints).
+	cleoListHelpRe = regexp.MustCompile(`(?m)^Usage:\s*\n\s+list(?:\s|$)`)
 	// grammarRe is a grammar rule: "where  OBJECT := { address | …".
 	grammarRe = regexp.MustCompile(`^(?:where\s+)?([A-Z][A-Z_]*)\s*:=\s*\{(.*)$`)
+	// namespaceRowRe is a namespaced command row: "  cache clear        Clears …".
+	namespaceRowRe = regexp.MustCompile(`^\s+([a-z][a-z0-9_-]*) [a-z][a-z0-9_-]*\s{2,}\S`)
 	// bulletCmdRe is a bulleted command: "    - access".
 	bulletCmdRe = regexp.MustCompile(`^\s+- ([a-z][a-z0-9_-]*)\s*$`)
 )

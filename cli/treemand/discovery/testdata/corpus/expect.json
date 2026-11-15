@@ -57,7 +57,7 @@
   "http": {"max_subcommands": 0, "flags_include": ["--json", "--form", "--verbose", "--auth"]},
   "jest": {"max_subcommands": 0, "flags_include": ["--watch", "--coverage", "--config"]},
   "mvn": {"max_subcommands": 0, "flags_include": ["--batch-mode", "--file", "--projects"]},
-  "poetry": {"subcommands_include": ["add", "install", "build", "publish"], "gaps": [166]},
+  "poetry": {"subcommands_include": ["add", "install", "build", "publish"]},
   "promtool": {"subcommands_include": ["check", "query", "test", "tsdb"]},
   "rg": {"max_subcommands": 0, "flags_include": ["--ignore-case", "--glob", "--type", "--files"]},
   "terraform": {"subcommands_include": ["init", "plan", "apply", "fmt"], "flags_include": ["-chdir", "-help", "-version"]},
