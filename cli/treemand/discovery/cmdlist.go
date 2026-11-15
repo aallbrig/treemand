@@ -146,8 +146,18 @@ var commandListSkip = map[string]bool{
 
 // commandListChildren builds child nodes from `<cli> list-commands`, or
 // returns nil when the CLI has no such command.
-func (h *HelpDiscoverer) commandListChildren(ctx context.Context, cliName string, fullPath []string) []*models.Node {
+func (h *HelpDiscoverer) commandListChildren(ctx context.Context, cliName, helpText string, fullPath []string) []*models.Node {
 	if commandListSkip[cliName] {
+		return nil
+	}
+	// "list-commands" is an argument, and a CLI without such a command acts
+	// on it: "touch list-commands" creates a file, "mkdir" a directory. Only
+	// ask a CLI that documents the command (tmux does, in its help or man page).
+	man, merr := NewManDiscoverer().fetchManPage(ctx, cliName)
+	if merr != nil {
+		man = ""
+	}
+	if !strings.Contains(helpText, "list-commands") && !strings.Contains(man, "list-commands") {
 		return nil
 	}
 	cctx, cancel := context.WithTimeout(ctx, h.Timeout)
@@ -166,8 +176,8 @@ func (h *HelpDiscoverer) commandListChildren(ctx context.Context, cliName string
 		names[i] = e.Name
 	}
 	descs := map[string]string{}
-	if plain, merr := NewManDiscoverer().fetchManPage(ctx, cliName); merr == nil && plain != "" {
-		descs = ManCommandDescriptions(plain, names)
+	if man != "" {
+		descs = ManCommandDescriptions(man, names)
 	}
 
 	children := make([]*models.Node, 0, len(entries))
