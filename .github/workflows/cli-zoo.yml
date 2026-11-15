@@ -1,0 +1,50 @@
+name: CLI Zoo
+
+# Runs treemand against CLIs from help-text families a developer machine may
+# lack (test/cli-zoo), inside a disposable container, so nothing a CLI does
+# while being discovered can touch anything else.
+#   smoke   full discovery of every zoo CLI; fails on a crash, error or empty tree
+#   drift   re-captures the zoo fixtures and reports any difference from the
+#           committed ones (apt packages in the base image move; pins do not)
+
+on:
+  pull_request:
+    paths:
+      - "cli/treemand/discovery/**"
+      - "test/cli-zoo/**"
+      - ".github/workflows/cli-zoo.yml"
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  zoo:
+    name: Discover the CLI zoo
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the zoo image
+        run: docker build -t treemand-cli-zoo -f test/cli-zoo/Dockerfile .
+
+      - name: Smoke test
+        run: docker run --rm treemand-cli-zoo smoke | tee zoo-report.tsv
+
+      - name: Fixture drift
+        run: |
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
+            -v "$PWD/cli/treemand/discovery/testdata/corpus:/out/corpus" treemand-cli-zoo capture
+          if ! git diff --quiet -- cli/treemand/discovery/testdata/corpus; then
+            echo "::warning::zoo fixtures drifted from the committed ones; run task zoo:capture and review"
+            git diff --stat -- cli/treemand/discovery/testdata/corpus
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zoo-report
+          path: zoo-report.tsv

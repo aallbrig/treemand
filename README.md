@@ -199,15 +199,21 @@ Covered, by help-text family:
 
 - **Go / cobra**: `kubectl`, `gh`, `docker`, `helm`, `hugo`, `k9s`, `golangci-lint`
 - **Go / stdlib flag and hand-written**: `go`, `gofmt`, `task`
-- **Rust / clap**: `uv`, `ruff`, `pnpm`
-- **Python / argparse and custom**: `pip`, `pipx`, `ansible`, `pre-commit`, `aws`
-- **Node**: `npm`, `node`, `yarn`
-- **Ruby**: `gem`, `ruby`, `bundle`
-- **Java / .NET**: `java`, `keytool`, `dotnet`
+- **Go / mitchellh/cli and kingpin**: `terraform`, `promtool`
+- **Rust / clap**: `uv`, `ruff`, `pnpm`, `rg`, `fd`, `bat`
+- **Python / argparse and custom**: `pip`, `pipx`, `ansible`, `pre-commit`, `aws`, `http`
+- **Python / click and cleo**: `black`, `flask`, `poetry`
+- **Node**: `npm`, `node`, `yarn`, `eslint`, `jest` (yargs), `heroku` (oclif)
+- **Ruby**: `gem`, `ruby`, `bundle`, `thor`
+- **Java / .NET**: `java`, `keytool`, `mvn`, `dotnet`
 - **GNU getopt**: `tar`, `grep`, `sed`, `ls`, `find`, `rsync`, `wget`, `curl`
 - **Hand-written C and odd shapes**: `git`, `openssl`, `ffmpeg`, `ip`, `tmux`, `systemctl`,
   `journalctl`, `ssh`, `jq`, `make`, `cmake`, `apt`
 - **Multi-call binaries**: `busybox`
+
+CLIs this machine may not have (terraform, promtool, the clap, click, cleo, yargs, oclif and thor
+tools, Maven) come from the `cli-zoo` container (`test/cli-zoo/`): `task zoo:smoke` runs full discovery
+of each one, isolated from your machine, and `task zoo:capture` refreshes their fixtures.
 
 ## How treemand compares
 
