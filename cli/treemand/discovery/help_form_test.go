@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -200,4 +201,29 @@ esac
 	if len(mod.Children) != 1 || mod.Children[0].Name != "tidy" {
 		t.Errorf("mod's children not discovered: %+v", mod.Children)
 	}
+}
+
+func TestRaceForms_noLoserOutlivesTheDiscovery(t *testing.T) {
+	// --help wins after 600ms. The losing -h leaves a child holding its stdout,
+	// so after it is killed its reader waits for the pipe (up to 1s). That
+	// goroutine must be finished when Discover returns: one still running
+	// outlived the discovery and reported into the next test's hooks.
+	bin, _ := formCLI(t, 0, `case "$*" in
+*--help*) sleep 0.6; printf 'Usage: formcli\n\nOptions:\n  -v, --verbose  verbose\n';;
+*-h*) sleep 5 & sleep 5;;
+esac
+`)
+	if _, err := NewHelpDiscoverer(1).Discover(context.Background(), bin, nil); err != nil {
+		t.Fatal(err)
+	}
+	if n := runningForms(); n > 0 {
+		t.Errorf("%d help form(s) still running when Discover returned", n)
+	}
+}
+
+// runningForms counts goroutines inside tryForm, the race's worker.
+func runningForms() int {
+	buf := make([]byte, 1<<20)
+	buf = buf[:runtime.Stack(buf, true)]
+	return strings.Count(string(buf), ").tryForm(")
 }
