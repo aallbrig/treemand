@@ -63,6 +63,26 @@ tasks:
     cmds:
       - govulncheck ./...
 
+  secrets:
+    desc: Scan staged changes for secrets and AWS account identifiers (.gitleaks.toml)
+    cmds:
+      - gitleaks git --staged --config .gitleaks.toml --redact --no-banner --log-level warn .
+
+  secrets:history:
+    desc: Scan all of git history for secrets and AWS account identifiers
+    cmds:
+      - gitleaks git --config .gitleaks.toml --redact --no-banner --log-level warn .
+
+  infra:lint:
+    desc: cfn-lint (with the Project=treemand tag rule) and checkov over infra/*.yaml
+    cmds:
+      - bash scripts/infra_lint.sh
+
+  gates:test:
+    desc: Prove the account-identifier and Project-tag gates fire on fixtures
+    cmds:
+      - bash scripts/gates_test.sh
+
   # ── tests ────────────────────────────────────────────────────────────────
 
   test:
@@ -92,8 +112,10 @@ tasks:
       - task: lint-fix
 
   precommit:
-    desc: Pre-commit gate — fmt, vet, lint, vuln, test
+    desc: Pre-commit gate — secrets, infra lint, fmt, vet, lint, vuln, test
     cmds:
+      - task: secrets
+      - task: infra:lint
       - task: fmt
       - task: vet
       - task: lint
@@ -277,7 +299,7 @@ tasks:
       - bash scripts/setup-hooks.sh
       - go install golang.org/x/vuln/cmd/govulncheck@latest
       - pre-commit install || true
-      - echo "also needed on PATH - golangci-lint, hugo (extended), tmux, tmuxinator, watchexec, gh, jq, shellcheck, gitleaks"
+      - echo "also needed on PATH - golangci-lint, hugo (extended), tmux, tmuxinator, watchexec, gh, jq, shellcheck, gitleaks, cfn-lint, checkov"
 
   format:
     desc: Format everything
@@ -287,6 +309,9 @@ tasks:
   ci:
     desc: All quality gates; needs no live services
     cmds:
+      - task: secrets:history
+      - task: infra:lint
+      - task: gates:test
       - task: fmt:check
       - task: vet
       - task: lint

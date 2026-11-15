@@ -74,6 +74,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # secrets:history scans every commit
 
       - uses: actions/setup-go@v5
         with:
@@ -92,6 +94,10 @@ jobs:
           go install golang.org/x/vuln/cmd/govulncheck@latest
           go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.27.2/gitleaks_8.27.2_linux_x64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin gitleaks
+          pipx install cfn-lint==1.59.0
+          pipx install checkov==3.2.529
 
       - uses: peaceiris/actions-hugo@v3
         with:
