@@ -1,0 +1,392 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  treemand.dev bootstrap. Deployed by hand with admin credentials (task infra:bootstrap):
+  the GitHub OIDC deploy role, the CloudFormation service role that owns site resources,
+  the boundary capping both, the TLS certificate and the cost budget. Account-specific values
+  arrive as parameters or pseudo-parameters at deploy time and never through git.
+
+Parameters:
+  DomainName:
+    Type: String
+    Default: treemand.dev
+  HostedZoneId:
+    Type: AWS::Route53::HostedZone::Id
+    Description: Looked up from DomainName by scripts/infra/bootstrap.sh; never committed.
+  GitHubRepo:
+    Type: String
+    Default: aallbrig/treemand
+  GitHubEnvironment:
+    Type: String
+    Default: production
+    Description: The only GitHub environment whose jobs may assume the deploy role.
+  SiteBucketName:
+    Type: String
+    Default: treemand-dev-site
+  LogBucketName:
+    Type: String
+    Default: treemand-dev-logs
+  BudgetEmail:
+    Type: String
+    NoEcho: true
+    Description: Where budget alerts go. Supplied at deploy time.
+  MonthlyBudgetUsd:
+    Type: Number
+    Default: 5
+
+Resources:
+  Boundary:
+    Type: AWS::IAM::ManagedPolicy
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_109
+            comment: A permissions boundary is a ceiling, not a grant; the roles' own policies scope every action, and IAM is denied except PassRole on one role.
+          - id: CKV_AWS_111
+            comment: Same - the boundary caps services, region and stack; resource scoping lives in the identity policies.
+    Properties:
+      ManagedPolicyName: treemand-boundary
+      Description: Ceiling for every treemand automation role; IAM, other regions and other stacks are out of reach.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ServicesInPlay
+            Effect: Allow
+            Action:
+              - cloudformation:*
+              - cloudfront:*
+              - route53:*
+              - glue:*
+              - athena:*
+              - acm:DescribeCertificate
+              - acm:ListCertificates
+              - lakeformation:Get*
+              - lakeformation:List*
+              - lakeformation:Describe*
+              - sts:GetCallerIdentity
+            Resource: '*'
+          - Sid: OwnBucketsOnly
+            Effect: Allow
+            Action: s3:*
+            Resource:
+              - !Sub arn:${AWS::Partition}:s3:::treemand-dev-*
+              - !Sub arn:${AWS::Partition}:s3:::treemand-dev-*/*
+          - Sid: PassOnlyTheExecRole
+            Effect: Allow
+            Action: iam:PassRole
+            Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/treemand-cfn-exec
+            Condition:
+              StringEquals:
+                iam:PassedToService: cloudformation.amazonaws.com
+          - Sid: UsEast1Only
+            Effect: Deny
+            Action: '*'
+            Resource: '*'
+            Condition:
+              StringNotEquals:
+                aws:RequestedRegion: us-east-1
+          - Sid: OnlyTheSiteStack
+            Effect: Deny
+            Action:
+              - cloudformation:CreateStack
+              - cloudformation:UpdateStack
+              - cloudformation:DeleteStack
+              - cloudformation:CreateChangeSet
+              - cloudformation:ExecuteChangeSet
+            NotResource: !Sub arn:${AWS::Partition}:cloudformation:us-east-1:${AWS::AccountId}:stack/treemand-site/*
+          - Sid: NoIamBeyondPassRole
+            Effect: Deny
+            Action: iam:*
+            NotResource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/treemand-cfn-exec
+
+  CfnExecRole:
+    Type: AWS::IAM::Role
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_111
+            comment: CloudFront Create* and origin-access-control / response-headers / cache-policy actions support only Resource "*" (Service Authorization Reference); everything else is name- or tag-scoped.
+    Properties:
+      RoleName: treemand-cfn-exec
+      Description: CloudFormation service role for the treemand-site stack; holds the resource-creation rights.
+      PermissionsBoundary: !Ref Boundary
+      Tags:
+        - {Key: Project, Value: treemand}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: cloudformation.amazonaws.com}
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+      Policies:
+        - PolicyName: treemand-site-resources
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: Buckets
+                Effect: Allow
+                Action:
+                  - s3:CreateBucket
+                  - s3:DeleteBucket
+                  - s3:ListBucket
+                  - s3:GetBucket*
+                  - s3:PutBucket*
+                  - s3:DeleteBucketPolicy
+                  - s3:GetLifecycleConfiguration
+                  - s3:PutLifecycleConfiguration
+                  - s3:GetEncryptionConfiguration
+                  - s3:PutEncryptionConfiguration
+                  - s3:ListTagsForResource
+                  - s3:TagResource
+                  - s3:UntagResource
+                Resource:
+                  - !Sub arn:${AWS::Partition}:s3:::${SiteBucketName}
+                  - !Sub arn:${AWS::Partition}:s3:::${LogBucketName}
+              - Sid: CreateTaggedDistributionsAndFunctions
+                Effect: Allow
+                Action:
+                  - cloudfront:CreateDistribution
+                  - cloudfront:CreateFunction
+                  - cloudfront:TagResource
+                Resource: '*'
+              - Sid: OwnDistributions
+                Effect: Allow
+                Action:
+                  - cloudfront:GetDistribution
+                  - cloudfront:GetDistributionConfig
+                  - cloudfront:UpdateDistribution
+                  - cloudfront:DeleteDistribution
+                  - cloudfront:ListTagsForResource
+                  - cloudfront:TagResource
+                  - cloudfront:UntagResource
+                Resource: !Sub arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/*
+                Condition:
+                  StringEquals:
+                    aws:ResourceTag/Project: treemand
+              - Sid: OwnFunctions
+                Effect: Allow
+                Action:
+                  - cloudfront:DescribeFunction
+                  - cloudfront:GetFunction
+                  - cloudfront:UpdateFunction
+                  - cloudfront:PublishFunction
+                  - cloudfront:DeleteFunction
+                  - cloudfront:ListTagsForResource
+                  - cloudfront:UntagResource
+                Resource: !Sub arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:function/treemand-*
+              - Sid: UntaggableCloudFrontConfig
+                Effect: Allow
+                Action:
+                  - cloudfront:CreateOriginAccessControl
+                  - cloudfront:GetOriginAccessControl
+                  - cloudfront:UpdateOriginAccessControl
+                  - cloudfront:DeleteOriginAccessControl
+                  - cloudfront:CreateResponseHeadersPolicy
+                  - cloudfront:GetResponseHeadersPolicy
+                  - cloudfront:UpdateResponseHeadersPolicy
+                  - cloudfront:DeleteResponseHeadersPolicy
+                  - cloudfront:CreateCachePolicy
+                  - cloudfront:GetCachePolicy
+                  - cloudfront:UpdateCachePolicy
+                  - cloudfront:DeleteCachePolicy
+                  - cloudfront:ListCachePolicies
+                  - cloudfront:ListResponseHeadersPolicies
+                Resource: '*'
+              - Sid: UseTheCertificate
+                Effect: Allow
+                Action:
+                  - acm:DescribeCertificate
+                  - acm:ListCertificates
+                Resource: '*'
+              - Sid: DnsRecordsForSiteOnly
+                Effect: Allow
+                Action: route53:ChangeResourceRecordSets
+                Resource: !Sub arn:${AWS::Partition}:route53:::hostedzone/${HostedZoneId}
+                Condition:
+                  ForAllValues:StringEquals:
+                    route53:ChangeResourceRecordSetsNormalizedRecordNames:
+                      - !Ref DomainName
+                      - !Sub www.${DomainName}
+                    route53:ChangeResourceRecordSetsRecordTypes: [A, AAAA]
+              - Sid: DnsRead
+                Effect: Allow
+                Action:
+                  - route53:GetHostedZone
+                  - route53:ListResourceRecordSets
+                Resource: !Sub arn:${AWS::Partition}:route53:::hostedzone/${HostedZoneId}
+              - Sid: DnsGlobalRead
+                Effect: Allow
+                Action:
+                  - route53:GetChange
+                  - route53:ListHostedZones
+                  - route53:ListHostedZonesByName
+                Resource: '*'
+              - Sid: GlueCatalog
+                Effect: Allow
+                Action:
+                  - glue:CreateDatabase
+                  - glue:GetDatabase
+                  - glue:UpdateDatabase
+                  - glue:DeleteDatabase
+                  - glue:CreateTable
+                  - glue:GetTable
+                  - glue:UpdateTable
+                  - glue:DeleteTable
+                Resource:
+                  - !Sub arn:${AWS::Partition}:glue:us-east-1:${AWS::AccountId}:catalog
+                  - !Sub arn:${AWS::Partition}:glue:us-east-1:${AWS::AccountId}:database/treemand*
+                  - !Sub arn:${AWS::Partition}:glue:us-east-1:${AWS::AccountId}:table/treemand*/*
+              - Sid: LakeFormationReadsInGlueHandlers
+                Effect: Allow
+                Action:
+                  - lakeformation:ListResources
+                  - lakeformation:DescribeResource
+                  - lakeformation:GetDataAccess
+                Resource: '*'
+              - Sid: AthenaWorkgroup
+                Effect: Allow
+                Action:
+                  - athena:CreateWorkGroup
+                  - athena:GetWorkGroup
+                  - athena:UpdateWorkGroup
+                  - athena:DeleteWorkGroup
+                  - athena:TagResource
+                  - athena:UntagResource
+                  - athena:ListTagsForResource
+                Resource: !Sub arn:${AWS::Partition}:athena:us-east-1:${AWS::AccountId}:workgroup/treemand-*
+
+  DeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: treemand-deploy
+      Description: Assumed by GitHub Actions in the production environment; deploys the site stack, syncs the site, publishes releases.
+      MaxSessionDuration: 3600
+      PermissionsBoundary: !Ref Boundary
+      Tags:
+        - {Key: Project, Value: treemand}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: !Sub repo:${GitHubRepo}:environment:${GitHubEnvironment}
+      Policies:
+        - PolicyName: treemand-deploy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: ChangeSetsOnSiteStackOnlyViaServiceRole
+                Effect: Allow
+                Action: cloudformation:CreateChangeSet
+                Resource: !Sub arn:${AWS::Partition}:cloudformation:us-east-1:${AWS::AccountId}:stack/treemand-site/*
+                Condition:
+                  StringEquals:
+                    cloudformation:RoleArn: !GetAtt CfnExecRole.Arn
+              - Sid: DriveSiteStack
+                Effect: Allow
+                Action:
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DescribeStackEvents
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:GetTemplateSummary
+                  - cloudformation:TagResource
+                Resource: !Sub arn:${AWS::Partition}:cloudformation:us-east-1:${AWS::AccountId}:stack/treemand-site/*
+              - Sid: HandOffToServiceRole
+                Effect: Allow
+                Action: iam:PassRole
+                Resource: !GetAtt CfnExecRole.Arn
+                Condition:
+                  StringEquals:
+                    iam:PassedToService: cloudformation.amazonaws.com
+              - Sid: SyncSiteBucket
+                Effect: Allow
+                Action: s3:ListBucket
+                Resource: !Sub arn:${AWS::Partition}:s3:::${SiteBucketName}
+              - Sid: SyncSiteObjects
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource: !Sub arn:${AWS::Partition}:s3:::${SiteBucketName}/*
+              - Sid: ReleasesAreImmutable
+                Effect: Deny
+                Action: s3:DeleteObject
+                Resource: !Sub arn:${AWS::Partition}:s3:::${SiteBucketName}/releases/v*
+              - Sid: InvalidateOwnDistribution
+                Effect: Allow
+                Action:
+                  - cloudfront:CreateInvalidation
+                  - cloudfront:GetInvalidation
+                  - cloudfront:GetDistribution
+                Resource: !Sub arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/*
+                Condition:
+                  StringEquals:
+                    aws:ResourceTag/Project: treemand
+
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref DomainName
+      SubjectAlternativeNames:
+        - !Sub www.${DomainName}
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref DomainName
+          HostedZoneId: !Ref HostedZoneId
+        - DomainName: !Sub www.${DomainName}
+          HostedZoneId: !Ref HostedZoneId
+      Tags:
+        - {Key: Project, Value: treemand}
+
+  MonthlyBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: treemand-monthly
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit: {Amount: !Ref MonthlyBudgetUsd, Unit: USD}
+        CostFilters:
+          TagKeyValue:
+            - user:Project$treemand
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - {SubscriptionType: EMAIL, Address: !Ref BudgetEmail}
+        - Notification:
+            NotificationType: FORECASTED
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - {SubscriptionType: EMAIL, Address: !Ref BudgetEmail}
+      ResourceTags:
+        - {Key: Project, Value: treemand}
+
+Outputs:
+  DeployRoleArn:
+    Value: !GetAtt DeployRole.Arn
+  CfnExecRoleArn:
+    Value: !GetAtt CfnExecRole.Arn
+  CertificateArn:
+    Value: !Ref Certificate
+    Export:
+      Name: treemand-certificate-arn
+  HostedZoneId:
+    Value: !Ref HostedZoneId
+    Export:
+      Name: treemand-hosted-zone-id
