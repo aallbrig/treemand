@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/spf13/viper"
 
@@ -180,4 +181,26 @@ func TestToYAML_unknownTreeStyleFallsBackToDefault(t *testing.T) {
 	if !strings.Contains(out, "tree_style: default") {
 		t.Errorf("unknown style should render as default:\n%s", out)
 	}
+}
+
+func TestCacheTTL_defaultsToThirtyDaysAndZeroMeansUntilTheCLIChanges(t *testing.T) {
+	if got := config.DefaultConfig().CacheTTL; got != 30*24*time.Hour {
+		t.Errorf("default CacheTTL = %v, want 720h", got)
+	}
+	for hours, want := range map[string]time.Duration{"48": 48 * time.Hour, "0": 0} {
+		viper.Reset()
+		file := filepath.Join(t.TempDir(), "config.yaml")
+		if err := os.WriteFile(file, []byte("cache_ttl_hours: "+hours+"\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := config.InitViper(file); err != nil {
+			t.Fatal(err)
+		}
+		cfg := config.DefaultConfig()
+		config.ApplyViper(cfg)
+		if cfg.CacheTTL != want {
+			t.Errorf("cache_ttl_hours: %s gave %v, want %v", hours, cfg.CacheTTL, want)
+		}
+	}
+	viper.Reset()
 }

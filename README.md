@@ -130,6 +130,7 @@ treemand --icons=ascii git         # ASCII-safe icons (▼ → v, • → -)
 treemand --icons=nerd git          # Nerd Font glyphs (requires patched font)
 treemand --no-color git            # disable color output
 treemand --no-cache git            # bypass the discovery cache
+treemand --refresh git             # re-crawl git and update its cache entry
 ```
 
 ## Scripting
@@ -217,7 +218,9 @@ Each of those gaps is a tracked issue. The full comparison with sources is in
 Discovered trees are cached in SQLite (`~/.treemand/cache.db`). A cache hit is near-instant (about
 30ms for `aws`, 422 services) because it never starts the CLI: entries are keyed on the executable on
 disk (its path, size and modification time), so upgrading a tool, by replacing the file or repointing a
-symlink, refreshes its entry on the next run. Entries also expire after 24 hours.
+symlink, refreshes its entry on the next run. Commands you expand in the TUI (`-i`) are saved back to
+the entry, so the next run starts with them. Entries are trusted for 30 days (`cache_ttl_hours`, `0`
+= until the CLI changes); `--refresh` re-crawls a CLI now.
 
 ```bash
 treemand cache list                # show cached CLIs

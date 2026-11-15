@@ -25,13 +25,16 @@ treemand cache clear          # clear all cached entries
 |----------|-------|
 | Location | `~/.treemand/cache.db` |
 | Format | SQLite |
-| TTL | 24 hours |
-| Cache key | CLI name + version string + discovery strategies |
+| Invalidation | the CLI's executable changes (path, size or modification time) |
+| TTL | 30 days (`cache_ttl_hours` in the config; `0` = until the CLI changes) |
+| TUI expansions | commands discovered in `-i` are saved back to the entry on exit |
+| Cache key | CLI binary fingerprint + discovery strategies + depth/stub settings |
 
 ## Bypassing the cache
 
 ```bash
 treemand --no-cache docker       # skip cache for this run
+treemand --refresh docker        # re-crawl now and update the entry
 TREEMAND_CACHE_DIR=/tmp treemand git   # use a custom cache directory
 ```
 

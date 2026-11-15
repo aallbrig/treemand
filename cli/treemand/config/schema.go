@@ -60,6 +60,7 @@ func buildKnownKeys() []SchemaEntry {
 		{Key: "no_color", Type: TypeBool, Default: "false", Description: "Disable colored output"},
 		{Key: "depth", Type: TypeInt, Default: "3", MinInt: -1, MaxInt: 100, Description: "Max tree depth (default 3; -1 = unlimited)"},
 		{Key: "no_cache", Type: TypeBool, Default: "false", Description: "Disable discovery cache"},
+		{Key: "cache_ttl_hours", Type: TypeInt, Default: "720", MinInt: 0, MaxInt: 87600, Description: "Hours a cached tree is trusted (0 = until the CLI binary changes)"},
 		{Key: "strategies", Type: TypeString, Default: "help", Description: "Comma-separated discovery strategies (help, completions, man)"},
 	}
 

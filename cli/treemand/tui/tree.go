@@ -81,6 +81,7 @@ type TreeModel struct {
 	cfg             *config.Config
 	width           int
 	height          int
+	patches         int // nodes filled in by discovery since the tree was built
 }
 
 func NewTreeModel(root *models.Node, cfg *config.Config) *TreeModel {
@@ -697,6 +698,7 @@ func (t *TreeModel) PatchNode(stub *models.Node, discovered *models.Node) {
 		return
 	}
 	copyDiscovered(stub, discovered)
+	t.patches++
 	// Auto-expand the freshly-discovered node.
 	key := t.findNodeKey(stub)
 	if key != "" {
@@ -734,7 +736,12 @@ func (t *TreeModel) PatchNodeQuiet(stub, discovered *models.Node) {
 		return
 	}
 	copyDiscovered(stub, discovered)
+	t.patches++
 }
+
+// Patches reports how many nodes were filled in by discovery since the tree
+// was built; a non-zero count means the tree differs from what was loaded.
+func (t *TreeModel) Patches() int { return t.patches }
 
 // findNodeKey locates the nodeKey for a given node pointer within the current rows.
 func (t *TreeModel) findNodeKey(target *models.Node) string {

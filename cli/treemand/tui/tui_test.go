@@ -3503,3 +3503,21 @@ func TestFooter_120Columns_FitsWithCoreHints(t *testing.T) {
 		}
 	}
 }
+
+func TestPatches_countsDiscoveriesSoTheSessionKnowsToSave(t *testing.T) {
+	root := sampleTreeWithStub()
+	tree := tui.NewTreeModel(root, config.DefaultConfig())
+	if tree.Patches() != 0 {
+		t.Fatalf("a fresh tree reports %d patches", tree.Patches())
+	}
+	tree.PatchNode(nil, nil) // nothing discovered, nothing to save
+	if tree.Patches() != 0 {
+		t.Errorf("a no-op patch was counted")
+	}
+	disc := &models.Node{Name: "s3", Children: []*models.Node{{Name: "cp"}}}
+	tree.PatchNode(root.Children[0], disc)
+	tree.PatchNodeQuiet(root.Children[0], disc)
+	if tree.Patches() != 2 {
+		t.Errorf("Patches() = %d after two patches, want 2", tree.Patches())
+	}
+}

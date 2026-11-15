@@ -33,6 +33,7 @@ var (
 	cfgOutput        string
 	cfgNoColor       bool
 	cfgNoCache       bool
+	cfgRefresh       bool
 	cfgTimeout       int
 	cfgExpandStubs   int
 	cfgJobs          int
@@ -104,6 +105,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgOutput, "output", "text", "Output format: text, json, yaml")
 	rootCmd.PersistentFlags().BoolVar(&cfgNoColor, "no-color", false, "Disable color output")
 	rootCmd.PersistentFlags().BoolVar(&cfgNoCache, "no-cache", false, "Disable caching")
+	rootCmd.Flags().BoolVar(&cfgRefresh, "refresh", false, "Re-discover the CLI even if it is cached, and update the cache")
 	rootCmd.PersistentFlags().IntVar(&cfgJobs, "jobs", 0, "Max concurrent help processes during discovery (0 = auto: 2 x CPUs, between 4 and 16)")
 	rootCmd.PersistentFlags().IntVar(&cfgExpandStubs, "expand-stubs", 0, "Expand undiscovered (stub, marked (…)) nodes N levels deep before output: gets their descriptions and children (slow on huge CLIs; disables cache)")
 	rootCmd.PersistentFlags().IntVar(&cfgTimeout, "timeout", 30, "Discovery timeout in seconds")
@@ -210,9 +212,11 @@ func runRoot(cmd *cobra.Command, args []string) error {
 				ver = cache.CLIVersion(cliName)
 			}
 			cacheKey = cache.KeyWith(cliName, ver, strategies, cacheExtra)
-			if node, err := cacheInst.Get(cacheKey, 24*time.Hour); err == nil && node != nil {
+			if cfgRefresh {
+				log.Debug().Str("cli", cliName).Msg("cache bypassed by --refresh")
+			} else if node, err := cacheInst.Get(cacheKey, cfg.CacheTTL); err == nil && node != nil {
 				log.Debug().Str("cli", cliName).Msg("cache hit")
-				return output(cmd, node, cfg)
+				return output(cmd, node, cfg, saveExpansions(cacheInst, cacheKey))
 			}
 		}
 	}
@@ -268,12 +272,26 @@ func runRoot(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	return output(cmd, node, cfg)
+	var save func(*models.Node) error
+	if cacheInst != nil && cacheKey != "" {
+		save = saveExpansions(cacheInst, cacheKey)
+	}
+	return output(cmd, node, cfg, save)
 }
 
-func output(cmd *cobra.Command, node *models.Node, cfg *config.Config) error {
+// saveExpansions returns the TUI's save hook: commands discovered during the
+// session (stubs expanded on demand, background indexing) are written back to
+// the cache entry, so the next run starts with them.
+func saveExpansions(c *cache.Cache, key string) func(*models.Node) error {
+	return func(root *models.Node) error {
+		_, err := c.UpdateTree(key, root)
+		return err
+	}
+}
+
+func output(cmd *cobra.Command, node *models.Node, cfg *config.Config, save func(*models.Node) error) error {
 	if cfgInteractive {
-		return tui.Run(node, cfg)
+		return tui.RunWithSave(node, cfg, save)
 	}
 	opts := render.Options{
 		MaxDepth:       cfgDepth,

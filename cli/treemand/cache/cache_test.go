@@ -272,3 +272,51 @@ func TestCacheListEntries(t *testing.T) {
 		}
 	}
 }
+
+func TestCacheUpdateTree_growsTheTreeButKeepsVersionAndCrawlTime(t *testing.T) {
+	c, err := cache.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	key := cache.Key("tool", "1.0", []string{"help"})
+	if err := c.Put(key, "tool", "1.0", "help", &models.Node{Name: "tool"}); err != nil {
+		t.Fatal(err)
+	}
+	before, _ := c.ListEntries()
+	grown := &models.Node{Name: "tool", Children: []*models.Node{{Name: "sub"}}}
+	if ok, err := c.UpdateTree(key, grown); err != nil || !ok {
+		t.Fatalf("UpdateTree = %v, %v", ok, err)
+	}
+	got, err := c.Get(key, 0)
+	if err != nil || got == nil || len(got.Children) != 1 || got.Children[0].Name != "sub" {
+		t.Fatalf("updated tree not stored: %+v, %v", got, err)
+	}
+	after, _ := c.ListEntries()
+	if len(after) != 1 || after[0].Version != before[0].Version || !after[0].CachedAt.Equal(before[0].CachedAt) {
+		t.Errorf("UpdateTree changed version or crawl time: before %+v after %+v", before, after)
+	}
+	if ok, err := c.UpdateTree("missing", grown); err != nil || ok {
+		t.Errorf("UpdateTree on a missing key = %v, %v; want false, nil", ok, err)
+	}
+}
+
+func TestCacheWrites_reportDatabaseErrors(t *testing.T) {
+	c, err := cache.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = c.Close()
+	if ok, err := c.UpdateTree("k", &models.Node{Name: "x"}); err == nil || ok {
+		t.Errorf("UpdateTree on a closed cache = %v, %v; want an error", ok, err)
+	}
+	if err := c.Put("k", "x", "1", "help", &models.Node{Name: "x"}); err == nil {
+		t.Error("Put on a closed cache returned no error")
+	}
+	if _, err := c.ListCLIs(); err == nil {
+		t.Error("ListCLIs on a closed cache returned no error")
+	}
+	if _, err := c.ListEntries(); err == nil {
+		t.Error("ListEntries on a closed cache returned no error")
+	}
+}

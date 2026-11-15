@@ -2,6 +2,7 @@
 package tui
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -279,6 +280,13 @@ func max(a, b int) int {
 // Run starts the interactive TUI. If the user chose "Run" in the Ctrl+E modal,
 // it executes the command after the TUI exits.
 func Run(root *models.Node, cfg *config.Config) error {
+	return RunWithSave(root, cfg, nil)
+}
+
+// RunWithSave is Run, and when the session discovered anything (stubs expanded
+// on demand, background indexing) it passes the grown tree to save before
+// returning, so the next run starts from it instead of re-crawling.
+func RunWithSave(root *models.Node, cfg *config.Config, save func(*models.Node) error) error {
 	m := NewModel(root, cfg)
 	p := tea.NewProgram(m,
 		tea.WithAltScreen(),
@@ -287,6 +295,11 @@ func Run(root *models.Node, cfg *config.Config) error {
 	finalModel, err := p.Run()
 	if err != nil {
 		return err
+	}
+	if fm, ok := finalModel.(*Model); ok && save != nil && fm.tree.Patches() > 0 {
+		if serr := save(fm.root); serr != nil {
+			fmt.Fprintf(os.Stderr, "treemand: could not save discovered commands to the cache: %v\n", serr)
+		}
 	}
 	if fm, ok := finalModel.(*Model); ok && fm.commandToRun != "" {
 		parts := strings.Fields(fm.commandToRun)
