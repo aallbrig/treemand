@@ -8,7 +8,7 @@ import (
 
 // defaultConfigYAML is the commented default config written by `config init`.
 const defaultConfigYAML = `# treemand configuration file
-# Docs: https://aallbrig.github.io/treemand
+# Docs: https://treemand.dev
 # Run 'treemand config validate' to check this file.
 
 # Icon preset: unicode (default), ascii, nerd

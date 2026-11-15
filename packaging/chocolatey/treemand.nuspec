@@ -8,7 +8,7 @@
     <version>__VERSION__</version>
     <title>treemand</title>
     <authors>aallbrig</authors>
-    <projectUrl>https://aallbrig.github.io/treemand</projectUrl>
+    <projectUrl>https://treemand.dev</projectUrl>
     <licenseUrl>https://github.com/aallbrig/treemand/blob/main/LICENSE</licenseUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <projectSourceUrl>https://github.com/aallbrig/treemand</projectSourceUrl>

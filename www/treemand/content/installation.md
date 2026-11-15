@@ -1,28 +1,29 @@
 ---
 title: "Installation"
-description: "Install treemand on macOS, Linux or Windows: Homebrew, a checksum-verified install script, release binaries or go install, with copy buttons for each."
+description: "Install treemand on macOS, Linux or Windows: Homebrew, a signed and checksum-verified install script, release binaries or a source build, with copy buttons for each."
 ---
 
 # Installation
 
-Pick your system and copy the commands. We guess your system from your browser; use the buttons to change it. The install script and the release archives are checksum-verified, and nothing here needs admin rights unless you ask for `--system`.
+Pick your system and copy the commands. We guess your system from your browser; use the buttons to change it. The install script verifies each release's signature and checksum, and nothing here needs admin rights unless you ask for `--system`.
 
 {{< install >}}
 
 ## Install script options
 
-The script is [`install.sh`](https://aallbrig.github.io/treemand/install.sh): read it before you pipe it to a shell, and run it with `--help` for every option. The checksum guards against a corrupted or truncated download; it comes from the same GitHub release as the archive, so it does not defend against a compromised release.
+The script is [`install.sh`](https://treemand.dev/install.sh): read it before you pipe it to a shell, and run it with `--help` for every option. It downloads from `https://treemand.dev/releases/`. Every release's `checksums.txt` is signed by this repository's release workflow ([Sigstore](https://www.sigstore.dev/), no private key involved). With [cosign](https://docs.sigstore.dev/cosign/system_config/installation/) installed, the script refuses anything that signature doesn't vouch for, which protects you from a tampered download or mirror. Without cosign it still checks the SHA-256 checksum, which catches a corrupted or truncated download; add `--require-signature` to refuse installing without cosign.
 
 ```bash
-curl -fsSL https://aallbrig.github.io/treemand/install.sh | sh -s -- --version v0.6.1   # a specific release
-curl -fsSL https://aallbrig.github.io/treemand/install.sh | sh -s -- --dir ~/bin         # another directory
-curl -fsSL https://aallbrig.github.io/treemand/install.sh | sh -s -- --system            # /usr/local/bin, asks for admin rights only if needed
-curl -fsSL https://aallbrig.github.io/treemand/install.sh | sh -s -- --dry-run           # show what it would do
+curl -fsSL https://treemand.dev/install.sh | sh -s -- --require-signature # refuse to install unless cosign verifies it
+curl -fsSL https://treemand.dev/install.sh | sh -s -- --version v0.6.2   # a specific release
+curl -fsSL https://treemand.dev/install.sh | sh -s -- --dir ~/bin         # another directory
+curl -fsSL https://treemand.dev/install.sh | sh -s -- --system            # /usr/local/bin, asks for admin rights only if needed
+curl -fsSL https://treemand.dev/install.sh | sh -s -- --dry-run           # show what it would do
 ```
 
 ## Build from source
 
-Requires Go 1.26+.
+Requires Go 1.26+. (`go install …@latest` doesn't work yet: the Go module lives in `cli/treemand/`, so there is no remote install path. Build from a checkout instead.)
 
 ```bash
 git clone https://github.com/aallbrig/treemand.git

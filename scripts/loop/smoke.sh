@@ -4,7 +4,7 @@
 set -euo pipefail
 tag="${1:?usage: smoke.sh <tag>}"
 repo="aallbrig/treemand"
-site="https://aallbrig.github.io/treemand/"
+site="https://treemand.dev/"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
