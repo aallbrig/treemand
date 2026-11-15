@@ -28,6 +28,8 @@ type HelpDiscoverer struct {
 	MaxDepth      int
 	Timeout       time.Duration
 	StubThreshold int // max subcommands before creating stubs instead of eager discovery
+
+	form atomic.Int32 // helpForm the root answered with; children try it first
 }
 
 // NewHelpDiscoverer creates a HelpDiscoverer with sensible defaults.
@@ -300,72 +302,161 @@ func (h *HelpDiscoverer) commandTimeout() time.Duration {
 	return h.Timeout
 }
 
-// runHelp tries to get help text for args under cliName.
-// It attempts --help / -h first, then `help` as a positional fallback
-// (needed for tools like aws that use "aws help" instead of "aws --help").
+// helpForm is one way of asking a CLI for help. The order is the priority:
+// when several forms work, the earlier one wins.
+type helpForm int32
+
+const (
+	formUnknown helpForm = iota
+	formFlag             // <cli> [sub...] --help (and "--help all" for truncated help)
+	formShort            // <cli> [sub...] -h
+	formSuffix           // <cli> [sub...] help     (aws)
+	formPrefix           // <cli> help [sub...]     (go mod, go build)
+)
+
+var allHelpForms = []helpForm{formFlag, formShort, formSuffix, formPrefix}
+
+// learnedForm returns the form that worked for the root command, or
+// formUnknown before the root has been asked.
+func (h *HelpDiscoverer) learnedForm() helpForm { return helpForm(h.form.Load()) }
+
+// runHelp gets help text for args under cliName.
+//
+// The root command races every form at once and keeps the highest-priority one
+// that works, so a CLI whose --help fails (aws) costs one command latency, not
+// three in a row. That winning form is remembered: every subcommand tries it
+// first, and only if it fails races the remaining forms. A CLI that answers
+// --help therefore costs one process per node.
 func (h *HelpDiscoverer) runHelp(ctx context.Context, cliName string, args []string) (string, error) {
 	resolved := resolveBinary(cliName)
 
-	// Helper that runs a command with pager env vars and returns trimmed output.
-	// h.Timeout bounds each single command. It must not wrap a whole subtree:
-	// a deadline shared by a group's children starves the later ones.
-	run := func(cmdArgs []string) string {
-		// Take a process slot first: time spent waiting for one must not
-		// count against the command's own timeout.
-		release, ok := acquireHelpSlot(ctx)
-		if !ok {
-			return ""
+	forms := make([]helpForm, 0, len(allHelpForms))
+	for _, f := range allHelpForms {
+		if f == formPrefix && len(args) == 0 {
+			continue // "help" alone is formSuffix at the root
 		}
-		defer release()
-		cctx, cancel := context.WithTimeout(ctx, h.commandTimeout())
-		defer cancel()
-		out, _, _ := runCapped(cctx, resolved, cmdArgs, pagerEnv, MaxHelpBytes)
-		return SanitizeHelp(string(out))
+		forms = append(forms, f)
 	}
 
-	var firstOut string
-	for _, flag := range []string{"--help", "-h"} {
-		cmdArgs := append(append([]string{}, args...), flag)
-		s := run(cmdArgs)
-		if s == "" || isErrorOutput(s) {
-			continue
+	if pref := h.learnedForm(); pref != formUnknown {
+		if s := h.tryForm(ctx, resolved, args, pref); s != "" {
+			return s, nil
 		}
-		// Detect truncated help (e.g. curl) and retry with --help all.
-		if truncatedHelpRe.MatchString(s) {
-			allArgs := append(append([]string{}, args...), "--help", "all")
-			if s2 := run(allArgs); s2 != "" {
-				return s2, nil
+		rest := forms[:0:0]
+		for _, f := range forms {
+			if f != pref {
+				rest = append(rest, f)
 			}
 		}
-		if firstOut == "" {
-			firstOut = s
-		}
-		// --help worked; -h would only be tried if it had not.
-		break
+		forms = rest
 	}
 
-	// Fallback 1: `<cli> [sub...] help` — used by tools like aws, man wrappers.
-	if firstOut == "" {
-		helpArgs := append(append([]string{}, args...), "help")
-		if s := run(helpArgs); s != "" && !isErrorOutput(s) {
-			firstOut = s
+	if s, f := h.raceForms(ctx, resolved, args, forms); s != "" {
+		if len(args) == 0 {
+			h.form.CompareAndSwap(int32(formUnknown), int32(f))
 		}
-	}
-
-	// Fallback 2: `<cli> help [sub...]` — Go-style toolchains where
-	// `go mod --help` fails but `go help mod` succeeds. Only applies when
-	// there are sub-args to reorder (skip for the root command itself).
-	if firstOut == "" && len(args) > 0 {
-		helpFirstArgs := append([]string{"help"}, args...)
-		if s := run(helpFirstArgs); s != "" && !isErrorOutput(s) {
-			firstOut = s
-		}
-	}
-
-	if firstOut != "" {
-		return firstOut, nil
+		return s, nil
 	}
 	return "", fmt.Errorf("no help output from %s", cliName)
+}
+
+// raceForms runs every form concurrently and returns the output of the
+// highest-priority one that produced help. It returns as soon as that is
+// decided, cancelling (killing) the forms still running.
+func (h *HelpDiscoverer) raceForms(ctx context.Context, resolved string, args []string, forms []helpForm) (string, helpForm) {
+	if len(forms) == 0 {
+		return "", formUnknown
+	}
+	if len(forms) == 1 {
+		return h.tryForm(ctx, resolved, args, forms[0]), forms[0]
+	}
+	rctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	results := make([]chan string, len(forms))
+	start := func(i int) {
+		results[i] = make(chan string, 1)
+		go func(ch chan<- string, f helpForm) { ch <- h.tryForm(rctx, resolved, args, f) }(results[i], forms[i])
+	}
+	// Hedge: the preferred form gets a head start, so a CLI that answers it
+	// quickly never pays for the others. A slow or failing one holds the rest
+	// back by at most hedgeDelay.
+	start(0)
+	firstDone := false
+	select {
+	case s := <-results[0]:
+		if s != "" {
+			return s, forms[0]
+		}
+		firstDone = true
+	case <-time.After(hedgeDelay):
+	case <-ctx.Done():
+		return "", formUnknown
+	}
+	for i := 1; i < len(forms); i++ {
+		start(i)
+	}
+	for i, ch := range results {
+		if i == 0 && firstDone {
+			continue
+		}
+		if s := <-ch; s != "" {
+			return s, forms[i]
+		}
+	}
+	return "", formUnknown
+}
+
+// hedgeDelay is how long the preferred help form runs alone before the
+// alternatives are started alongside it.
+const hedgeDelay = 250 * time.Millisecond
+
+// tryForm runs one help form and returns its sanitized output, or "" when the
+// command printed nothing or an error instead of help.
+func (h *HelpDiscoverer) tryForm(ctx context.Context, resolved string, args []string, f helpForm) string {
+	var cmdArgs []string
+	switch f {
+	case formFlag:
+		cmdArgs = append(append(cmdArgs, args...), "--help")
+	case formShort:
+		cmdArgs = append(append(cmdArgs, args...), "-h")
+	case formSuffix:
+		cmdArgs = append(append(cmdArgs, args...), "help")
+	case formPrefix:
+		cmdArgs = append(append(cmdArgs, "help"), args...)
+	default:
+		return ""
+	}
+	s := h.runOne(ctx, resolved, cmdArgs)
+	if s == "" || isErrorOutput(s) {
+		return ""
+	}
+	// Truncated help (curl) points at a complete form; prefer it.
+	if f == formFlag && truncatedHelpRe.MatchString(s) {
+		if all := h.runOne(ctx, resolved, append(append([]string{}, args...), "--help", "all")); all != "" {
+			return all
+		}
+	}
+	return s
+}
+
+// runOne runs a single help command with the pager variables set and returns
+// its sanitized output. h.Timeout bounds this one command only: a deadline
+// shared by a group of children would starve the later ones.
+func (h *HelpDiscoverer) runOne(ctx context.Context, resolved string, cmdArgs []string) string {
+	// Take a process slot first: time spent waiting for one must not count
+	// against the command's own timeout.
+	release, ok := acquireHelpSlot(ctx)
+	if !ok {
+		return ""
+	}
+	defer release()
+	cctx, cancel := context.WithTimeout(ctx, h.commandTimeout())
+	defer cancel()
+	out, _, _ := runCapped(cctx, resolved, cmdArgs, pagerEnv, MaxHelpBytes)
+	if cctx.Err() != nil && ctx.Err() != nil {
+		return "" // cancelled by a race winner or the caller, not a real answer
+	}
+	return SanitizeHelp(string(out))
 }
 
 // ParsedHelp holds structured results of parsing --help output.
