@@ -43,7 +43,7 @@
   },
   "cmake": {
     "subcommands": 0,
-    "flags": 57,
+    "flags": 64,
     "has_description": true,
     "description_is_synopsis": false
   },
@@ -121,7 +121,7 @@
   },
   "gofmt": {
     "subcommands": 0,
-    "flags": 1,
+    "flags": 7,
     "has_description": false,
     "description_is_synopsis": false
   },
@@ -133,7 +133,7 @@
   },
   "grep": {
     "subcommands": 0,
-    "flags": 48,
+    "flags": 49,
     "has_description": true,
     "description_is_synopsis": false
   },
@@ -169,7 +169,7 @@
   },
   "java": {
     "subcommands": 0,
-    "flags": 18,
+    "flags": 22,
     "has_description": true,
     "description_is_synopsis": false
   },
@@ -295,7 +295,7 @@
   },
   "ruby": {
     "subcommands": 0,
-    "flags": 41,
+    "flags": 45,
     "has_description": false,
     "description_is_synopsis": false
   },
@@ -337,7 +337,7 @@
   },
   "terraform": {
     "subcommands": 27,
-    "flags": 0,
+    "flags": 3,
     "has_description": true,
     "description_is_synopsis": false
   },

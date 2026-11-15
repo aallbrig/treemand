@@ -1234,7 +1234,36 @@ func parseFlag(line string) (models.Flag, bool) {
 		f.Description = stripBuildMarker(m[4])
 		return f, true
 	}
-	return parseOptionSpec(line)
+	if f, ok := parseOptionSpec(line); ok {
+		return f, true
+	}
+	return parseSingleDashOption(line)
+}
+
+// singleDashRe matches single-dash options (#156), as Go's flag package
+// ("  -cpuprofile string" with the description on the next line, "  -d<TAB>…")
+// and mitchellh/cli ("  -chdir=DIR    Switch …") print them. After the name and
+// an optional " type" or "=VALUE" comes a tab, a 2+ space gap or the end of
+// the line, so "-v verbose output" (prose after one space) never matches.
+var singleDashRe = regexp.MustCompile(`^ {2,4}(-[A-Za-z][A-Za-z0-9_.-]*)(?:[ =]([A-Za-z<][^\s]*))?(?:\t+| {2,}|$)(.*)$`)
+
+func parseSingleDashOption(line string) (models.Flag, bool) {
+	m := singleDashRe.FindStringSubmatch(line)
+	if m == nil {
+		return models.Flag{}, false
+	}
+	value := m[2]
+	if strings.HasPrefix(value, "<") && strings.HasSuffix(value, ">") && strings.Count(value, "<") == 1 {
+		value = value[1 : len(value)-1] // "<file>" -> "file"; "<var>[:<type>]=<value>" stays whole
+	}
+	f := models.Flag{Name: m[1], ValueType: value, Description: strings.TrimSpace(m[3])}
+	if f.ValueType == "" {
+		f.ValueType = "bool"
+	}
+	if len(m[1]) == 2 {
+		f.ShortName = m[1][1:]
+	}
+	return f, true
 }
 
 // parseOptionSpec reads option lines the single-short-then-long regex does
