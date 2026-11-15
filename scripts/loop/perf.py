@@ -36,7 +36,10 @@ def run(bin_path: str, cli: str, env: dict[str, str], cache: bool) -> tuple[int,
         args.append("--no-cache")
     args.append(cli)
     start = time.monotonic()
-    p = subprocess.run(args, capture_output=True, text=True, env=env, timeout=180)
+    # Discovery runs the real CLI with arguments; run it from an empty
+    # directory so nothing it might write lands in the repository.
+    with tempfile.TemporaryDirectory(prefix="tm-perf-cwd-") as cwd:
+        p = subprocess.run(args, capture_output=True, text=True, env=env, timeout=180, cwd=cwd)
     secs = time.monotonic() - start
     rss_kb = 0.0
     m = re.findall(r"^(\d+)\s*$", p.stderr, re.M)

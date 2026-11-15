@@ -132,7 +132,7 @@ tasks:
       - task: lint-fix
 
   precommit:
-    desc: Pre-commit gate — secrets, infra lint, fmt, vet, lint, vuln, test
+    desc: Pre-commit gate — secrets, infra lint, fmt, vet, lint, vuln, tests with coverage floors
     cmds:
       - task: secrets
       - task: infra:lint
@@ -140,7 +140,9 @@ tasks:
       - task: vet
       - task: lint
       - task: vuln
-      - task: test
+      # Runs every test once, with coverage, and fails below a package's floor:
+      # the floor failures CI used to find after the push are caught here.
+      - task: coverage:check
 
   dev:install:
     desc: Fast edit loop — test then install the binary
