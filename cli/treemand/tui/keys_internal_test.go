@@ -136,7 +136,11 @@ func TestFooterAdvertisesTheKeyBindingsOverlay(t *testing.T) {
 // "Expand node; enter" and "children (2nd press)" read as one entry.
 func TestWrapHangingKeepsTheDescriptionColumn(t *testing.T) {
 	line := "  → / l / d                          Expand node; enter children (2nd press)"
-	col := lipgloss.Width(line[:strings.Index(line, "Expand")]) // display columns, not bytes
+	idx := strings.Index(line, "Expand")
+	if idx < 0 {
+		t.Fatal("fixture lost its description")
+	}
+	col := lipgloss.Width(line[:idx]) // display columns, not bytes
 	got := wrapHanging(line, 52)
 	if len(got) < 2 {
 		t.Fatalf("expected the line to wrap at width 52, got %q", got)

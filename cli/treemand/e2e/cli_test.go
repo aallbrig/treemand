@@ -308,7 +308,7 @@ func TestCacheIsInvalidatedWhenTheCLIChanges(t *testing.T) {
 	path := filepath.Join(fakeDir, "fakeupgrade")
 	script := func(extra string) {
 		body := "#!/bin/sh\ncase \"$1\" in\nalpha) printf 'Alpha thing\\n';;\n*) printf 'fakeupgrade does things\\n\\nAvailable Commands:\\n  alpha   Alpha thing\\n" + extra + "';;\nesac\n"
-		if err := os.WriteFile(path, []byte(body), 0o755); err != nil { //nolint:gosec
+		if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}

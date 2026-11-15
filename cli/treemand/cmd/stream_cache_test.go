@@ -24,7 +24,7 @@ alpha|beta) printf '%s things\n\nUsage:\n  streamtool %s [flags]\n\nFlags:\n  -h
 *) printf 'streamtool\n\nUsage:\n  streamtool [command]\n\nAvailable Commands:\n  alpha       first\n  beta        second\n\nFlags:\n  -h, --help   help\n';;
 esac
 `
-	if err := os.WriteFile(filepath.Join(dir, "streamtool"), []byte(script), 0o755); err != nil { //nolint:gosec // fixture must be executable
+	if err := os.WriteFile(filepath.Join(dir, "streamtool"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -68,7 +68,11 @@ func TestRoot_aPartialCachedTreeIsCompletedBeforeOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 	var root outNode
-	if err := json.Unmarshal([]byte(out[strings.Index(out, "{"):]), &root); err != nil {
+	brace := strings.Index(out, "{")
+	if brace < 0 {
+		t.Fatalf("no JSON in output:\n%s", out)
+	}
+	if err := json.Unmarshal([]byte(out[brace:]), &root); err != nil {
 		t.Fatalf("not JSON: %v\n%s", err, out)
 	}
 	for _, c := range root.Children {
@@ -76,7 +80,7 @@ func TestRoot_aPartialCachedTreeIsCompletedBeforeOutput(t *testing.T) {
 			t.Errorf("%s was printed incomplete (stub=%v)", c.Name, c.Stub)
 		}
 	}
-	calls, _ := os.ReadFile(logPath) //nolint:gosec // test-owned path
+	calls, _ := os.ReadFile(logPath)
 	if !strings.Contains(string(calls), "alpha --help") {
 		t.Errorf("the pending subcommands were not discovered: %q", calls)
 	}
@@ -88,7 +92,7 @@ func TestRoot_aPartialCachedTreeIsCompletedBeforeOutput(t *testing.T) {
 	if _, err := runCmd("--output=json", "streamtool"); err != nil {
 		t.Fatal(err)
 	}
-	if calls, _ := os.ReadFile(logPath); len(strings.TrimSpace(string(calls))) != 0 { //nolint:gosec // test-owned path
+	if calls, _ := os.ReadFile(logPath); len(strings.TrimSpace(string(calls))) != 0 {
 		t.Errorf("the completed tree was not cached: %q", calls)
 	}
 }

@@ -88,8 +88,8 @@ func TestRebuildKeepingSelection_rowsInsertedAboveDoNotMoveTheCursor(t *testing.
 	}
 }
 
-var errTest = testErr("boom")
+var errTest = testError("boom")
 
-type testErr string
+type testError string
 
-func (e testErr) Error() string { return string(e) }
+func (e testError) Error() string { return string(e) }

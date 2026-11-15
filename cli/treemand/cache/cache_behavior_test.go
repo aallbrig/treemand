@@ -115,7 +115,7 @@ func TestListCLIs_distinctAndSorted(t *testing.T) {
 func fakeCLI(t *testing.T, name, script string) {
 	t.Helper()
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\n"+script), 0o755); err != nil { //nolint:gosec
+	if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\n"+script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -146,7 +146,7 @@ func TestBinaryFingerprint_tracksTheBinaryNotItsOutput(t *testing.T) {
 	bin := filepath.Join(dir, "tool")
 	write := func(body string) {
 		t.Helper()
-		if err := os.WriteFile(bin, []byte(body), 0o755); err != nil { //nolint:gosec
+		if err := os.WriteFile(bin, []byte(body), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -182,7 +182,7 @@ func TestBinaryFingerprint_followsSymlinkRetargets(t *testing.T) {
 	// Package managers often upgrade by repointing a "current" link.
 	dir := t.TempDir()
 	for _, name := range []string{"v1", "v2"} {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\necho "+name+"\n"), 0o755); err != nil { //nolint:gosec
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\necho "+name+"\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}

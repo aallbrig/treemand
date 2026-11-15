@@ -80,7 +80,7 @@ func TestCorpus_noRegressionAgainstBaseline(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(corpusBaseline, append(b, '\n'), 0o644); err != nil { //nolint:gosec
+		if err := os.WriteFile(corpusBaseline, append(b, '\n'), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		t.Logf("baseline rewritten for %d CLIs; review the diff before committing", len(got))

@@ -577,7 +577,7 @@ func bigCLI(t *testing.T) string {
 	dir := t.TempDir()
 	script := "#!/bin/sh\nprintf 'bigcli does many things\\n\\nUsage:\\n  bigcli [command]\\n\\nAvailable Commands:\\n'\n" +
 		"for s in alpha bravo charlie delta echo1 foxtrot golf hotel; do printf '  %s   the %s service\\n' $s $s; done\n"
-	if err := os.WriteFile(filepath.Join(dir, "bigcli"), []byte(script), 0o755); err != nil { //nolint:gosec
+	if err := os.WriteFile(filepath.Join(dir, "bigcli"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))

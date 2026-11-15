@@ -152,11 +152,7 @@ func (r *Renderer) renderNode(w io.Writer, node *models.Node, prefix string, isL
 	case 0:
 		namePart = r.styles.base.Render(node.Name)
 	default:
-		if r.opts.CommandsOnly || node.IsLeaf() {
-			namePart = r.styles.subcmd.Render(node.Name)
-		} else {
-			namePart = r.styles.subcmd.Render(node.Name)
-		}
+		namePart = r.styles.subcmd.Render(node.Name)
 	}
 
 	// Build inline metadata

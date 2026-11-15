@@ -28,7 +28,7 @@ func (c *CompletionsDiscoverer) Discover(ctx context.Context, cliName string, ar
 	cmdArgs := append(args, "__complete", "") //nolint:gocritic
 	out, err := runCommand(ctx, cliName, cmdArgs)
 	if err != nil {
-		return nil, nil // __complete not supported — not fatal
+		return nil, nil //nolint:nilerr // __complete unsupported means no completions, not a failure
 	}
 
 	children := ParseCompletionOutput(out, append([]string{cliName}, args...))

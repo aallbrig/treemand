@@ -6,6 +6,7 @@ package e2e
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -47,7 +48,7 @@ func runMain(m *testing.M) int {
 		return 1
 	}
 	for name, body := range fakeCLIs {
-		if err := os.WriteFile(filepath.Join(fakeDir, name), []byte("#!/bin/sh\n"+body), 0o755); err != nil { //nolint:gosec
+		if err := os.WriteFile(filepath.Join(fakeDir, name), []byte("#!/bin/sh\n"+body), 0o755); err != nil {
 			fmt.Fprintln(os.Stderr, "write fake CLI:", err)
 			return 1
 		}
@@ -89,10 +90,11 @@ func run(t *testing.T, limit time.Duration, extraEnv []string, args ...string) r
 	start := time.Now()
 	err := cmd.Run()
 	res := result{stdout: stdout.String(), stderr: stderr.String(), elapsed: time.Since(start)}
-	switch e := err.(type) {
-	case nil:
-	case *exec.ExitError:
-		res.exit = e.ExitCode()
+	var exitErr *exec.ExitError
+	switch {
+	case err == nil:
+	case errors.As(err, &exitErr):
+		res.exit = exitErr.ExitCode()
 	default:
 		t.Fatalf("running treemand %v: %v", args, err)
 	}
