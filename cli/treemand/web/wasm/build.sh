@@ -31,5 +31,6 @@ GOWORK=off go mod edit -modfile="$WORK/go.mod" \
 
 GOWORK=off GOOS=js GOARCH=wasm go build -modfile="$WORK/go.mod" -trimpath -ldflags="-s -w" \
   -o "$OUT/treemand.wasm" ./web/wasm
-cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" "$OUT/wasm_exec.js"
+# GOROOT's copy is read-only; plain cp would fail on every rebuild.
+install -m 0644 "$(go env GOROOT)/lib/wasm/wasm_exec.js" "$OUT/wasm_exec.js"
 ls -lh "$OUT/treemand.wasm" | awk '{print "treemand.wasm " $5}'

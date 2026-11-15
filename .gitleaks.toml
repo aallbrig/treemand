@@ -31,6 +31,9 @@ description = "Route 53 zone ID or CloudFront distribution ID in infrastructure 
 regex = '''\b(?:Z[0-9A-Z]{12,31}|E[0-9A-Z]{12,13})\b'''
 path = '''(^|/)(infra|\.github|scripts/infra)/'''
 entropy = 3.0
+# CloudFront's alias hosted zone is one public constant shared by every AWS account.
+[[rules.allowlists]]
+regexes = ['''^Z2FDTNDATAQYW2$''']
 
 # Generated help-text trees of third-party CLIs; kubectl's own docs contain a
 # sample `--password=` value that the default generic-api-key rule flags.
