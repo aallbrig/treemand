@@ -643,11 +643,72 @@ func allGridEntries(parts []string) bool {
 // Checks for Contains("unknown command") rather than HasPrefix because Go-style
 // CLIs emit "<name>: unknown command" (e.g. "go mod: unknown command").
 func isErrorOutput(s string) bool {
-	first := strings.ToLower(strings.SplitN(strings.TrimSpace(s), "\n", 2)[0])
-	return strings.Contains(first, "[error]") ||
+	var lines []string
+	for _, l := range strings.Split(strings.TrimSpace(s), "\n") {
+		if strings.TrimSpace(l) != "" {
+			lines = append(lines, l)
+		}
+	}
+	if len(lines) == 0 {
+		return false
+	}
+	// A complete help body is help, even after a warning line: flask --help
+	// with no app prints "Error: Could not locate a Flask application" and
+	// then its full help.
+	if hasHelpBody(lines) {
+		return false
+	}
+	first := strings.ToLower(lines[0])
+	if strings.Contains(first, "[error]") ||
 		strings.HasPrefix(first, "error:") ||
 		strings.Contains(first, "unknown command") ||
-		strings.Contains(first, "invalid command")
+		strings.Contains(first, "invalid command") {
+		return true
+	}
+	// A short answer that names a rejected option is a usage error, even when
+	// it starts with a usage line (flask -h: "Usage: … Error: No such option").
+	if len(lines) <= 6 {
+		low := strings.ToLower(strings.Join(lines, "\n"))
+		for _, m := range usageErrorMarkers {
+			if strings.Contains(low, m) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// usageErrorMarkers are how argument parsers say an option was rejected.
+var usageErrorMarkers = []string{
+	"no such option",         // click
+	"unknown shorthand flag", // cobra
+	"unknown flag",           // cobra, pflag
+	"unknown option",         // many
+	"invalid option",         // getopt: "invalid option -- 'h'"
+	"unrecognized option",    // getopt_long
+	"unrecognized arguments", // argparse
+	"illegal option",         // BSD getopt
+}
+
+// helpSectionHeaders are section titles that only real help has.
+var helpSectionHeaders = map[string]bool{
+	"options:": true, "commands:": true, "flags:": true, "global flags:": true,
+	"available commands:": true, "subcommands:": true,
+	"positional arguments:": true, "optional arguments:": true,
+}
+
+// hasHelpBody reports whether the output is a full help page: long enough and
+// with at least one section a usage error never has.
+func hasHelpBody(lines []string) bool {
+	if len(lines) < 8 {
+		return false
+	}
+	for _, l := range lines[1:] {
+		if helpSectionHeaders[strings.ToLower(strings.TrimSpace(l))] {
+			return true
+		}
+	}
+	return false
 }
 
 // skipSubcmdWords are words that look like subcommands but aren't.
