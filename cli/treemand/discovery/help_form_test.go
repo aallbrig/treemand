@@ -80,6 +80,15 @@ func TestRunHelp_neverPassesHelpAsAnArgumentWhileAFlagFormWorks(t *testing.T) {
 	if _, err := NewHelpDiscoverer(2).Discover(context.Background(), bin, nil); err != nil {
 		t.Fatal(err)
 	}
+	// The crawler starts many nodes at once before any form is learned.
+	d := NewHelpDiscoverer(1)
+	d.ChildrenAsStubs = true
+	root, err := d.Discover(context.Background(), bin, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	CompletePending(context.Background(), root, bin, 2, 50, 8)
+
 	if _, err := os.Stat(marker); err == nil {
 		t.Errorf("a positional help form ran although --help works; calls: %q", calls(t, logPath))
 	}
