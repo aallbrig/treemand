@@ -162,7 +162,7 @@
     "description_is_synopsis": false
   },
   "ip": {
-    "subcommands": 0,
+    "subcommands": 32,
     "flags": 0,
     "has_description": false,
     "description_is_synopsis": false
