@@ -3,7 +3,7 @@
   "ansible": {"flags_include": ["--inventory", "--become"], "description_include": "Define and run"},
   "apt": {"subcommands_include": ["install", "remove", "update"]},
   "aws": {"subcommands_include": ["s3", "ec2", "iam"]},
-  "bundle": {"subcommands_include": ["install", "update", "exec"], "gaps": [159]},
+  "bundle": {"subcommands_include": ["install", "update", "exec", "outdated", "add"]},
   "busybox": {"subcommands_include": ["ls", "sh", "tar"]},
   "cmake": {"max_subcommands": 0, "flags_include": ["--build", "--install"]},
   "curl": {"max_subcommands": 0, "flags_include": ["--output", "--data"]},
