@@ -4,6 +4,15 @@ package e2e
 // help style of a real framework, so the whole path (exec, parse, render) is
 // exercised without any real CLI installed.
 var fakeCLIs = map[string]string{
+	// Logs every invocation to $FAKE_LOG, so cache tests can prove a run never
+	// touched the CLI. Three cobra-style commands, each with one subcommand.
+	"fakecache": `[ -n "$FAKE_LOG" ] && echo "$*" >>"$FAKE_LOG"
+case "$1" in
+alpha|beta|gamma) printf '%s things\n\nUsage:\n  fakecache %s [command]\n\nAvailable Commands:\n  deep        go deeper\n\nFlags:\n  -h, --help   help for %s\n      --%s-only  only for %s\n' "$1" "$1" "$1" "$1" "$1";;
+*) printf 'fakecache caches things\n\nUsage:\n  fakecache [command]\n\nAvailable Commands:\n  alpha       first\n  beta        second\n  gamma       third\n\nFlags:\n  -h, --help   help for fakecache\n';;
+esac
+`,
+
 	// cobra (Go): "Available Commands:" and "Flags:" sections.
 	"fakecobra": `case "$1" in
 build) cat <<'H'

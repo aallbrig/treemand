@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -140,6 +141,7 @@ func ToYAML(cfg *Config) (string, error) {
 		"no_color":         cfg.NoColor,
 		"depth":            cfg.Depth,
 		"no_cache":         cfg.NoCache,
+		"cache_ttl_hours":  int(cfg.CacheTTL / time.Hour),
 		"strategies":       strings.Join(cfg.Strategies, ","),
 		"colors": map[string]interface{}{
 			"base":          cfg.Colors.Base,

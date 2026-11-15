@@ -31,6 +31,7 @@ treemand cache [clear|list]
 | `--line-length` | | `80` | Max description chars before truncation |
 | `--no-color` | | false | Disable color output |
 | `--no-cache` | | false | Skip cache lookup and write |
+| `--refresh` | | false | Re-discover even if cached, and update the cache entry |
 | `--timeout` | | `30` | Discovery timeout in seconds |
 | `--debug` | | false | Enable debug logging to stderr |
 
@@ -284,12 +285,15 @@ Discovery results are cached in an SQLite database:
 | Property | Value |
 |----------|-------|
 | Location | `~/.treemand/cache.db` |
-| TTL | 24 hours |
-| Key | CLI name + version + strategies |
+| Invalidation | the CLI's executable changes (path, size or modification time) |
+| TTL | 30 days (`cache_ttl_hours`; `0` = until the CLI changes) |
+| TUI expansions | saved back to the entry on exit |
+| Key | CLI binary fingerprint + strategies + depth/stub settings |
 | Schema | `v8` |
 
 ```bash
 treemand --no-cache docker           # skip the cache for this run
+treemand --refresh docker            # re-crawl now and update the entry
 treemand cache list                  # show cached CLIs
 treemand cache clear git             # clear one entry
 ```

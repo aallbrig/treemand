@@ -32,6 +32,10 @@ depth: 3
 # Disable discovery cache (default: false)
 no_cache: false
 
+# Hours a cached tree is trusted (default: 720 = 30 days; 0 = until the CLI
+# binary changes). An upgraded binary is always re-crawled.
+cache_ttl_hours: 720
+
 # Discovery strategies, comma-separated (default: help)
 # Available: help, completions, man
 strategies: help

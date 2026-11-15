@@ -117,6 +117,22 @@ func (c *Cache) Put(key, cli, version, strategy string, node *models.Node) error
 	return err
 }
 
+// UpdateTree replaces the tree of an existing entry, keeping its version and
+// crawl time: subtrees discovered later (in the TUI) extend the cached tree
+// without restarting its TTL. It reports whether an entry was updated.
+func (c *Cache) UpdateTree(key string, node *models.Node) (bool, error) {
+	data, err := json.Marshal(node)
+	if err != nil {
+		return false, err
+	}
+	res, err := c.db.Exec(`UPDATE trees SET data = ? WHERE key = ?`, string(data), key)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	return n > 0, err
+}
+
 // Delete removes an entry from the cache.
 func (c *Cache) Delete(key string) error {
 	_, err := c.db.Exec(`DELETE FROM trees WHERE key = ?`, key)

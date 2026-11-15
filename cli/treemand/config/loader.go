@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -70,6 +71,11 @@ func ApplyViper(cfg *Config) {
 	}
 	if viper.GetBool("no_cache") {
 		cfg.NoCache = true
+	}
+	if viper.IsSet("cache_ttl_hours") {
+		if h := viper.GetInt("cache_ttl_hours"); h >= 0 {
+			cfg.CacheTTL = time.Duration(h) * time.Hour
+		}
 	}
 
 	// Color overrides — each sub-key under "colors" is optional.

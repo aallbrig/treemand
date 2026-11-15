@@ -174,10 +174,11 @@ Precedence: **CLI flags > environment variables > config file > defaults**
 
 ## Caching
 
-Results are cached in `~/.treemand/cache.db` for 24 hours.
+Results are cached in `~/.treemand/cache.db`, so a CLI is crawled once: the entry is reused until the CLI's executable changes (or 30 days pass), and commands you expand in the TUI are saved with it.
 
 ```bash
 treemand --no-cache git                        # bypass cache
+treemand --refresh git                         # re-crawl now and update the cache
 TREEMAND_CACHE_DIR=/tmp/treemand treemand git  # custom cache dir
 treemand cache list                            # show cached CLIs
 treemand cache clear git                       # clear one entry

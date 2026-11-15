@@ -151,10 +151,17 @@ type Config struct {
 	Depth            int
 	NoCache          bool
 	CacheDir         string
+	CacheTTL         time.Duration // how long a cached tree is trusted; 0 = until the CLI changes
 	Strategies       []string
 	TreeStyle        DisplayStyle  // controls TUI tree presentation variant
 	StatusMsgTimeout time.Duration // how long a timed status message is shown (default 3s)
 }
+
+// DefaultCacheTTL bounds how long a cached tree is trusted. Entries are keyed
+// on the CLI binary (path, size, mtime), so an upgraded binary is re-crawled
+// at once; the TTL only catches changes the binary file does not show, such as
+// a script wrapper whose packages were upgraded underneath it.
+const DefaultCacheTTL = 30 * 24 * time.Hour
 
 // DefaultConfig returns config with sensible defaults.
 func DefaultConfig() *Config {
@@ -173,6 +180,7 @@ func DefaultConfig() *Config {
 		Depth:            -1, // unlimited
 		NoCache:          false,
 		CacheDir:         cacheDir,
+		CacheTTL:         DefaultCacheTTL,
 		Strategies:       defaultStrategies(),
 		TreeStyle:        StyleDefault,
 		StatusMsgTimeout: 3 * time.Second,
