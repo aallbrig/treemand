@@ -187,12 +187,27 @@ checkout, generate it with `treemand gendocs -o ./docs` and read it with `man ./
 
 ## Tested CLIs
 
-Parser quality is guarded by a regression corpus: sanitized `--help` captures of real CLIs
-live in `cli/treemand/discovery/testdata/corpus/`, and `task ci` fails if a change loses
-subcommands, flags or the description of any of them. Currently covered:
-`apt`, `aws`, `curl`, `docker`, `gh`, `git`, `go`, `helm`, `jq`, `kubectl`, `npm`, `pip`,
-`ssh`, `systemctl`, `tar`, `tmux`. (`cargo` and `terraform` are planned: capture them on a
-machine that has them with `task corpus:capture -- cargo terraform`.)
+Parser quality is guarded by a corpus of sanitized root `--help` captures of real CLIs in
+`cli/treemand/discovery/testdata/corpus/`, chosen to cover every common way CLIs print help
+(see `docs/research/20261115_194227_UTC_cli_cross_section.md`). `task ci` checks each capture two ways:
+
+- **regression baseline**: a change must not lose subcommands, flags or a description;
+- **ground truth** (`expect.json`): the commands and flags each CLI really has. Known parser gaps are
+  listed there with their issue, so the corpus shows what treemand gets wrong as well as what it gets right.
+
+Covered, by help-text family:
+
+- **Go / cobra**: `kubectl`, `gh`, `docker`, `helm`, `hugo`, `k9s`, `golangci-lint`
+- **Go / stdlib flag and hand-written**: `go`, `gofmt`, `task`
+- **Rust / clap**: `uv`, `ruff`, `pnpm`
+- **Python / argparse and custom**: `pip`, `pipx`, `ansible`, `pre-commit`, `aws`
+- **Node**: `npm`, `node`, `yarn`
+- **Ruby**: `gem`, `ruby`, `bundle`
+- **Java / .NET**: `java`, `keytool`, `dotnet`
+- **GNU getopt**: `tar`, `grep`, `sed`, `ls`, `find`, `rsync`, `wget`, `curl`
+- **Hand-written C and odd shapes**: `git`, `openssl`, `ffmpeg`, `ip`, `tmux`, `systemctl`,
+  `journalctl`, `ssh`, `jq`, `make`, `cmake`, `apt`
+- **Multi-call binaries**: `busybox`
 
 ## How treemand compares
 

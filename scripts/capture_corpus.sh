@@ -27,7 +27,7 @@ for cli in "${targets[@]}"; do
     continue
   fi
   # help_text on the root node is exactly the text treemand parsed.
-  text="$(cd "$cwd" && "$bin" --no-cache --output=json --depth=1 --timeout=60 "$cli" 2>/dev/null | jq -r '.help_text // empty')"
+  text="$(cd "$cwd" && "$bin" --no-cache --output=json --depth=0 --timeout=60 "$cli" 2>/dev/null | jq -r '.help_text // empty')"
   if [ -z "$text" ]; then
     echo "skip $cli (no help text)"
     continue
