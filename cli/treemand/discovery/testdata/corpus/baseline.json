@@ -36,7 +36,7 @@
     "description_is_synopsis": false
   },
   "busybox": {
-    "subcommands": 0,
+    "subcommands": 265,
     "flags": 0,
     "has_description": true,
     "description_is_synopsis": false
@@ -240,7 +240,7 @@
     "description_is_synopsis": false
   },
   "openssl": {
-    "subcommands": 150,
+    "subcommands": 151,
     "flags": 0,
     "has_description": false,
     "description_is_synopsis": false
@@ -276,8 +276,8 @@
     "description_is_synopsis": false
   },
   "promtool": {
-    "subcommands": 0,
-    "flags": 1,
+    "subcommands": 8,
+    "flags": 3,
     "has_description": true,
     "description_is_synopsis": false
   },
@@ -318,7 +318,7 @@
     "description_is_synopsis": false
   },
   "systemctl": {
-    "subcommands": 53,
+    "subcommands": 70,
     "flags": 54,
     "has_description": true,
     "description_is_synopsis": false
@@ -342,7 +342,7 @@
     "description_is_synopsis": false
   },
   "thor": {
-    "subcommands": 0,
+    "subcommands": 8,
     "flags": 0,
     "has_description": true,
     "description_is_synopsis": false
@@ -366,7 +366,7 @@
     "description_is_synopsis": false
   },
   "yarn": {
-    "subcommands": 0,
+    "subcommands": 39,
     "flags": 47,
     "has_description": true,
     "description_is_synopsis": false
