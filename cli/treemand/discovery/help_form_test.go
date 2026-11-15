@@ -227,3 +227,21 @@ func runningForms() int {
 	buf = buf[:runtime.Stack(buf, true)]
 	return strings.Count(string(buf), ").tryForm(")
 }
+
+func TestRunHelp_aTimedOutFlagFormNeverLeadsToPositionalHelp(t *testing.T) {
+	// --help and -h hang (an overloaded CLI); "help" as an argument would act,
+	// as "npm prune help" prunes. A timeout is not a refusal.
+	bin, logPath := formCLI(t, 0, `case "$*" in
+*--help*|*-h*) sleep 5;;
+*help*) touch "$MARKER";;
+esac
+`)
+	marker := filepath.Join(t.TempDir(), "acted")
+	t.Setenv("MARKER", marker)
+	d := NewHelpDiscoverer(1)
+	d.Timeout = 300 * time.Millisecond
+	_, _ = d.Discover(context.Background(), bin, []string{"prune"})
+	if _, err := os.Stat(marker); err == nil {
+		t.Errorf("positional help ran after the flag forms timed out; calls: %q", calls(t, logPath))
+	}
+}
