@@ -314,56 +314,59 @@ const (
 	formPrefix           // <cli> help [sub...]     (go mod, go build)
 )
 
-var allHelpForms = []helpForm{formFlag, formShort, formSuffix, formPrefix}
-
-// learnedForm returns the form that worked for the root command, or
-// formUnknown before the root has been asked.
+// learnedForm returns the flag form of the first successful flag answer, or
+// formUnknown before any.
 func (h *HelpDiscoverer) learnedForm() helpForm { return helpForm(h.form.Load()) }
 
 // runHelp gets help text for args under cliName.
 //
-// The root command races every form at once and keeps the highest-priority one
-// that works, so a CLI whose --help fails (aws) costs one command latency, not
-// three in a row. That winning form is remembered: every subcommand tries it
-// first, and only if it fails races the remaining forms. A CLI that answers
-// --help therefore costs one process per node.
+// Flag forms (--help, -h) only ever print help, so they may race: the
+// preferred one (the form the CLI answered with before, else --help) gets a
+// short head start and the other joins it if it is slow, and the
+// higher-priority answer wins. A CLI answering --help costs one process per
+// node.
+//
+// Positional forms ("<cmd> <sub> help", "help <cmd> <sub>") pass "help" as an
+// argument, which a subcommand may act on: "git branch help" creates a branch,
+// "docker context use help" switches context. They therefore never race and
+// never run ahead of the flags: only after both flag forms have failed, one at
+// a time, exactly as before form learning.
 func (h *HelpDiscoverer) runHelp(ctx context.Context, cliName string, args []string) (string, error) {
 	resolved := resolveBinary(cliName)
 
-	forms := make([]helpForm, 0, len(allHelpForms))
-	for _, f := range allHelpForms {
-		if f == formPrefix && len(args) == 0 {
-			continue // "help" alone is formSuffix at the root
-		}
-		forms = append(forms, f)
+	flags := []helpForm{formFlag, formShort}
+	if h.learnedForm() == formShort {
+		flags = []helpForm{formShort, formFlag}
+	}
+	if s, f := h.raceForms(ctx, resolved, args, flags); s != "" {
+		h.form.CompareAndSwap(int32(formUnknown), int32(f))
+		return s, nil
+	}
+	if ctx.Err() != nil {
+		return "", ctx.Err()
 	}
 
-	if pref := h.learnedForm(); pref != formUnknown {
-		if s := h.tryForm(ctx, resolved, args, pref); s != "" {
+	if s := h.tryForm(ctx, resolved, args, formSuffix); s != "" {
+		return s, nil
+	}
+	if len(args) > 0 {
+		if s := h.tryForm(ctx, resolved, args, formPrefix); s != "" {
 			return s, nil
 		}
-		rest := forms[:0:0]
-		for _, f := range forms {
-			if f != pref {
-				rest = append(rest, f)
-			}
-		}
-		forms = rest
-	}
-
-	if s, f := h.raceForms(ctx, resolved, args, forms); s != "" {
-		if len(args) == 0 {
-			h.form.CompareAndSwap(int32(formUnknown), int32(f))
-		}
-		return s, nil
 	}
 	return "", fmt.Errorf("no help output from %s", cliName)
 }
 
-// raceForms runs every form concurrently and returns the output of the
+// raceForms runs flag forms concurrently and returns the output of the
 // highest-priority one that produced help. It returns as soon as that is
-// decided, cancelling (killing) the forms still running.
+// decided, cancelling (killing) the forms still running. Never pass it a
+// positional form: see runHelp.
 func (h *HelpDiscoverer) raceForms(ctx context.Context, resolved string, args []string, forms []helpForm) (string, helpForm) {
+	for _, f := range forms {
+		if f != formFlag && f != formShort {
+			panic("discovery: only flag help forms may be raced")
+		}
+	}
 	if len(forms) == 0 {
 		return "", formUnknown
 	}
@@ -378,7 +381,7 @@ func (h *HelpDiscoverer) raceForms(ctx context.Context, resolved string, args []
 		go func(ch chan<- string, f helpForm) { ch <- h.tryForm(rctx, resolved, args, f) }(results[i], forms[i])
 	}
 	// Hedge: the preferred form gets a head start, so a CLI that answers it
-	// quickly never pays for the others. A slow or failing one holds the rest
+	// quickly never pays for the other. A slow or failing one holds the other
 	// back by at most hedgeDelay.
 	start(0)
 	firstDone := false
@@ -406,8 +409,8 @@ func (h *HelpDiscoverer) raceForms(ctx context.Context, resolved string, args []
 	return "", formUnknown
 }
 
-// hedgeDelay is how long the preferred help form runs alone before the
-// alternatives are started alongside it.
+// hedgeDelay is how long the preferred flag form runs alone before the other
+// is started alongside it.
 const hedgeDelay = 250 * time.Millisecond
 
 // tryForm runs one help form and returns its sanitized output, or "" when the
