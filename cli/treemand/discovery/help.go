@@ -13,6 +13,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode"
 
 	"github.com/aallbrig/treemand/models"
 )
@@ -822,6 +823,7 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 	// argparse subparser block (#81): a "{a,b,c…}" line, then one row per
 	// subcommand at the first row's indent; deeper rows continue a description.
 	choiceIndent, choiceRowIndent := -1, -1
+	lastGridRow := false
 	addChoice := func(name, desc string) {
 		if name == "" || seenSubs[name] || skipSubcmdWords[name] || name == selfName || !validCmdNameRe.MatchString(name) {
 			return
@@ -867,7 +869,10 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 		// Detect section header: "Flags:", "Available Commands:", "GLOBAL OPTIONS", etc.
 		// Bullet list items ("o appconfig") are never headers, even when the
 		// name ends in a header keyword such as "config" or "cache".
-		if sec := detectSection(lower); sec != secNone && !awsBulletRe.MatchString(rawLine) {
+		// Inside a command list, a line indented 4+ spaces belongs to the previous
+		// row's description (kingpin's "    examples:"), not a new section.
+		describesRow := section == secCommands && indentOf(rawLine) >= 4
+		if sec := detectSection(lower); sec != secNone && !awsBulletRe.MatchString(rawLine) && !describesRow {
 			// For named flag-group sections (e.g. "General options:", "Debug options:"),
 			// remember the human-readable name so flags get grouped under it.
 			if sec == secFlags {
@@ -908,21 +913,39 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 		if section == secCommands && trimmed != "" &&
 			!strings.HasPrefix(rawLine, " ") && !strings.HasPrefix(rawLine, "\t") {
 			parts := strings.Fields(rawLine)
-			if len(parts) >= 2 && allGridEntries(parts) {
+			// A grid's last row may hold a single entry (openssl "x509", #162).
+			if (len(parts) >= 2 || (len(parts) == 1 && lastGridRow)) && allGridEntries(parts) {
 				for _, p := range parts {
 					if !seenSubs[p] && !skipSubcmdWords[p] {
 						seenSubs[p] = true
 						result.Subcommands = append(result.Subcommands, p)
 					}
 				}
+				lastGridRow = true
+				continue
+			}
+			// kingpin (#165): flush-left "check config [<flags>] <files>..."
+			// rows, each followed by an indented description. The first word
+			// is the subcommand; the rest names its own subcommands.
+			if m := kingpinRowRe.FindStringSubmatch(rawLine); m != nil && nextLineIndented(lines, i) {
+				addChoice(m[1], "")
+				lastGridRow = false
 				continue
 			}
 		}
+		lastGridRow = false
 		// A header the parser does not know ("Features:", "Dump List:",
 		// " FORMAT is one of the following:") introduces a list of values, not
 		// of commands (#154): read flags there, but no subcommands. One that
 		// names commands ("These are common Git commands …:", stripe's
 		// "Available Operations:") stays free-form.
+		if trimmed != "" && strings.HasSuffix(trimmed, ":") && len(rawLine)-len(strings.TrimLeft(rawLine, " ")) <= 2 &&
+			!strings.HasPrefix(trimmed, "-") && !inUsageBlock && strings.Contains(lower, "functions") {
+			// A multi-call binary's function list (busybox "Currently defined
+			// functions:"): each function behaves as a subcommand (#158).
+			section = secCommands
+			continue
+		}
 		if trimmed != "" && strings.HasSuffix(trimmed, ":") && len(rawLine)-len(strings.TrimLeft(rawLine, " ")) <= 2 &&
 			!strings.HasPrefix(trimmed, "-") && !namesCommands(lower) && !inUsageBlock {
 			section = secValues
@@ -1007,6 +1030,17 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 				addFlag(f)
 			}
 		case secCommands:
+			// Thor (#167): "  thor install NAME    # Install …": the row starts
+			// with the program's own name, the command is the next word.
+			if m := thorRowRe.FindStringSubmatch(rawLine); m != nil && m[1] == selfName {
+				addChoice(m[2], strings.TrimSpace(m[3]))
+				continue
+			}
+			// Bullet list (yarn 1, #157): "    - access".
+			if m := bulletCmdRe.FindStringSubmatch(rawLine); m != nil {
+				addChoice(m[1], "")
+				continue
+			}
 			// Tab-indented subcommand (Go toolchain style): "\tbug  start a bug report"
 			if m := goTabSubcmdRe.FindStringSubmatch(rawLine); m != nil {
 				name := m[1]
@@ -1028,10 +1062,15 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 					if name == "" {
 						continue
 					}
-					if validCmdNameRe.MatchString(name) {
+					switch {
+					case validCmdNameRe.MatchString(name):
 						names = append(names, name)
-					} else {
+					case !strings.ContainsFunc(name, unicode.IsLetter):
+						// symbol-named entries ("[", "[[" in busybox) are skipped
+					default:
 						allValid = false
+					}
+					if !allValid {
 						break
 					}
 				}
@@ -1285,6 +1324,8 @@ func parseOptionSpec(line string) (models.Flag, bool) {
 	if len(line)-len(t) > 12 || !strings.HasPrefix(t, "-") {
 		return models.Flag{}, false
 	}
+	// kingpin negatable booleans: "--[no-]help" is the option --help.
+	t = strings.ReplaceAll(t, "--[no-]", "--")
 	spec, desc := t, ""
 	if loc := specGapRe.FindStringIndex(t); loc != nil {
 		spec, desc = t[:loc[0]], strings.TrimSpace(t[loc[1]:])
@@ -1476,7 +1517,7 @@ func startsWithDigit(s string) bool {
 }
 
 // commandWords are the words CLIs use for their subcommands in list headers.
-var commandWords = []string{"command", "operation", "action", "topic", "verb", "service"}
+var commandWords = []string{"command", "operation", "action", "topic", "verb", "service", "function"}
 
 // namesCommands reports whether a header line introduces a list of commands.
 func namesCommands(lower string) bool {
@@ -1530,3 +1571,23 @@ func inNonProseList(section, rawLine string) bool {
 
 // argparseRowRe is a subparser row: "    install             Install a package".
 var argparseRowRe = regexp.MustCompile(`^\s+([a-z][a-z0-9_-]*)(?:\s{2,}(\S.*))?$`)
+
+var (
+	// kingpinRowRe is a kingpin command row: lowercase words, then arguments.
+	kingpinRowRe = regexp.MustCompile(`^([a-z][a-z0-9_-]*)(?: [a-z][a-z0-9_-]*)*(?: [\[<-].*)?$`)
+	// thorRowRe is a thor row: "  <program> <command> [ARGS]  # description".
+	thorRowRe = regexp.MustCompile(`^\s+(\S+)\s+([a-z][a-z0-9_:-]*)\b[^#]*#\s*(.*)$`)
+	// bulletCmdRe is a bulleted command: "    - access".
+	bulletCmdRe = regexp.MustCompile(`^\s+- ([a-z][a-z0-9_-]*)\s*$`)
+)
+
+// nextLineIndented reports whether the next non-empty line after i is indented.
+func nextLineIndented(lines []string, i int) bool {
+	for _, l := range lines[i+1:] {
+		if strings.TrimSpace(l) == "" {
+			continue
+		}
+		return l[0] == ' ' || l[0] == '\t'
+	}
+	return false
+}

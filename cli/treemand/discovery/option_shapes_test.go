@@ -74,3 +74,17 @@ func TestParseHelp_choiceListValue(t *testing.T) {
 		t.Errorf("choice-list options not parsed: %v", got)
 	}
 }
+
+func TestParseHelp_kingpinNegatableFlags(t *testing.T) {
+	p := discovery.ParseHelpOutput("Flags:\n  -h, --[no-]help            Show context-sensitive help.\n      --[no-]version         Show application version.\n")
+	got := map[string]string{}
+	for _, f := range p.Flags {
+		got[f.Name] = f.ShortName
+	}
+	if _, ok := got["--help"]; !ok || got["--help"] != "h" {
+		t.Errorf("--[no-]help not parsed: %v", got)
+	}
+	if _, ok := got["--version"]; !ok {
+		t.Errorf("--[no-]version not parsed: %v", got)
+	}
+}

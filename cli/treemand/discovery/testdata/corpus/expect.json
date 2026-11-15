@@ -4,7 +4,7 @@
   "apt": {"subcommands_include": ["install", "remove", "update"]},
   "aws": {"subcommands_include": ["s3", "ec2", "iam"]},
   "bundle": {"subcommands_include": ["install", "update", "exec"], "gaps": [159]},
-  "busybox": {"subcommands_include": ["ls", "sh", "tar"], "gaps": [158]},
+  "busybox": {"subcommands_include": ["ls", "sh", "tar"]},
   "cmake": {"max_subcommands": 0, "flags_include": ["--build", "--install"]},
   "curl": {"max_subcommands": 0, "flags_include": ["--output", "--data"]},
   "docker": {"subcommands_include": ["run", "build", "ps", "exec"], "flags_include": ["--context"]},
@@ -31,7 +31,7 @@
   "make": {"max_subcommands": 0, "flags_include": ["--jobs", "--file", "--directory"]},
   "node": {"max_subcommands": 0, "flags_include": ["--eval", "--require", "--inspect"]},
   "npm": {"subcommands_include": ["install", "publish", "run", "ci"]},
-  "openssl": {"subcommands_include": ["req", "x509", "genpkey", "s_client"], "gaps": [162]},
+  "openssl": {"subcommands_include": ["req", "x509", "genpkey", "s_client"]},
   "pip": {"subcommands_include": ["install", "uninstall", "list", "freeze"]},
   "pipx": {"subcommands_include": ["install", "list", "run", "inject", "upgrade"]},
   "pnpm": {"subcommands_include": ["install", "add", "remove", "run"]},
@@ -47,7 +47,7 @@
   "tmux": {"max_subcommands": 0},
   "uv": {"subcommands_include": ["run", "pip", "venv", "sync"], "flags_include": ["--quiet", "--offline"]},
   "wget": {"max_subcommands": 0, "flags_include": ["--output-document", "--recursive", "--continue"]},
-  "yarn": {"subcommands_include": ["add", "install", "remove"], "gaps": [157]},
+  "yarn": {"subcommands_include": ["add", "install", "remove"]},
   "bat": {"max_subcommands": 0, "flags_include": ["--language", "--paging", "--style", "--plain"]},
   "black": {"max_subcommands": 0, "flags_include": ["--check", "--diff", "--line-length"]},
   "eslint": {"max_subcommands": 0, "flags_include": ["--fix", "--config", "--format"]},
@@ -58,8 +58,8 @@
   "jest": {"max_subcommands": 0, "flags_include": ["--watch", "--coverage", "--config"]},
   "mvn": {"max_subcommands": 0, "flags_include": ["--batch-mode", "--file", "--projects"]},
   "poetry": {"subcommands_include": ["add", "install", "build", "publish"], "gaps": [166]},
-  "promtool": {"subcommands_include": ["check", "query", "test", "tsdb"], "gaps": [165]},
+  "promtool": {"subcommands_include": ["check", "query", "test", "tsdb"]},
   "rg": {"max_subcommands": 0, "flags_include": ["--ignore-case", "--glob", "--type", "--files"]},
   "terraform": {"subcommands_include": ["init", "plan", "apply", "fmt"], "flags_include": ["-chdir", "-help", "-version"]},
-  "thor": {"subcommands_include": ["help", "install", "list", "version"], "gaps": [167]}
+  "thor": {"subcommands_include": ["help", "install", "list", "version"]}
 }
