@@ -82,3 +82,25 @@ func TestParseHelp_manPageCommandReferences(t *testing.T) {
 		t.Errorf("program name or fragment as subcommand: %v", p.Subcommands)
 	}
 }
+
+// Commands listed by a grammar (issue #160). keytool's dash-spelled commands
+// are deferred: subcommands are words, an invariant FuzzParseHelpOutput guards.
+func TestParseHelp_flagSpelledAndGrammarCommands(t *testing.T) {
+	var p discovery.ParsedHelp
+	ip := "Usage: ip [ OPTIONS ] OBJECT { COMMAND | help }\n       ip [ -force ] -batch filename\n" +
+		"where  OBJECT := { address | addrlabel | amt | help |\n" +
+		"                   link | route | rule | xfrm }\n" +
+		"       OPTIONS := { -V[ersion] | -s[tatistics] | -d[etails] |\n" +
+		"                    -c[olor]}\n"
+	p = discovery.ParseHelpOutputFor(ip, "ip")
+	for _, w := range []string{"address", "link", "route", "xfrm"} {
+		if !slices.Contains(p.Subcommands, w) {
+			t.Errorf("ip: missing %q; got %v", w, p.Subcommands)
+		}
+	}
+	for _, bad := range []string{"-V[ersion]", "-c[olor]"} {
+		if slices.Contains(p.Subcommands, bad) {
+			t.Errorf("ip: option grammar became a subcommand: %v", p.Subcommands)
+		}
+	}
+}

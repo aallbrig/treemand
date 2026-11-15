@@ -838,6 +838,17 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 			result.SubcommandDescs[name] = desc
 		}
 	}
+	inGrammar := false // inside "OBJECT := { a | b … }" (ip, #160)
+	addGrammar := func(text string) {
+		body, closed := text, false
+		if j := strings.Index(body, "}"); j >= 0 {
+			body, closed = body[:j], true
+		}
+		for _, n := range strings.Split(body, "|") {
+			addChoice(strings.TrimSpace(n), "")
+		}
+		inGrammar = !closed
+	}
 	for i, rawLine := range lines {
 		trimmed := strings.TrimSpace(rawLine)
 		lower := strings.ToLower(trimmed)
@@ -884,6 +895,17 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 			}
 			section = sec
 			inNameSection = (sec == secName)
+			continue
+		}
+		// A grammar of the command word ("OBJECT := { address | link … }",
+		// possibly wrapped) lists the subcommands. Only OBJECT and COMMAND:
+		// "OPTIONS := {…}" lists options.
+		if inGrammar {
+			addGrammar(trimmed)
+			continue
+		}
+		if m := grammarRe.FindStringSubmatch(trimmed); m != nil && (m[1] == "OBJECT" || m[1] == "COMMAND") {
+			addGrammar(m[2])
 			continue
 		}
 		if strings.HasPrefix(trimmed, "{") && !inUsageBlock && !strings.Contains(trimmed, " ") {
@@ -1587,6 +1609,8 @@ var (
 	thorRowRe = regexp.MustCompile(`^\s+(\S+)\s+([a-z][a-z0-9_:-]*)\b[^#]*#\s*(.*)$`)
 	// manRefRowRe is a man-page command reference: "bundle install(1) …".
 	manRefRowRe = regexp.MustCompile(`^\s+(\S+?)[ -]([a-z][a-z0-9_-]*)\(\d+[a-z]*\)`)
+	// grammarRe is a grammar rule: "where  OBJECT := { address | …".
+	grammarRe = regexp.MustCompile(`^(?:where\s+)?([A-Z][A-Z_]*)\s*:=\s*\{(.*)$`)
 	// bulletCmdRe is a bulleted command: "    - access".
 	bulletCmdRe = regexp.MustCompile(`^\s+- ([a-z][a-z0-9_-]*)\s*$`)
 )
