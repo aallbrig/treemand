@@ -57,38 +57,60 @@ alpha|beta) printf 'Usage:\n  formcli %s [flags]\n\nFlags:\n  -f, --force  force
 esac
 `
 
-func TestRunHelp_learnsTheRootFormSoChildrenCostOneProcess(t *testing.T) {
+// slowFlagWithSideEffects answers --help after 600ms (well past the hedge) and
+// treats a positional "help" as an action with a side effect, the way
+// "git branch help" creates a branch: it touches $MARKER.
+const slowFlagWithSideEffects = `case "$*" in
+*--help*) sleep 0.6;;
+*-h*) echo "error: unknown shorthand flag" >&2; exit 2;;
+*help*) touch "$MARKER"; echo "did something to help"; exit 0;;
+*) echo "error" >&2; exit 2;;
+esac
+case "$1" in
+alpha|beta) printf 'Usage:\n  formcli %s [flags]\n\nFlags:\n  -f, --force  force it\n' "$1";;
+*) printf 'formcli does things\n\nUsage:\n  formcli [command]\n\nAvailable Commands:\n  alpha  first\n  beta   second\n\nFlags:\n  -v, --verbose  verbose\n';;
+esac
+`
+
+func TestRunHelp_neverPassesHelpAsAnArgumentWhileAFlagFormWorks(t *testing.T) {
+	bin, logPath := formCLI(t, 0, slowFlagWithSideEffects)
+	marker := filepath.Join(t.TempDir(), "side-effect")
+	t.Setenv("MARKER", marker)
+
+	if _, err := NewHelpDiscoverer(2).Discover(context.Background(), bin, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(marker); err == nil {
+		t.Errorf("a positional help form ran although --help works; calls: %q", calls(t, logPath))
+	}
+	for _, c := range calls(t, logPath) {
+		if f := strings.Fields(c); len(f) > 0 && (f[len(f)-1] == "help" || f[0] == "help") {
+			t.Errorf("positional help form invoked: %q", c)
+		}
+	}
+}
+
+func TestRunHelp_positionalFormsRunOnlyAfterBothFlagsFail(t *testing.T) {
 	bin, logPath := formCLI(t, 0, suffixOnly)
-	d := NewHelpDiscoverer(2)
-	root, err := d.Discover(context.Background(), bin, nil)
+	root, err := NewHelpDiscoverer(2).Discover(context.Background(), bin, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(root.Children) != 3 {
-		t.Fatalf("want 3 children, got %d", len(root.Children))
+	if len(root.Children) != 3 || len(root.Children[0].Flags) == 0 {
+		t.Fatalf("aws-style help was not discovered: %+v", root.Children)
 	}
-	for _, c := range root.Children {
-		if len(c.Flags) == 0 {
-			t.Errorf("%s: help was not parsed (no flags)", c.Name)
+	// For each node, "help" must come after both flag forms in the log.
+	seen := map[string]map[string]bool{}
+	for _, c := range calls(t, logPath) {
+		f := strings.Fields(c)
+		node, form := strings.Join(f[:len(f)-1], " "), f[len(f)-1]
+		if seen[node] == nil {
+			seen[node] = map[string]bool{}
 		}
-	}
-	got := calls(t, logPath)
-	childCalls := 0
-	for _, c := range got {
-		if strings.HasPrefix(c, "alpha") || strings.HasPrefix(c, "beta") || strings.HasPrefix(c, "gamma") {
-			childCalls++
-			if c != strings.Fields(c)[0]+" help" {
-				t.Errorf("child asked with %q; want the learned form only", c)
-			}
+		if form == "help" && (!seen[node]["--help"] || !seen[node]["-h"]) {
+			t.Errorf("%q ran before both flag forms for %q: %q", c, node, calls(t, logPath))
 		}
-	}
-	if childCalls != 3 {
-		t.Errorf("want exactly 1 call per child (3), got %d: %q", childCalls, got)
-	}
-	// Root: at most the three root forms (--help, -h, help); before learning
-	// it was 3 calls for every node, 12 in total.
-	if len(got) > 6 {
-		t.Errorf("want at most 6 invocations, got %d: %q", len(got), got)
+		seen[node][form] = true
 	}
 }
 
@@ -108,20 +130,43 @@ func TestRunHelp_fastPreferredFormStartsNoAlternatives(t *testing.T) {
 	}
 }
 
-func TestRunHelp_failingFormsDoNotRunSerially(t *testing.T) {
-	// Each call takes 600ms. Asking --help, -h and help one after another, as
-	// before, costs 1.8s per node: 3.6s for the root and one level of
-	// children. Racing at the root and reusing the learned form costs about
-	// one call per level plus the hedge delay.
-	bin, _ := formCLI(t, 600*time.Millisecond, suffixOnly)
+// shortOnly answers only -h; --help is an error.
+const shortOnly = `case "$*" in
+*--help*) echo "error: unknown flag: --help" >&2; exit 2;;
+*-h*) ;;
+*) echo "error" >&2; exit 2;;
+esac
+case "$1" in
+alpha|beta|gamma) printf 'Usage: formcli %s [-f]\n\nOptions:\n  -f, --force  force it\n' "$1";;
+*) printf 'Usage: formcli <command>\n\nCommands:\n  alpha  first\n  beta   second\n  gamma  third\n'
+esac
+`
+
+func TestRunHelp_learnedShortFlagIsTriedFirstAndFlagsRace(t *testing.T) {
+	// Each call takes 600ms. Trying --help then -h in turn costs 1.2s per
+	// node: 2.4s for the root and its children. Racing the flags at the root
+	// and asking children -h first costs about 0.85s + 0.6s.
+	bin, logPath := formCLI(t, 600*time.Millisecond, shortOnly)
 	start := time.Now()
 	root, err := NewHelpDiscoverer(2).Discover(context.Background(), bin, nil)
 	elapsed := time.Since(start)
-	if err != nil || len(root.Children) != 3 {
-		t.Fatalf("discovery failed: %v", err)
+	if err != nil || len(root.Children) != 3 || len(root.Children[0].Flags) == 0 {
+		t.Fatalf("discovery failed: %v %+v", err, root)
 	}
-	if elapsed > 2800*time.Millisecond {
-		t.Errorf("root + children took %v; serial fallbacks take 3.6s", elapsed)
+	if elapsed > 2*time.Second {
+		t.Errorf("root + children took %v; trying flags in turn takes 2.4s", elapsed)
+	}
+	// Children ask the learned -h first (a slow -h may still let --help join
+	// it after the hedge delay, which is fine).
+	for _, child := range []string{"alpha", "beta", "gamma"} {
+		for _, c := range calls(t, logPath) {
+			if strings.HasPrefix(c, child+" ") {
+				if c != child+" -h" {
+					t.Errorf("%s was first asked %q; want the learned -h", child, c)
+				}
+				break
+			}
+		}
 	}
 }
 

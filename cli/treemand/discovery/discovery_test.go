@@ -487,7 +487,10 @@ func TestHelpDiscoverer_capsConcurrentProcesses(t *testing.T) {
 	}
 	script := "#!/bin/sh\n" +
 		"case \"$1\" in\n" +
-		"k*) touch " + runDir + "/$$; sleep 0.3; n=$(ls " + runDir + " | wc -l); " +
+		// Only --help does the measured work. A hedged -h that loses the race
+		// is killed, and must not leave a marker behind that inflates the count.
+		"k*) [ \"$2\" = --help ] || { echo 'error: use --help' >&2; exit 2; }; " +
+		"touch " + runDir + "/$$; sleep 0.3; n=$(ls " + runDir + " | wc -l); " +
 		"echo $n >> " + maxFile + "; rm " + runDir + "/$$; printf 'leaf help\\n\\nOptions:\\n  --x   an option\\n'; exit 0;;\n" +
 		"esac\n" +
 		"printf 'root help\\n\\nCommands:\\n" + listing + "'\n"
