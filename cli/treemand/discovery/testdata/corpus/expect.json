@@ -47,5 +47,19 @@
   "tmux": {"max_subcommands": 0},
   "uv": {"subcommands_include": ["run", "pip", "venv", "sync"], "flags_include": ["--quiet", "--offline"]},
   "wget": {"max_subcommands": 0, "flags_include": ["--output-document", "--recursive", "--continue"]},
-  "yarn": {"subcommands_include": ["add", "install", "remove"], "gaps": [157, 155]}
+  "yarn": {"subcommands_include": ["add", "install", "remove"], "gaps": [157, 155]},
+  "bat": {"max_subcommands": 0, "flags_include": ["--language", "--paging", "--style", "--plain"], "gaps": [161]},
+  "black": {"max_subcommands": 0, "flags_include": ["--check", "--diff", "--line-length"]},
+  "eslint": {"max_subcommands": 0, "flags_include": ["--fix", "--config", "--format"]},
+  "fd": {"max_subcommands": 0, "flags_include": ["--hidden", "--exclude", "--type", "--extension"]},
+  "flask": {"subcommands_include": ["routes", "run", "shell"], "flags_include": ["--app", "--version"]},
+  "heroku": {"subcommands_include": ["apps", "auth", "addons", "config"]},
+  "http": {"max_subcommands": 0, "flags_include": ["--json", "--form", "--verbose", "--auth"], "gaps": [161]},
+  "jest": {"max_subcommands": 0, "flags_include": ["--watch", "--coverage", "--config"]},
+  "mvn": {"max_subcommands": 0, "flags_include": ["--batch-mode", "--file", "--projects"], "gaps": [161]},
+  "poetry": {"subcommands_include": ["add", "install", "build", "publish"], "gaps": [166]},
+  "promtool": {"subcommands_include": ["check", "query", "test", "tsdb"], "gaps": [165]},
+  "rg": {"max_subcommands": 0, "flags_include": ["--ignore-case", "--glob", "--type", "--files"], "gaps": [161]},
+  "terraform": {"subcommands_include": ["init", "plan", "apply", "fmt"], "flags_include": ["-chdir", "-help", "-version"], "gaps": [156]},
+  "thor": {"subcommands_include": ["help", "install", "list", "version"], "gaps": [167]}
 }

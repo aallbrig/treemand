@@ -98,6 +98,23 @@ tasks:
     cmds:
       - bash scripts/infra/metrics_downloads.sh {{.CLI_ARGS}}
 
+  zoo:build:
+    desc: Build the cli-zoo image (pinned CLIs from help-text families this machine may lack)
+    cmds:
+      - docker build -t treemand-cli-zoo -f test/cli-zoo/Dockerfile .
+
+  zoo:smoke:
+    desc: Full discovery of every cli-zoo CLI inside the container; fails on a crash, error or empty tree
+    deps: [zoo:build]
+    cmds:
+      - docker run --rm treemand-cli-zoo smoke
+
+  zoo:capture:
+    desc: Refresh the corpus fixtures of the cli-zoo CLIs from the container (review the diff)
+    deps: [zoo:build]
+    cmds:
+      - docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD/cli/treemand/discovery/testdata/corpus:/out/corpus" treemand-cli-zoo capture
+
   gates:test:
     desc: Prove the account-identifier and Project-tag gates fire on fixtures
     cmds:

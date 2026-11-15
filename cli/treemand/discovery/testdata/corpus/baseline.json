@@ -17,6 +17,18 @@
     "has_description": true,
     "description_is_synopsis": false
   },
+  "bat": {
+    "subcommands": 0,
+    "flags": 13,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
+  "black": {
+    "subcommands": 0,
+    "flags": 31,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
   "bundle": {
     "subcommands": 1,
     "flags": 1,
@@ -53,6 +65,18 @@
     "has_description": true,
     "description_is_synopsis": false
   },
+  "eslint": {
+    "subcommands": 0,
+    "flags": 47,
+    "has_description": false,
+    "description_is_synopsis": false
+  },
+  "fd": {
+    "subcommands": 0,
+    "flags": 44,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
   "ffmpeg": {
     "subcommands": 8,
     "flags": 1,
@@ -62,6 +86,12 @@
   "find": {
     "subcommands": 0,
     "flags": 2,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
+  "flask": {
+    "subcommands": 3,
+    "flags": 5,
     "has_description": true,
     "description_is_synopsis": false
   },
@@ -113,6 +143,18 @@
     "has_description": true,
     "description_is_synopsis": false
   },
+  "heroku": {
+    "subcommands": 59,
+    "flags": 0,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
+  "http": {
+    "subcommands": 0,
+    "flags": 38,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
   "hugo": {
     "subcommands": 13,
     "flags": 41,
@@ -129,6 +171,12 @@
     "subcommands": 1,
     "flags": 18,
     "has_description": false,
+    "description_is_synopsis": false
+  },
+  "jest": {
+    "subcommands": 0,
+    "flags": 106,
+    "has_description": true,
     "description_is_synopsis": false
   },
   "journalctl": {
@@ -173,6 +221,12 @@
     "has_description": true,
     "description_is_synopsis": false
   },
+  "mvn": {
+    "subcommands": 0,
+    "flags": 21,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
   "node": {
     "subcommands": 0,
     "flags": 96,
@@ -209,9 +263,27 @@
     "has_description": true,
     "description_is_synopsis": false
   },
+  "poetry": {
+    "subcommands": 0,
+    "flags": 10,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
   "pre-commit": {
     "subcommands": 0,
     "flags": 2,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
+  "promtool": {
+    "subcommands": 0,
+    "flags": 1,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
+  "rg": {
+    "subcommands": 0,
+    "flags": 88,
     "has_description": true,
     "description_is_synopsis": false
   },
@@ -260,6 +332,18 @@
   "task": {
     "subcommands": 0,
     "flags": 46,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
+  "terraform": {
+    "subcommands": 27,
+    "flags": 0,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
+  "thor": {
+    "subcommands": 0,
+    "flags": 0,
     "has_description": true,
     "description_is_synopsis": false
   },
