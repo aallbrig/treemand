@@ -44,3 +44,5 @@ dist/demo.mp4
 
 # Dev loop runtime state, worktrees and screenshots
 /.loop/
+
+__pycache__/
