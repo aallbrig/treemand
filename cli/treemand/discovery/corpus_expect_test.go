@@ -20,6 +20,9 @@ type corpusExpectation struct {
 	MaxSubcommands     *int     `json:"max_subcommands"`
 	FlagsInclude       []string `json:"flags_include"`
 	DescriptionInclude string   `json:"description_include"`
+	// DescriptionExclude is text the description must not contain: for a CLI
+	// with no prose description, garbage is worse than none.
+	DescriptionExclude string `json:"description_exclude"`
 	// Gaps are the issues tracking known failures of this CLI's expectations.
 	Gaps []int `json:"gaps"`
 }
@@ -73,6 +76,9 @@ func (e corpusExpectation) misses(p discovery.ParsedHelp) []string {
 	}
 	if e.DescriptionInclude != "" && !strings.Contains(p.Description, e.DescriptionInclude) {
 		out = append(out, fmt.Sprintf("description %q lacks %q", p.Description, e.DescriptionInclude))
+	}
+	if e.DescriptionExclude != "" && strings.Contains(p.Description, e.DescriptionExclude) {
+		out = append(out, fmt.Sprintf("description %q contains %q", p.Description, e.DescriptionExclude))
 	}
 	return out
 }

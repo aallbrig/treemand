@@ -509,6 +509,7 @@ const (
 	secName     = "name" // man-page NAME section
 	secExamples = "examples"
 	secAliases  = "aliases"
+	secValues   = "values" // a list under a header the parser does not know (#154)
 )
 
 // sectionHeaders maps lower-cased keywords that appear in section header lines.
@@ -800,6 +801,12 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 	// inUsageBlock is true from a "usage:" line through its indented
 	// continuation lines, which are synopsis text and never a description.
 	inUsageBlock := false
+	// descSkipped counts lines that cannot be the description and should not
+	// use up the window it is looked for in: banners, and the value lists
+	// under unknown headers (rsync's "Capabilities:"). usageEnd is where a
+	// usage block ended: the paragraph after a long wrapped usage (argparse)
+	// is the description wherever it falls.
+	descSkipped, usageEnd := 0, -1
 	for i, rawLine := range lines {
 		trimmed := strings.TrimSpace(rawLine)
 		lower := strings.ToLower(trimmed)
@@ -807,7 +814,14 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 		case strings.HasPrefix(lower, "usage:"):
 			inUsageBlock = true
 		case trimmed == "" || (rawLine[0] != ' ' && rawLine[0] != '\t'):
+			if inUsageBlock {
+				usageEnd = i
+			}
 			inUsageBlock = false
+		}
+		if result.Description == "" && trimmed != "" &&
+			(bannerRe.MatchString(trimmed) || (section == secValues && rawLine[0] == ' ') || versionRowRe.MatchString(rawLine)) {
+			descSkipped++
 		}
 
 		// Flush a pending AWS-style flag when we encounter a non-empty line.
@@ -862,7 +876,7 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 		// "Available Operations:") stays free-form.
 		if trimmed != "" && strings.HasSuffix(trimmed, ":") && len(rawLine)-len(strings.TrimLeft(rawLine, " ")) <= 2 &&
 			!strings.HasPrefix(trimmed, "-") && !namesCommands(lower) && !inUsageBlock {
-			section = secDesc
+			section = secValues
 			currentSectionName = ""
 			inNameSection = false
 			continue
@@ -891,7 +905,11 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 		}
 		// Priority 2 — first non-empty, non-header, non-flag line in first 10 lines.
 		// Skip man-page header lines like "GIT-CLONE(1)   Git Manual".
-		if result.Description == "" && i < 10 && trimmed != "" && !inUsageBlock &&
+		if result.Description == "" && (i < 10+descSkipped || (usageEnd >= 0 && i <= usageEnd+2)) && trimmed != "" && !inUsageBlock &&
+			!bannerRe.MatchString(trimmed) && !versionRowRe.MatchString(rawLine) &&
+			!inNonProseList(section, rawLine) &&
+			!strings.HasPrefix(trimmed, "{") && // argparse choices: "{init,run,…}"
+			!strings.Contains(trimmed, ":= ") && strings.Count(trimmed, "|") < 3 && // grammar: "OBJECT := { a | b }"
 			!introducesIndentedList(lines, i) && !listRowRe.MatchString(rawLine) &&
 			!manpageHeaderRe.MatchString(trimmed) &&
 			!strings.HasPrefix(trimmed, "-") &&
@@ -1001,7 +1019,7 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 					}
 				}
 			}
-		case secExamples, secAliases, secDesc:
+		case secExamples, secAliases, secDesc, secValues:
 			// These sections contain narrative text, examples, or aliases —
 			// not subcommand lists. Parse flags only (e.g. example usage may
 			// reference flags we want to surface), but never infer subcommands.
@@ -1413,4 +1431,21 @@ func splitTopLevelCommas(spec string) []string {
 		}
 	}
 	return append(parts, spec[start:])
+}
+
+// bannerRe matches the banner lines some CLIs print before their help: name
+// and version, copyright, licence, build details. They are not a description.
+var bannerRe = regexp.MustCompile(`(?i)\bversion\s+v?\d|\bv\d+\.\d+|copyright|\(c\)\s|licen[cs]ed under|built with|^configuration:|^web site:|no warranty|free software|redistribute it|general public licen|source distribution`)
+
+// versionRowRe matches library version rows ("  libavutil      59.  8.100 / …").
+var versionRowRe = regexp.MustCompile(`^\s+[A-Za-z][\w.-]*\s{2,}\d+\.`)
+
+// inNonProseList reports whether rawLine is an entry of a list that is never
+// a description: a value list under an unknown header (rsync "Capabilities:"),
+// or an alias or example ("ALIASES\n  gh variable remove").
+func inNonProseList(section, rawLine string) bool {
+	if rawLine == "" || rawLine[0] != ' ' {
+		return false
+	}
+	return section == secValues || section == secAliases || section == secExamples
 }
