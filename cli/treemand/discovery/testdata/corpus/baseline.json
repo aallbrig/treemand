@@ -1,7 +1,7 @@
 {
   "ansible": {
     "subcommands": 0,
-    "flags": 23,
+    "flags": 37,
     "has_description": false,
     "description_is_synopsis": false
   },
@@ -19,7 +19,7 @@
   },
   "bat": {
     "subcommands": 0,
-    "flags": 13,
+    "flags": 31,
     "has_description": true,
     "description_is_synopsis": false
   },
@@ -31,7 +31,7 @@
   },
   "bundle": {
     "subcommands": 1,
-    "flags": 1,
+    "flags": 3,
     "has_description": true,
     "description_is_synopsis": false
   },
@@ -43,7 +43,7 @@
   },
   "cmake": {
     "subcommands": 0,
-    "flags": 54,
+    "flags": 55,
     "has_description": true,
     "description_is_synopsis": false
   },
@@ -67,13 +67,13 @@
   },
   "eslint": {
     "subcommands": 0,
-    "flags": 47,
+    "flags": 48,
     "has_description": false,
     "description_is_synopsis": false
   },
   "fd": {
     "subcommands": 0,
-    "flags": 44,
+    "flags": 45,
     "has_description": true,
     "description_is_synopsis": false
   },
@@ -133,7 +133,7 @@
   },
   "grep": {
     "subcommands": 0,
-    "flags": 46,
+    "flags": 48,
     "has_description": true,
     "description_is_synopsis": false
   },
@@ -151,7 +151,7 @@
   },
   "http": {
     "subcommands": 0,
-    "flags": 38,
+    "flags": 51,
     "has_description": true,
     "description_is_synopsis": false
   },
@@ -175,13 +175,13 @@
   },
   "jest": {
     "subcommands": 0,
-    "flags": 106,
+    "flags": 107,
     "has_description": true,
     "description_is_synopsis": false
   },
   "journalctl": {
     "subcommands": 0,
-    "flags": 41,
+    "flags": 42,
     "has_description": true,
     "description_is_synopsis": false
   },
@@ -217,19 +217,19 @@
   },
   "make": {
     "subcommands": 0,
-    "flags": 19,
+    "flags": 31,
     "has_description": true,
     "description_is_synopsis": false
   },
   "mvn": {
     "subcommands": 0,
-    "flags": 21,
+    "flags": 39,
     "has_description": true,
     "description_is_synopsis": false
   },
   "node": {
     "subcommands": 0,
-    "flags": 96,
+    "flags": 163,
     "has_description": true,
     "description_is_synopsis": false
   },
@@ -253,13 +253,13 @@
   },
   "pipx": {
     "subcommands": 2,
-    "flags": 2,
+    "flags": 4,
     "has_description": true,
     "description_is_synopsis": false
   },
   "pnpm": {
     "subcommands": 97,
-    "flags": 35,
+    "flags": 36,
     "has_description": true,
     "description_is_synopsis": false
   },
@@ -283,13 +283,13 @@
   },
   "rg": {
     "subcommands": 0,
-    "flags": 88,
+    "flags": 101,
     "has_description": true,
     "description_is_synopsis": false
   },
   "rsync": {
     "subcommands": 1,
-    "flags": 86,
+    "flags": 136,
     "has_description": true,
     "description_is_synopsis": false
   },
@@ -307,7 +307,7 @@
   },
   "sed": {
     "subcommands": 0,
-    "flags": 9,
+    "flags": 15,
     "has_description": true,
     "description_is_synopsis": false
   },
@@ -325,7 +325,7 @@
   },
   "tar": {
     "subcommands": 8,
-    "flags": 141,
+    "flags": 153,
     "has_description": true,
     "description_is_synopsis": false
   },
@@ -355,19 +355,19 @@
   },
   "uv": {
     "subcommands": 18,
-    "flags": 16,
+    "flags": 17,
     "has_description": true,
     "description_is_synopsis": false
   },
   "wget": {
     "subcommands": 0,
-    "flags": 147,
+    "flags": 152,
     "has_description": true,
     "description_is_synopsis": false
   },
   "yarn": {
     "subcommands": 0,
-    "flags": 45,
+    "flags": 47,
     "has_description": true,
     "description_is_synopsis": false
   }

@@ -1065,7 +1065,9 @@ func detectSection(lower string) string {
 	// Handle headers with parenthetical suffixes, e.g. openssl's
 	// "Cipher commands (see the 'enc' command for more details)".
 	// Strip everything from " (" onward and re-check.
-	if idx := strings.Index(candidate, " ("); idx > 0 {
+	// The header ends at its closing parenthesis; a wrapped prose line such as
+	// "name (like 'C++' or 'LaTeX') … Use" runs on past it and is not a header.
+	if idx := strings.Index(candidate, " ("); idx > 0 && strings.HasSuffix(candidate, ")") {
 		prefix := strings.TrimSpace(candidate[:idx])
 		if s, ok := sectionHeaders[prefix]; ok {
 			return s
@@ -1140,7 +1142,96 @@ func parseFlag(line string) (models.Flag, bool) {
 		f.Description = stripBuildMarker(m[4])
 		return f, true
 	}
-	return models.Flag{}, false
+	return parseOptionSpec(line)
+}
+
+// parseOptionSpec reads option lines the single-short-then-long regex does
+// not cover (#161). The spec is everything before the first gap of two or more
+// spaces; it is a comma-separated list of option names, each optionally
+// followed by a value, in any order:
+//
+//	-C DIRECTORY, --directory=DIRECTORY   (value after the short name)
+//	-n, --quiet, --silent                 (several aliases)
+//	-i[SUFFIX], --in-place[=SUFFIX]       (attached and optional values)
+//	--json, -j                            (long name first)
+//	-pl,--projects <arg>                  (multi-letter short, no space)
+//	-p, --plain...                        (repeatable)
+//
+// Every part must be an option and one must be a --long name, so prose never
+// matches. Single-dash long options without one (gofmt, terraform) are #156.
+func parseOptionSpec(line string) (models.Flag, bool) {
+	t := strings.TrimLeft(line, " \t")
+	if len(line)-len(t) > 12 || !strings.HasPrefix(t, "-") {
+		return models.Flag{}, false
+	}
+	spec, desc := t, ""
+	if loc := specGapRe.FindStringIndex(t); loc != nil {
+		spec, desc = t[:loc[0]], strings.TrimSpace(t[loc[1]:])
+	}
+	var long, short, value string
+	for _, part := range strings.Split(spec, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		m := optionTokenRe.FindStringSubmatch(part)
+		if m == nil {
+			return models.Flag{}, false
+		}
+		v, ok := optionValue(m[3])
+		if !ok {
+			return models.Flag{}, false
+		}
+		if value == "" {
+			value = v
+		}
+		switch {
+		case m[1] == "--":
+			if long == "" {
+				long = "--" + m[2]
+			}
+		case short == "":
+			short = m[2]
+		}
+	}
+	if long == "" {
+		return models.Flag{}, false
+	}
+	if value == "" {
+		value = "bool"
+	}
+	return models.Flag{Name: long, ShortName: short, ValueType: value, Description: stripBuildMarker(desc)}, true
+}
+
+var (
+	specGapRe     = regexp.MustCompile(`\s{2,}|\t`)
+	optionTokenRe = regexp.MustCompile(`^(--?)([A-Za-z0-9][A-Za-z0-9_-]*)(.*)$`)
+	valueWordRe   = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_:.-]*$`)
+)
+
+// optionValue normalizes what follows an option name: " FILE", "=FILE",
+// "[=N]", "[N]", " <arg>", "=..." or nothing. A trailing "..." alone marks a
+// repeatable option, not a value. ok is false when the text is not a value.
+func optionValue(rest string) (string, bool) {
+	r := strings.TrimSpace(rest)
+	switch {
+	case r == "" || r == "...":
+		return "", true
+	case strings.HasPrefix(r, "[=") && strings.HasSuffix(r, "]"):
+		r = r[2 : len(r)-1]
+	case strings.HasPrefix(r, "[") && strings.HasSuffix(r, "]"):
+		r = r[1 : len(r)-1]
+	case strings.HasPrefix(r, "="):
+		r = r[1:]
+	}
+	r = strings.TrimSuffix(strings.TrimPrefix(r, "<"), ">")
+	if r == "" || strings.ContainsAny(r, " \t") {
+		return "", false
+	}
+	if r == "..." || strings.HasPrefix(r, "[") || valueWordRe.MatchString(r) {
+		return r, true
+	}
+	return "", false
 }
 
 // normalizeFlagDefault turns a kubectl-style default shown in place of a type
