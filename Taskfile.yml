@@ -83,6 +83,16 @@ tasks:
     cmds:
       - bash scripts/infra/bootstrap.sh
 
+  infra:deploy:
+    desc: Deploy the site stack (S3, CloudFront, DNS, logs) through the treemand-cfn-exec service role
+    cmds:
+      - bash scripts/infra/deploy_site.sh
+
+  site:publish:
+    desc: Build the site for https://treemand.dev, sync it to S3 (releases/ untouched) and invalidate the CDN
+    cmds:
+      - bash scripts/infra/publish_site.sh
+
   gates:test:
     desc: Prove the account-identifier and Project-tag gates fire on fixtures
     cmds:

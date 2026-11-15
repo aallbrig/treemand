@@ -1,0 +1,408 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  treemand.dev site: private S3 origin behind CloudFront (OAC), apex + www DNS, access logs
+  queried through Athena. Deployed by CI through the treemand-cfn-exec service role; contains
+  no IAM resources. URL contract and cache policy: issue #118.
+
+Parameters:
+  DomainName:
+    Type: String
+    Default: treemand.dev
+  SiteBucketName:
+    Type: String
+    Default: treemand-dev-site
+  LogBucketName:
+    Type: String
+    Default: treemand-dev-logs
+
+Resources:
+  SiteBucket:
+    Type: AWS::S3::Bucket
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_18
+            comment: Requests are logged at CloudFront (LogBucket); the bucket is reachable only through CloudFront.
+    Properties:
+      BucketName: !Ref SiteBucketName
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-replaced-site-files
+            Status: Enabled
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 30
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+      Tags:
+        - {Key: Project, Value: treemand}
+
+  SiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref SiteBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CloudFrontReadsObjects
+            Effect: Allow
+            Principal: {Service: cloudfront.amazonaws.com}
+            Action: s3:GetObject
+            Resource: !Sub ${SiteBucket.Arn}/*
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${Distribution}
+          - Sid: CloudFrontListsSoMissingKeysAre404
+            Effect: Allow
+            Principal: {Service: cloudfront.amazonaws.com}
+            Action: s3:ListBucket
+            Resource: !GetAtt SiteBucket.Arn
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${Distribution}
+          - Sid: TlsOnly
+            Effect: Deny
+            Principal: '*'
+            Action: s3:*
+            Resource:
+              - !GetAtt SiteBucket.Arn
+              - !Sub ${SiteBucket.Arn}/*
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+
+  LogBucket:
+    Type: AWS::S3::Bucket
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_18
+            comment: This is the log bucket; logging it would recurse.
+          - id: CKV_AWS_21
+            comment: Logs and Athena results are write-once and expire after 90 days; versioning adds nothing.
+    Properties:
+      BucketName: !Ref LogBucketName
+      # CloudFront standard (legacy) logging writes through ACLs, so ACLs stay enabled here.
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          # Logs hold client IPs: 90 days is both the retention and the privacy bound.
+          - Id: expire-after-90-days
+            Status: Enabled
+            ExpirationInDays: 90
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+      Tags:
+        - {Key: Project, Value: treemand}
+
+  LogBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref LogBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: TlsOnly
+            Effect: Deny
+            Principal: '*'
+            Action: s3:*
+            Resource:
+              - !GetAtt LogBucket.Arn
+              - !Sub ${LogBucket.Arn}/*
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+
+  OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: treemand-site-oac
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  EdgeFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: treemand-edge
+      AutoPublish: true
+      Tags:
+        - {Key: Project, Value: treemand}
+      FunctionConfig:
+        Comment: www to apex redirect; pretty-URL index rewrite
+        Runtime: cloudfront-js-2.0
+      FunctionCode: !Sub |
+        function handler(event) {
+          var request = event.request;
+          var host = request.headers.host ? request.headers.host.value : '';
+          if (host === 'www.${DomainName}') {
+            var qs = Object.keys(request.querystring).map(function (k) {
+              var v = request.querystring[k];
+              return v.value ? k + '=' + v.value : k;
+            }).join('&');
+            return {
+              statusCode: 301,
+              statusDescription: 'Moved Permanently',
+              headers: {location: {value: 'https://${DomainName}' + request.uri + (qs ? '?' + qs : '')}}
+            };
+          }
+          var uri = request.uri;
+          if (uri.endsWith('/')) {
+            request.uri = uri + 'index.html';
+          } else if (uri.split('/').pop().indexOf('.') === -1) {
+            request.uri = uri + '/index.html';
+          }
+          return request;
+        }
+
+  CachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: treemand-honor-origin
+        Comment: Honour the Cache-Control set at upload (issue #118); 5-minute default.
+        MinTTL: 0
+        DefaultTTL: 300
+        MaxTTL: 31536000
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          CookiesConfig: {CookieBehavior: none}
+          HeadersConfig: {HeaderBehavior: none}
+          QueryStringsConfig: {QueryStringBehavior: none}
+
+  SecurityHeaders:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: treemand-security-headers
+        SecurityHeadersConfig:
+          StrictTransportSecurity:
+            AccessControlMaxAgeSec: 63072000
+            IncludeSubdomains: true
+            Preload: true
+            Override: true
+          ContentTypeOptions:
+            Override: true
+          FrameOptions:
+            FrameOption: DENY
+            Override: true
+          ReferrerPolicy:
+            ReferrerPolicy: strict-origin-when-cross-origin
+            Override: true
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Metadata:
+      checkov:
+        skip:
+          - id: CKV_AWS_68
+            comment: Static public site with no forms or auth; WAF's monthly floor would dwarf the site's cost.
+          - id: CKV2_AWS_47
+            comment: Same - no WAF on a static site.
+          - id: CKV_AWS_310
+            comment: A single S3 origin; origin failover would need a second bucket for no availability gain worth the cost.
+          - id: CKV2_AWS_32
+            comment: SecurityHeaders is attached as the default behaviour's response headers policy.
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: treemand.dev
+        Aliases:
+          - !Ref DomainName
+          - !Sub www.${DomainName}
+        ViewerCertificate:
+          AcmCertificateArn: !ImportValue treemand-certificate-arn
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        PriceClass: PriceClass_100
+        DefaultRootObject: index.html
+        Origins:
+          - Id: site
+            DomainName: !GetAtt SiteBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt OriginAccessControl.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        DefaultCacheBehavior:
+          TargetOriginId: site
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD]
+          CachedMethods: [GET, HEAD]
+          Compress: true
+          CachePolicyId: !Ref CachePolicy
+          ResponseHeadersPolicyId: !Ref SecurityHeaders
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt EdgeFunction.FunctionMetadata.FunctionARN
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 404
+            ResponsePagePath: /404.html
+            ErrorCachingMinTTL: 60
+          - ErrorCode: 404
+            ResponseCode: 404
+            ResponsePagePath: /404.html
+            ErrorCachingMinTTL: 60
+        Logging:
+          Bucket: !GetAtt LogBucket.DomainName
+          Prefix: cf/
+          IncludeCookies: false
+      Tags:
+        - {Key: Project, Value: treemand}
+
+  ApexA:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !ImportValue treemand-hosted-zone-id
+      Name: !Ref DomainName
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt Distribution.DomainName
+        HostedZoneId: Z2FDTNDATAQYW2  # CloudFront's global alias zone (same for every AWS account)
+
+  ApexAAAA:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !ImportValue treemand-hosted-zone-id
+      Name: !Ref DomainName
+      Type: AAAA
+      AliasTarget:
+        DNSName: !GetAtt Distribution.DomainName
+        HostedZoneId: Z2FDTNDATAQYW2
+
+  WwwA:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !ImportValue treemand-hosted-zone-id
+      Name: !Sub www.${DomainName}
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt Distribution.DomainName
+        HostedZoneId: Z2FDTNDATAQYW2
+
+  WwwAAAA:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !ImportValue treemand-hosted-zone-id
+      Name: !Sub www.${DomainName}
+      Type: AAAA
+      AliasTarget:
+        DNSName: !GetAtt Distribution.DomainName
+        HostedZoneId: Z2FDTNDATAQYW2
+
+  MetricsDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: treemand_metrics
+        Description: CloudFront access logs for treemand.dev
+
+  AccessLogTable:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref MetricsDatabase
+      TableInput:
+        Name: treemand_cf_logs
+        TableType: EXTERNAL_TABLE
+        Parameters:
+          skip.header.line.count: '2'
+          EXTERNAL: 'TRUE'
+        StorageDescriptor:
+          Location: !Sub s3://${LogBucket}/cf/
+          InputFormat: org.apache.hadoop.mapred.TextInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+          SerdeInfo:
+            SerializationLibrary: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe
+            Parameters:
+              field.delim: "\t"
+              serialization.format: "\t"
+          # Column order of CloudFront standard logs (legacy format).
+          Columns:
+            - {Name: log_date, Type: date}
+            - {Name: log_time, Type: string}
+            - {Name: x_edge_location, Type: string}
+            - {Name: sc_bytes, Type: bigint}
+            - {Name: c_ip, Type: string}
+            - {Name: cs_method, Type: string}
+            - {Name: cs_host, Type: string}
+            - {Name: cs_uri_stem, Type: string}
+            - {Name: sc_status, Type: int}
+            - {Name: cs_referer, Type: string}
+            - {Name: cs_user_agent, Type: string}
+            - {Name: cs_uri_query, Type: string}
+            - {Name: cs_cookie, Type: string}
+            - {Name: x_edge_result_type, Type: string}
+            - {Name: x_edge_request_id, Type: string}
+            - {Name: x_host_header, Type: string}
+            - {Name: cs_protocol, Type: string}
+            - {Name: cs_bytes, Type: bigint}
+            - {Name: time_taken, Type: float}
+            - {Name: x_forwarded_for, Type: string}
+            - {Name: ssl_protocol, Type: string}
+            - {Name: ssl_cipher, Type: string}
+            - {Name: x_edge_response_result_type, Type: string}
+            - {Name: cs_protocol_version, Type: string}
+            - {Name: fle_status, Type: string}
+            - {Name: fle_encrypted_fields, Type: int}
+            - {Name: c_port, Type: int}
+            - {Name: time_to_first_byte, Type: float}
+            - {Name: x_edge_detailed_result_type, Type: string}
+            - {Name: sc_content_type, Type: string}
+            - {Name: sc_content_len, Type: bigint}
+            - {Name: sc_range_start, Type: bigint}
+            - {Name: sc_range_end, Type: bigint}
+
+  MetricsWorkGroup:
+    Type: AWS::Athena::WorkGroup
+    Properties:
+      Name: treemand-metrics
+      Description: Queries over treemand.dev access logs (task metrics:downloads)
+      RecursiveDeleteOption: true
+      WorkGroupConfiguration:
+        EnforceWorkGroupConfiguration: true
+        PublishCloudWatchMetricsEnabled: false
+        BytesScannedCutoffPerQuery: 1073741824
+        ResultConfiguration:
+          OutputLocation: !Sub s3://${LogBucket}/athena-results/
+          EncryptionConfiguration:
+            EncryptionOption: SSE_S3
+      Tags:
+        - {Key: Project, Value: treemand}
+
+Outputs:
+  SiteBucket:
+    Value: !Ref SiteBucket
+  DistributionId:
+    Value: !Ref Distribution
+  DistributionDomainName:
+    Value: !GetAtt Distribution.DomainName
