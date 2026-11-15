@@ -63,3 +63,22 @@ func TestParseHelp_commandListFormats(t *testing.T) {
 		})
 	}
 }
+
+// Man-page command references (issue #159): "bundle install(1) bundle-install.1.html".
+func TestParseHelp_manPageCommandReferences(t *testing.T) {
+	help := "BUNDLE(1)                   General Commands Manual                  BUNDLE(1)\n\n" +
+		"NAME\n       bundle - Ruby Dependency Management\n\n" +
+		"PRIMARY COMMANDS\n" +
+		"       bundle install(1) bundle-install.1.html\n              Install the gems specified by the Gemfile or Gemfile.lock\n\n" +
+		"       bundle update(1) bundle-update.1.html\n              Update dependencies to their latest versions\n\n" +
+		"       bundle exec(1) bundle-exec.1.html\n              Execute a script in the current bundle\n"
+	p := discovery.ParseHelpOutputFor(help, "bundle")
+	for _, w := range []string{"install", "update", "exec"} {
+		if !slices.Contains(p.Subcommands, w) {
+			t.Errorf("missing %q; got %v", w, p.Subcommands)
+		}
+	}
+	if slices.Contains(p.Subcommands, "bundle") || slices.Contains(p.Subcommands, "bundler-") {
+		t.Errorf("program name or fragment as subcommand: %v", p.Subcommands)
+	}
+}

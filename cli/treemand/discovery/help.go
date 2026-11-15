@@ -540,6 +540,7 @@ var sectionHeaders = map[string]string{
 	"standard commands":       secCommands, // openssl style: "Standard commands"
 	"message digest commands": secCommands, // openssl: "Message Digest commands"
 	"cipher commands":         secCommands, // openssl: "Cipher commands"
+	"utilities":               secCommands, // man pages: bundle "UTILITIES"
 	"flags":                   secFlags,
 	"options":                 secFlags,
 	"global flags":            secFlags,
@@ -1036,6 +1037,12 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 				addChoice(m[2], strings.TrimSpace(m[3]))
 				continue
 			}
+			// Man-page command reference (#159): "bundle install(1) …",
+			// "git-clone(1)": the program's name, then the command.
+			if m := manRefRowRe.FindStringSubmatch(rawLine); m != nil && m[1] == selfName {
+				addChoice(m[2], "")
+				continue
+			}
 			// Bullet list (yarn 1, #157): "    - access".
 			if m := bulletCmdRe.FindStringSubmatch(rawLine); m != nil {
 				addChoice(m[1], "")
@@ -1122,7 +1129,8 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 			// Git-style free-form subcommand lists: indented word + required description.
 			// The description reads as words: a version row ("libavutil  59.  8.100")
 			// is not a command.
-			if m2 := subcmdRe.FindStringSubmatch(rawLine); m2 != nil && m2[2] != "" && !startsWithDigit(m2[2]) {
+			// A name ending in "-" is a fragment of "bundler-<command>", not a command.
+			if m2 := subcmdRe.FindStringSubmatch(rawLine); m2 != nil && m2[2] != "" && !startsWithDigit(m2[2]) && !strings.HasSuffix(m2[1], "-") {
 				name := m2[1]
 				if !seenSubs[name] && !skipSubcmdWords[name] && name != selfName {
 					seenSubs[name] = true
@@ -1577,6 +1585,8 @@ var (
 	kingpinRowRe = regexp.MustCompile(`^([a-z][a-z0-9_-]*)(?: [a-z][a-z0-9_-]*)*(?: [\[<-].*)?$`)
 	// thorRowRe is a thor row: "  <program> <command> [ARGS]  # description".
 	thorRowRe = regexp.MustCompile(`^\s+(\S+)\s+([a-z][a-z0-9_:-]*)\b[^#]*#\s*(.*)$`)
+	// manRefRowRe is a man-page command reference: "bundle install(1) …".
+	manRefRowRe = regexp.MustCompile(`^\s+(\S+?)[ -]([a-z][a-z0-9_-]*)\(\d+[a-z]*\)`)
 	// bulletCmdRe is a bulleted command: "    - access".
 	bulletCmdRe = regexp.MustCompile(`^\s+- ([a-z][a-z0-9_-]*)\s*$`)
 )

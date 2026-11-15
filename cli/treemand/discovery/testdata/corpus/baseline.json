@@ -30,7 +30,7 @@
     "description_is_synopsis": false
   },
   "bundle": {
-    "subcommands": 1,
+    "subcommands": 23,
     "flags": 3,
     "has_description": true,
     "description_is_synopsis": false
