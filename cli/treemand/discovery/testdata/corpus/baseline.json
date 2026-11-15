@@ -252,7 +252,7 @@
     "description_is_synopsis": false
   },
   "pipx": {
-    "subcommands": 2,
+    "subcommands": 15,
     "flags": 4,
     "has_description": true,
     "description_is_synopsis": false
@@ -270,9 +270,9 @@
     "description_is_synopsis": false
   },
   "pre-commit": {
-    "subcommands": 0,
+    "subcommands": 16,
     "flags": 2,
-    "has_description": true,
+    "has_description": false,
     "description_is_synopsis": false
   },
   "promtool": {

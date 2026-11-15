@@ -819,6 +819,22 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 	// usage block ended: the paragraph after a long wrapped usage (argparse)
 	// is the description wherever it falls.
 	descSkipped, usageEnd := 0, -1
+	// argparse subparser block (#81): a "{a,b,c…}" line, then one row per
+	// subcommand at the first row's indent; deeper rows continue a description.
+	choiceIndent, choiceRowIndent := -1, -1
+	addChoice := func(name, desc string) {
+		if name == "" || seenSubs[name] || skipSubcmdWords[name] || name == selfName || !validCmdNameRe.MatchString(name) {
+			return
+		}
+		seenSubs[name] = true
+		result.Subcommands = append(result.Subcommands, name)
+		if desc != "" {
+			if result.SubcommandDescs == nil {
+				result.SubcommandDescs = map[string]string{}
+			}
+			result.SubcommandDescs[name] = desc
+		}
+	}
 	for i, rawLine := range lines {
 		trimmed := strings.TrimSpace(rawLine)
 		lower := strings.ToLower(trimmed)
@@ -863,6 +879,27 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 			section = sec
 			inNameSection = (sec == secName)
 			continue
+		}
+		if strings.HasPrefix(trimmed, "{") && !inUsageBlock && !strings.Contains(trimmed, " ") {
+			choiceIndent, choiceRowIndent = indentOf(rawLine), -1
+			if strings.HasSuffix(trimmed, "}") {
+				for _, n := range strings.Split(strings.Trim(trimmed, "{}"), ",") {
+					addChoice(strings.TrimSpace(n), "")
+				}
+			}
+			continue
+		}
+		if choiceIndent >= 0 && trimmed != "" {
+			if ind := indentOf(rawLine); ind > choiceIndent {
+				if choiceRowIndent < 0 {
+					choiceRowIndent = ind
+				}
+				if m := argparseRowRe.FindStringSubmatch(rawLine); m != nil && ind == choiceRowIndent {
+					addChoice(m[1], strings.TrimSpace(m[2]))
+				}
+				continue
+			}
+			choiceIndent = -1
 		}
 		// Multi-column command grid (openssl style): when already inside a commands
 		// section, non-indented lines may be whitespace-separated columns of command
@@ -1461,3 +1498,7 @@ func inNonProseList(section, rawLine string) bool {
 	}
 	return section == secValues || section == secAliases || section == secExamples
 }
+
+// argparseRowRe is a subparser row: "    install             Install a package".
+var argparseRowRe = regexp.MustCompile(`^\s+([a-z][a-z0-9_-]*)(?:\s{2,}(\S.*))?$`)
+
