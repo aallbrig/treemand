@@ -1501,4 +1501,3 @@ func inNonProseList(section, rawLine string) bool {
 
 // argparseRowRe is a subparser row: "    install             Install a package".
 var argparseRowRe = regexp.MustCompile(`^\s+([a-z][a-z0-9_-]*)(?:\s{2,}(\S.*))?$`)
-
