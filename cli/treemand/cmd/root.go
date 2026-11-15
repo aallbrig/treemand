@@ -216,7 +216,22 @@ func runRoot(cmd *cobra.Command, args []string) error {
 				log.Debug().Str("cli", cliName).Msg("cache bypassed by --refresh")
 			} else if node, err := cacheInst.Get(cacheKey, cfg.CacheTTL); err == nil && node != nil {
 				log.Debug().Str("cli", cliName).Msg("cache hit")
-				return output(cmd, node, cfg, saveExpansions(cacheInst, cacheKey))
+				save := saveExpansions(cacheInst, cacheKey, cliName, cfgStrategy)
+				if !cfgInteractive {
+					// A TUI session that ended mid-crawl saved a partial tree;
+					// finish it so non-interactive output is never partial.
+					if pending := discovery.PendingStubs(node, crawlDepth(cfg), cfg.StubThreshold); len(pending) > 0 {
+						spin := NewSpinner(os.Stderr)
+						spin.Start("discovering " + cliName + "…")
+						discovery.CompletePending(ctx, node, cliName, crawlDepth(cfg), cfg.StubThreshold, discovery.DefaultMaxConcurrentHelp())
+						models.MarkInheritedFlags(node)
+						spin.Stop()
+						if serr := save(node); serr != nil {
+							log.Warn().Err(serr).Msg("cache write failed")
+						}
+					}
+				}
+				return output(cmd, node, cfg, save)
 			}
 		}
 	}
@@ -235,6 +250,14 @@ func runRoot(cmd *cobra.Command, args []string) error {
 		maxDepth = 99 // -1 means unlimited; cap at 99 to prevent infinite loops
 	}
 	discoverers := discovery.BuildDiscoverersWithThreshold(strategies, maxDepth, cfg.StubThreshold)
+	if streamsDiscovery(strategies) {
+		// The TUI opens as soon as the root is read and discovers the rest
+		// in the background (EnableCrawl), so only the root is asked here.
+		d := discovery.NewHelpDiscoverer(1)
+		d.ChildrenAsStubs = true
+		d.StubThreshold = cfg.StubThreshold
+		discoverers = []discovery.Discoverer{d}
+	}
 	spin := NewSpinner(os.Stderr)
 	spin.Start("discovering " + cliName + "…")
 	node, err := discovery.Run(ctx, discoverers, cliName)
@@ -274,24 +297,47 @@ func runRoot(cmd *cobra.Command, args []string) error {
 
 	var save func(*models.Node) error
 	if cacheInst != nil && cacheKey != "" {
-		save = saveExpansions(cacheInst, cacheKey)
+		save = saveExpansions(cacheInst, cacheKey, cliName, cfgStrategy)
 	}
 	return output(cmd, node, cfg, save)
 }
 
-// saveExpansions returns the TUI's save hook: commands discovered during the
-// session (stubs expanded on demand, background indexing) are written back to
-// the cache entry, so the next run starts with them.
-func saveExpansions(c *cache.Cache, key string) func(*models.Node) error {
+// streamsDiscovery reports whether this run opens the TUI on the root alone
+// and discovers the rest in the background. Merged strategies and
+// --expand-stubs exports still discover everything up front.
+func streamsDiscovery(strategies []string) bool {
+	return cfgInteractive && cfgExpandStubs == 0 && len(strategies) == 1 && strategies[0] == "help"
+}
+
+// crawlDepth is the depth a background crawl or completion stops at, matching
+// what an up-front discovery would have reached.
+func crawlDepth(cfg *config.Config) int {
+	if cfg.Depth < 0 {
+		return 99
+	}
+	return cfg.Depth
+}
+
+// saveExpansions returns the hook that writes a grown tree back to the cache:
+// commands discovered in the TUI (background crawl, stubs expanded on demand,
+// indexing) are kept, so the next run starts with them.
+func saveExpansions(c *cache.Cache, key, cliName, strategy string) func(*models.Node) error {
 	return func(root *models.Node) error {
-		_, err := c.UpdateTree(key, root)
+		ok, err := c.UpdateTree(key, root)
+		if err == nil && !ok {
+			err = c.Put(key, cliName, "", strategy, root)
+		}
 		return err
 	}
 }
 
 func output(cmd *cobra.Command, node *models.Node, cfg *config.Config, save func(*models.Node) error) error {
 	if cfgInteractive {
-		return tui.RunWithSave(node, cfg, save)
+		var crawl *tui.CrawlOptions
+		if !tui.Offline {
+			crawl = &tui.CrawlOptions{MaxDepth: crawlDepth(cfg), StubThreshold: cfg.StubThreshold}
+		}
+		return tui.RunWithOptions(node, cfg, tui.RunOptions{Save: save, Crawl: crawl})
 	}
 	opts := render.Options{
 		MaxDepth:       cfgDepth,

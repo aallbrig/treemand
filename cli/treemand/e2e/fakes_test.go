@@ -4,6 +4,18 @@ package e2e
 // help style of a real framework, so the whole path (exec, parse, render) is
 // exercised without any real CLI installed.
 var fakeCLIs = map[string]string{
+	// The root answers at once; every subcommand takes $FAKE_DELAY seconds,
+	// like a big CLI whose full crawl is slow. Logs to $FAKE_LOG.
+	"fakeslow": `[ -n "$FAKE_LOG" ] && echo "$*" >>"$FAKE_LOG"
+case "$1" in
+alpha|beta)
+  sleep "${FAKE_DELAY:-0}"
+  if [ "$2" = deep ]; then printf 'deep things\n\nUsage:\n  fakeslow %s deep\n\nFlags:\n  -h, --help   help\n      --deep-flag  very deep\n' "$1"
+  else printf '%s things\n\nUsage:\n  fakeslow %s [command]\n\nAvailable Commands:\n  deep        go deeper\n\nFlags:\n  -h, --help   help\n      --%s-flag  only for %s\n' "$1" "$1" "$1" "$1"; fi;;
+*) printf 'fakeslow is slow below the root\n\nUsage:\n  fakeslow [command]\n\nAvailable Commands:\n  alpha       first\n  beta        second\n\nFlags:\n  -h, --help   help for fakeslow\n';;
+esac
+`,
+
 	// Logs every invocation to $FAKE_LOG, so cache tests can prove a run never
 	// touched the CLI. Three cobra-style commands, each with one subcommand.
 	"fakecache": `[ -n "$FAKE_LOG" ] && echo "$*" >>"$FAKE_LOG"

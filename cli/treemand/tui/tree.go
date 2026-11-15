@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/aallbrig/treemand/config"
+	"github.com/aallbrig/treemand/discovery"
 	"github.com/aallbrig/treemand/fuzzy"
 	"github.com/aallbrig/treemand/models"
 )
@@ -708,26 +709,7 @@ func (t *TreeModel) PatchNode(stub *models.Node, discovered *models.Node) {
 }
 
 // copyDiscovered fills a stub with freshly discovered data (no tree rebuild).
-func copyDiscovered(stub, discovered *models.Node) {
-	stub.Stub = false
-	stub.Discovered = true
-	stub.Children = discovered.Children
-	if stub.Description == "" {
-		stub.Description = discovered.Description
-	}
-	if len(stub.Flags) == 0 {
-		stub.Flags = discovered.Flags
-	}
-	if len(stub.Positionals) == 0 {
-		stub.Positionals = discovered.Positionals
-	}
-	if stub.HelpText == "" {
-		stub.HelpText = discovered.HelpText
-	}
-	if discovered.DiscoveryErr != "" {
-		stub.DiscoveryErr = discovered.DiscoveryErr
-	}
-}
+func copyDiscovered(stub, discovered *models.Node) { discovery.Fill(stub, discovered) }
 
 // PatchNodeQuiet fills a stub like PatchNode but neither expands it nor
 // rebuilds rows; used for bulk background indexing. Call Rebuild afterwards.
@@ -1530,4 +1512,27 @@ func (t *TreeModel) Reveal(node *models.Node, flagName, posName string) bool {
 		}
 	}
 	return false
+}
+
+// rebuildKeepingSelection rebuilds the rows and moves the cursor back to the
+// row it was on (same node, flag or positional), so rows inserted above the
+// selection by background discovery do not shift it.
+func (t *TreeModel) rebuildKeepingSelection() {
+	var prev treeRow
+	had := t.cursor >= 0 && t.cursor < len(t.rows)
+	if had {
+		prev = t.rows[t.cursor]
+	}
+	t.rebuild()
+	if !had {
+		return
+	}
+	for i, r := range t.rows {
+		if r.kind == prev.kind && r.node == prev.node && r.flag == prev.flag &&
+			r.positional == prev.positional && r.sectionKey == prev.sectionKey && r.owner == prev.owner {
+			t.cursor = i
+			t.scrollIntoView()
+			return
+		}
+	}
 }

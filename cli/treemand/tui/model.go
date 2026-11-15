@@ -83,6 +83,7 @@ type Model struct {
 	sm           searchModal  // Ctrl+F fuzzy finder
 	pendingG     bool         // true after first 'g' press, waiting for second 'g'
 	lastSearch   string       // last filter/search term for n/N cycling
+	crawl        *crawler     // background discovery, when enabled
 }
 
 // clearTimedMsgMsg is fired by a tea.Tick to clear a timed status message.
@@ -112,6 +113,9 @@ func NewModel(root *models.Node, cfg *config.Config) *Model {
 }
 
 func (m *Model) Init() tea.Cmd {
+	if m.Crawling() {
+		return tea.Batch(tea.EnableMouseAllMotion, m.crawl.wait())
+	}
 	return tea.EnableMouseAllMotion
 }
 
@@ -120,6 +124,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// worker goroutines would block forever.
 	if im, ok := msg.(indexMsg); ok {
 		return m, m.handleIndexMsg(im)
+	}
+	// Same for background discovery results.
+	if cb, ok := msg.(crawlBatchMsg); ok {
+		return m, m.handleCrawlBatch(cb)
 	}
 
 	// Fuzzy finder takes keys; async results and resizes still reach the model.
@@ -287,7 +295,30 @@ func Run(root *models.Node, cfg *config.Config) error {
 // on demand, background indexing) it passes the grown tree to save before
 // returning, so the next run starts from it instead of re-crawling.
 func RunWithSave(root *models.Node, cfg *config.Config, save func(*models.Node) error) error {
+	return RunWithOptions(root, cfg, RunOptions{Save: save})
+}
+
+// RunOptions configures RunWithOptions.
+type RunOptions struct {
+	// Save receives the tree on exit when the session discovered anything.
+	Save func(*models.Node) error
+	// Crawl, when set, discovers pending stubs in the background while the
+	// TUI is open (see EnableCrawl).
+	Crawl *CrawlOptions
+}
+
+// RunWithOptions starts the TUI with the given options.
+func RunWithOptions(root *models.Node, cfg *config.Config, opts RunOptions) error {
+	save := opts.Save
 	m := NewModel(root, cfg)
+	if opts.Crawl != nil {
+		m.EnableCrawl(*opts.Crawl)
+	}
+	defer func() {
+		if m.crawl != nil {
+			m.crawl.stop()
+		}
+	}()
 	p := tea.NewProgram(m,
 		tea.WithAltScreen(),
 		tea.WithMouseAllMotion(),

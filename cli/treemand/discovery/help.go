@@ -28,6 +28,9 @@ type HelpDiscoverer struct {
 	MaxDepth      int
 	Timeout       time.Duration
 	StubThreshold int // max subcommands before creating stubs instead of eager discovery
+	// ChildrenAsStubs lists every subcommand as a name-only stub instead of
+	// discovering it, so a caller can crawl the tree one node at a time.
+	ChildrenAsStubs bool
 
 	form atomic.Int32 // helpForm the root answered with; children try it first
 }
@@ -115,7 +118,7 @@ func (h *HelpDiscoverer) discoverWithHelp(ctx context.Context, cliName string, a
 		if threshold <= 0 {
 			threshold = 50
 		}
-		if len(parsed.Subcommands) > threshold {
+		if h.ChildrenAsStubs || len(parsed.Subcommands) > threshold {
 			for _, sub := range parsed.Subcommands {
 				subFull := append(append([]string{}, fullPath...), sub)
 				node.Children = append(node.Children, &models.Node{
@@ -240,6 +243,9 @@ var pagerEnv = []string{
 	"PAGER=cat",
 	"MANPAGER=cat",
 	"GIT_PAGER=cat",
+	// Man pages (git <cmd> --help) wrap to the terminal's width; a fixed width
+	// makes what is parsed, and cached, the same in any terminal.
+	"MANWIDTH=80",
 }
 
 // truncatedHelpRe matches messages that indicate --help output is abbreviated

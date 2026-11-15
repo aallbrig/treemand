@@ -145,3 +145,5 @@ func TestCache_commandsExpandedInTheTUIAreRemembered(t *testing.T) {
 		t.Errorf("beta was never expanded but is no longer a stub")
 	}
 }
+
+func jsonUnmarshal(s string, v any) error { return json.Unmarshal([]byte(s), v) }

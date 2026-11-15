@@ -135,6 +135,10 @@ func (m *Model) renderStatusBar() string {
 		hintStyle = lipgloss.NewStyle().Faint(true)
 	}
 	right := hintStyle.Render(hint)
+	if p := m.crawlProgress(); p != "" {
+		// Background discovery stays visible however the hints change.
+		right = lipgloss.NewStyle().Foreground(lipgloss.Color("#8BE9FD")).Render(p) + "  " + right
+	}
 
 	gap := m.width - lipgloss.Width(left) - lipgloss.Width(right) - 2
 	if gap < 1 {
