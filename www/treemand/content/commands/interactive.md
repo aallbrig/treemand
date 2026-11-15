@@ -20,6 +20,8 @@ treemand -i kubectl
 treemand -i docker
 ```
 
+The TUI opens as soon as the CLI's top-level help is read, usually in well under a second, even for CLIs with hundreds of subcommands. The rest is discovered in the background: the status bar shows `discovering… 37/233`, and commands fill in without moving your selection. Everything discovered is cached, so the next run opens complete. If you quit early, the next run picks up where this one stopped.
+
 ## Workflow
 
 1. **Navigate** — `↓`/`↑` (or `j`/`k`) to browse; cursor never auto-expands
