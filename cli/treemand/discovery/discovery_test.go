@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -577,8 +578,20 @@ func TestHelpDiscoverer_outputAtTheCapIsNotTruncated(t *testing.T) {
 	oldMax, oldHook := discovery.MaxHelpBytes, discovery.OnOutputTruncated
 	t.Cleanup(func() { discovery.MaxHelpBytes, discovery.OnOutputTruncated = oldMax, oldHook })
 	discovery.MaxHelpBytes = 1000
-	var reported []string
-	discovery.OnOutputTruncated = func(name string, _ []string, _ int) { reported = append(reported, name) }
+	// The hook can fire from two goroutines: on a loaded machine the hedged
+	// --help/-h race runs both forms at once.
+	var mu sync.Mutex
+	var reportedList []string
+	discovery.OnOutputTruncated = func(name string, _ []string, _ int) {
+		mu.Lock()
+		defer mu.Unlock()
+		reportedList = append(reportedList, name)
+	}
+	reported := func() []string {
+		mu.Lock()
+		defer mu.Unlock()
+		return append([]string(nil), reportedList...)
+	}
 
 	node, err := discovery.NewHelpDiscoverer(1).Discover(context.Background(), "exactcli", nil)
 	if err != nil {
@@ -587,8 +600,8 @@ func TestHelpDiscoverer_outputAtTheCapIsNotTruncated(t *testing.T) {
 	if len(node.HelpText) != 1000 {
 		t.Errorf("kept %d bytes, want all 1000", len(node.HelpText))
 	}
-	if len(reported) != 0 {
-		t.Errorf("output exactly at the cap must not be reported as truncated, got %v", reported)
+	if len(reported()) != 0 {
+		t.Errorf("output exactly at the cap must not be reported as truncated, got %v", reported())
 	}
 
 	discovery.MaxHelpBytes = 999
@@ -596,7 +609,7 @@ func TestHelpDiscoverer_outputAtTheCapIsNotTruncated(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Discover() error: %v", err)
 	}
-	if len(reported) == 0 {
+	if len(reported()) == 0 {
 		t.Error("one byte over the cap must be reported through OnOutputTruncated")
 	}
 }
