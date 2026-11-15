@@ -2,7 +2,7 @@
 // dependencies) against the built site and fails on the problems Lighthouse's
 // SEO, Accessibility and Best Practices categories score, plus layout shift.
 //
-//   BASE=http://127.0.0.1:PORT/treemand/ CHROME=/path/to/chrome node site_audit.mjs
+//   BASE=http://127.0.0.1:PORT/ CHROME=/path/to/chrome node site_audit.mjs
 //
 // Run it through `task site:audit`, which builds and serves the site. This is
 // not Lighthouse and produces no Lighthouse score: it checks the same families
@@ -322,7 +322,7 @@ async function installPageScenarios() {
   expect("the copy button copies exactly the commands shown", after.copied, info.code);
   expect("the copy button confirms", after.label, "Copied");
   if (!/Copied/.test(after.status)) add(url, "-", "install-page", `no screen-reader confirmation: "${after.status}"`);
-  if (!/curl -fsSL https:\/\/aallbrig\.github\.io\/treemand\/install\.sh \| sh/.test(info.code)) add(url, "-", "install-page", "the first Linux command is not the install script one-liner");
+  if (!/curl -fsSL https:\/\/treemand\.dev\/install\.sh \| sh/.test(info.code)) add(url, "-", "install-page", "the first Linux command is not the install script one-liner");
   p.close();
 }
 await installPageScenarios();

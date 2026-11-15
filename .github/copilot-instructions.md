@@ -50,7 +50,7 @@ www/treemand/        Hugo static site
 - After releasing, run `task dev` locally to update the dev binary
 
 ## GitHub Pages
-https://aallbrig.github.io/treemand
+https://treemand.dev
 
 ## Documentation
 

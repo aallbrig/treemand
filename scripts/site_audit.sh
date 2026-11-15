@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the site at its production base path (/treemand/), serve it locally and
+# Build the site at its production base path (/), serve it locally and
 # run scripts/site_audit.mjs against every page in the sitemap at desktop and
 # mobile sizes. Needs hugo, node (24 or newer) and Chrome or Chromium; run via
 # `task site:audit`. Exits non-zero on any finding.
@@ -17,14 +17,14 @@ trap cleanup EXIT
 
 # The Try page needs the compiled wasm next to the site.
 bash cli/treemand/web/wasm/build.sh www/treemand/static/try >/dev/null
-(cd www/treemand && hugo --quiet -b /treemand/ -d "$out/treemand")
+(cd www/treemand && hugo --quiet -b / -d "$out")
 
 port="${AUDIT_PORT:-18181}"
 python3 -m http.server "$port" --bind 127.0.0.1 --directory "$out" >/dev/null 2>&1 &
 server_pid=$!
 for _ in $(seq 1 50); do
-  curl -sf "http://127.0.0.1:$port/treemand/" >/dev/null && break
+  curl -sf "http://127.0.0.1:$port/" >/dev/null && break
   sleep 0.1
 done
 
-BASE="http://127.0.0.1:$port/treemand/" CHROME="$chrome" node scripts/site_audit.mjs
+BASE="http://127.0.0.1:$port/" CHROME="$chrome" node scripts/site_audit.mjs

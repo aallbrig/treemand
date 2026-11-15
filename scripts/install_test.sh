@@ -20,10 +20,13 @@ check() { # check NAME COMMAND...  (passes when the command succeeds)
   if "$@" >/dev/null 2>&1; then ok "$name"; else bad "$name"; fi
 }
 
-# ── A fake release: latest and v9.9.9, four platforms, real checksums ───────
+# ── A fake mirror: latest.txt -> v1.0.0 (signed) and v9.9.9 (unsigned) ──────
+# Layout matches https://treemand.dev/releases/: <tag>/<file> plus latest.txt.
 site="$work/site"
-make_release() { # make_release DIR LABEL
-  local dir="$1" label="$2" os arch stage
+# Signature checks are off unless a test supplies a cosign; this one never exists.
+export TREEMAND_COSIGN="$work/no-such-cosign"
+make_release() { # make_release DIR LABEL [signed]
+  local dir="$1" label="$2" signed="${3:-}" os arch stage
   mkdir -p "$dir"
   : >"$dir/checksums.txt"
   for os in linux darwin; do
@@ -36,14 +39,16 @@ make_release() { # make_release DIR LABEL
       printf '%s  treemand_%s_%s.tar.gz\n' "$(sha256sum "$dir/treemand_${os}_${arch}.tar.gz" | cut -d' ' -f1)" "$os" "$arch" >>"$dir/checksums.txt"
     done
   done
+  if [ -n "$signed" ]; then printf '{"fake":"bundle"}\n' >"$dir/checksums.txt.sigstore.json"; fi
 }
-make_release "$site/latest/download" v1.0.0
-make_release "$site/download/v9.9.9" v9.9.9
+make_release "$site/v1.0.0" v1.0.0 signed
+make_release "$site/v9.9.9" v9.9.9
+printf 'v1.0.0\n' >"$site/latest.txt"
 
 port="${INSTALL_TEST_PORT:-18282}"
 python3 -m http.server "$port" --bind 127.0.0.1 --directory "$site" >"$work/server.log" 2>&1 &
 server_pid=$!
-for _ in $(seq 1 50); do curl -sf "http://127.0.0.1:$port/latest/download/checksums.txt" >/dev/null && break; sleep 0.1; done
+for _ in $(seq 1 50); do curl -sf "http://127.0.0.1:$port/latest.txt" >/dev/null && break; sleep 0.1; done
 base="http://127.0.0.1:$port"
 
 # A stand-in for the privileged helper: it only records how it was called. The
@@ -83,14 +88,14 @@ done
 
 # 3. A tampered archive must be refused and nothing installed.
 rm -rf "$work/tamper" && cp -r "$site" "$work/tamper"
-printf 'tampered' >>"$work/tamper/latest/download/treemand_linux_amd64.tar.gz"
-printf 'tampered' >>"$work/tamper/latest/download/treemand_darwin_amd64.tar.gz"
-printf 'tampered' >>"$work/tamper/latest/download/treemand_linux_arm64.tar.gz"
-printf 'tampered' >>"$work/tamper/latest/download/treemand_darwin_arm64.tar.gz"
+printf 'tampered' >>"$work/tamper/v1.0.0/treemand_linux_amd64.tar.gz"
+printf 'tampered' >>"$work/tamper/v1.0.0/treemand_darwin_amd64.tar.gz"
+printf 'tampered' >>"$work/tamper/v1.0.0/treemand_linux_arm64.tar.gz"
+printf 'tampered' >>"$work/tamper/v1.0.0/treemand_darwin_arm64.tar.gz"
 tport=$((port + 1))
 python3 -m http.server "$tport" --bind 127.0.0.1 --directory "$work/tamper" >/dev/null 2>&1 &
 tpid=$!
-for _ in $(seq 1 50); do curl -sf "http://127.0.0.1:$tport/latest/download/checksums.txt" >/dev/null && break; sleep 0.1; done
+for _ in $(seq 1 50); do curl -sf "http://127.0.0.1:$tport/latest.txt" >/dev/null && break; sleep 0.1; done
 h="$work/h3"; mkdir -p "$h"
 out="$(HOME="$h" TREEMAND_BASE_URL="http://127.0.0.1:$tport" sh "$script" 2>&1)"; rc=$?
 kill "$tpid" 2>/dev/null || true
@@ -100,11 +105,11 @@ check "nothing was installed after a mismatch" test ! -e "$h/.local/bin/treemand
 
 # 4. checksums.txt without the asset's line.
 rm -rf "$work/nosum" && cp -r "$site" "$work/nosum"
-: >"$work/nosum/latest/download/checksums.txt"
+: >"$work/nosum/v1.0.0/checksums.txt"
 nport=$((port + 2))
 python3 -m http.server "$nport" --bind 127.0.0.1 --directory "$work/nosum" >/dev/null 2>&1 &
 npid=$!
-for _ in $(seq 1 50); do curl -sf "http://127.0.0.1:$nport/latest/download/checksums.txt" >/dev/null && break; sleep 0.1; done
+for _ in $(seq 1 50); do curl -sf "http://127.0.0.1:$nport/latest.txt" >/dev/null && break; sleep 0.1; done
 h="$work/h4"; mkdir -p "$h"
 out="$(HOME="$h" TREEMAND_BASE_URL="http://127.0.0.1:$nport" sh "$script" 2>&1)"; rc=$?
 kill "$npid" 2>/dev/null || true
@@ -163,12 +168,40 @@ out="$(sh "$script" --bogus 2>&1)"; rc=$?
 out="$(sh "$script" --version 2>&1)"; rc=$?
 [ $rc -ne 0 ] && [[ "$out" == *"needs a value"* ]] && ok "an option missing its value is refused" || bad "an option missing its value is refused"
 
-# 11. The published script and the Installation page agree with the repository.
+# 11. Signatures: a stand-in cosign records its argv and exits with $FAKE_COSIGN_RC.
+fake_cosign="$work/fake-cosign"
+printf '#!/bin/sh\necho "$*" >>"%s/cosign.log"\nexit "${FAKE_COSIGN_RC:-0}"\n' "$work" >"$fake_cosign"
+chmod +x "$fake_cosign"
+: >"$work/cosign.log"
+out="$(TREEMAND_COSIGN="$fake_cosign" run_install "$work/s1" 2>&1)"; rc=$?
+[ $rc -eq 0 ] && [[ "$out" == *"signature OK"* ]] && ok "a verified signature installs" || bad "a verified signature installs (rc=$rc: $out)"
+grep -q -- "--certificate-identity https://github.com/aallbrig/treemand/.github/workflows/release.yml@refs/tags/v1.0.0 " "$work/cosign.log" \
+  && ok "latest is resolved to its tag and that exact identity is pinned" || bad "latest is resolved to its tag and that exact identity is pinned"
+grep -q -- "--certificate-oidc-issuer https://token.actions.githubusercontent.com" "$work/cosign.log" \
+  && ok "the GitHub Actions OIDC issuer is pinned" || bad "the GitHub Actions OIDC issuer is pinned"
+out="$(FAKE_COSIGN_RC=1 TREEMAND_COSIGN="$fake_cosign" run_install "$work/s2" 2>&1)"; rc=$?
+if [ $rc -ne 0 ] && [[ "$out" == *"signature check failed"* ]]; then ok "a bad signature is refused"; else bad "a bad signature is refused"; fi
+check "nothing was installed after a bad signature" test ! -e "$work/s2/.local/bin/treemand"
+out="$(TREEMAND_COSIGN="$fake_cosign" run_install "$work/s3" --version v9.9.9 2>&1)"; rc=$?
+if [ $rc -ne 0 ] && [[ "$out" == *"sigstore.json is missing"* ]]; then ok "with cosign, a missing signature is refused"; else bad "with cosign, a missing signature is refused"; fi
+out="$(TREEMAND_COSIGN="$fake_cosign" run_install "$work/s4" --version v9.9.9 --no-verify-signature 2>&1)"; rc=$?
+[ $rc -eq 0 ] && [[ "$out" == *"signature check skipped"* ]] && ok "--no-verify-signature installs an unsigned release" || bad "--no-verify-signature installs an unsigned release"
+out="$(run_install "$work/s5" 2>&1)"; rc=$?
+[ $rc -eq 0 ] && [[ "$out" == *"cosign not found"* ]] && ok "without cosign: warns and still installs" || bad "without cosign: warns and still installs"
+out="$(run_install "$work/s6" --require-signature 2>&1)"; rc=$?
+if [ $rc -ne 0 ] && [[ "$out" == *"--require-signature"* ]]; then ok "--require-signature without cosign is refused"; else bad "--require-signature without cosign is refused"; fi
+check "nothing was installed when a signature was required" test ! -e "$work/s6/.local/bin/treemand"
+printf 'garbage\n' >"$site/latest.txt"
+out="$(run_install "$work/s7" 2>&1)"; rc=$?
+printf 'v1.0.0\n' >"$site/latest.txt"
+if [ $rc -ne 0 ] && [[ "$out" == *"does not name a release"* ]]; then ok "a malformed latest.txt is refused"; else bad "a malformed latest.txt is refused"; fi
+
+# 12. The published script and the Installation page agree with the repository.
 echo "documentation"
 gomod="$(awk '$1 == "go" { split($2, v, "."); print v[1] "." v[2]; exit }' cli/treemand/go.mod)"
 page="www/treemand/content/installation.md"
 if grep -q "Requires Go $gomod+" "$page"; then ok "the Installation page states Go $gomod (go.mod)"; else bad "the Installation page states Go $gomod (go.mod)"; fi
-if grep -rq "aallbrig.github.io/treemand/install.sh" "$page" www/treemand/data 2>/dev/null; then ok "the Installation page documents the published install.sh URL"; else bad "the Installation page documents the published install.sh URL"; fi
+if grep -rq "https://treemand.dev/install.sh" "$page" www/treemand/data 2>/dev/null; then ok "the Installation page documents the published install.sh URL"; else bad "the Installation page documents the published install.sh URL"; fi
 if grep -q "install.sh" README.md; then ok "the README documents install.sh"; else bad "the README documents install.sh"; fi
 
 echo

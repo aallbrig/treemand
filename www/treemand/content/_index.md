@@ -66,11 +66,11 @@ treemand --output=json docker
 brew tap aallbrig/tap
 brew install treemand
 
-# go install
-go install github.com/aallbrig/treemand/cli/treemand@latest
+# Install script (Linux / macOS): signed, checksum-verified, no sudo
+curl -fsSL https://treemand.dev/install.sh | sh
 ```
 
-Or download a [pre-built binary](https://github.com/aallbrig/treemand/releases).
+More options, including Windows and building from source, are on the [Installation](installation/) page.
 
 ## Demo
 

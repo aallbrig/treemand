@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Build the site at the production baseURL and fail on any root-relative link
-# or asset that escapes /treemand/ (e.g. the logo pointing at github.io root).
+# Build the site under a sub-path and fail on any root-relative link or asset
+# that escapes it: every internal URL must go through relURL/absURL.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../www/treemand"
 out="$(mktemp -d)"

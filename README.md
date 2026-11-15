@@ -4,7 +4,7 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/aallbrig/treemand/ci.yml?branch=main)](https://github.com/aallbrig/treemand/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-🌐 **Website & docs:** https://aallbrig.github.io/treemand
+🌐 **Website & docs:** https://treemand.dev
 
 treemand introspects any CLI tool's `--help` output and maps its entire
 command hierarchy into a navigable tree. Two modes:
@@ -12,23 +12,22 @@ command hierarchy into a navigable tree. Two modes:
 - **Static** — print a colored ASCII tree to your terminal (or pipe JSON/YAML for scripting)
 - **Interactive** (`-i`) — keyboard-driven TUI to explore commands, pick flags, and assemble + copy/run a full CLI invocation
 
-![treemand demo](https://aallbrig.github.io/treemand/demo.gif)
+![treemand demo](https://treemand.dev/demo.gif)
 
 ## Install
 
 ```bash
 # One line (Linux, macOS): checksum-verified, installs to ~/.local/bin, no sudo.
-# Read it first: https://aallbrig.github.io/treemand/install.sh  (options: --help)
-curl -fsSL https://aallbrig.github.io/treemand/install.sh | sh
+# Read it first: https://treemand.dev/install.sh  (options: --help)
+# Verifies the release signature when cosign is installed.
+curl -fsSL https://treemand.dev/install.sh | sh
 
 # Homebrew (macOS / Linux) — tap: https://github.com/aallbrig/homebrew-tap
 brew tap aallbrig/tap && brew install treemand
 
-# Via go install
-go install github.com/aallbrig/treemand/cli/treemand@latest
 
-# Pre-built binaries (and Windows): https://github.com/aallbrig/treemand/releases/latest
-# Step-by-step for your OS, with copy buttons: https://aallbrig.github.io/treemand/installation/
+# Pre-built binaries (and Windows): https://treemand.dev/installation/  (mirrored at https://github.com/aallbrig/treemand/releases)
+# Step-by-step for your OS, with copy buttons: https://treemand.dev/installation/
 
 # From source
 git clone https://github.com/aallbrig/treemand.git && cd treemand && task install

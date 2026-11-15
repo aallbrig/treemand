@@ -93,6 +93,11 @@ tasks:
     cmds:
       - bash scripts/infra/publish_site.sh
 
+  metrics:downloads:
+    desc: "treemand.dev usage from CloudFront logs via Athena: task metrics:downloads -- [days]"
+    cmds:
+      - bash scripts/infra/metrics_downloads.sh {{.CLI_ARGS}}
+
   gates:test:
     desc: Prove the account-identifier and Project-tag gates fire on fixtures
     cmds:
@@ -205,7 +210,7 @@ tasks:
   loop:check:
     desc: Static checks for the loop machinery (shellcheck, state script, guard hook, skill present)
     cmds:
-      - shellcheck -x -S warning scripts/loop/*.sh scripts/dev_session.sh scripts/pr_merge.sh scripts/check_*.sh scripts/install_test.sh scripts/site_audit.sh scripts/make_site_assets.sh www/treemand/static/install.sh
+      - shellcheck -x -S warning scripts/loop/*.sh scripts/dev_session.sh scripts/pr_merge.sh scripts/check_*.sh scripts/install_test.sh scripts/site_audit.sh scripts/make_site_assets.sh www/treemand/static/install.sh scripts/infra/*.sh scripts/gates_test.sh scripts/infra_lint.sh
       - python3 -I scripts/loop/state.py summary >/dev/null
       - bash scripts/loop/guard_test.sh
       - test -f .claude/skills/treemand-loop/SKILL.md

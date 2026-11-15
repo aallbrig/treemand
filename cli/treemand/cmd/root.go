@@ -83,7 +83,7 @@ Examples:
   treemand --filter=remote git        # only show nodes matching "remote"
   treemand treemand                   # introspect treemand itself
 
-Docs: https://aallbrig.github.io/treemand`,
+Docs: https://treemand.dev`,
 	Args:          rootArgs,
 	SilenceErrors: true,
 	SilenceUsage:  true,
