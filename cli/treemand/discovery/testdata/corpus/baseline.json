@@ -264,9 +264,9 @@
     "description_is_synopsis": false
   },
   "poetry": {
-    "subcommands": 0,
+    "subcommands": 25,
     "flags": 10,
-    "has_description": true,
+    "has_description": false,
     "description_is_synopsis": false
   },
   "pre-commit": {
