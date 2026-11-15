@@ -63,3 +63,14 @@ func TestParseHelp_proseWithParenthesisIsNotAHeader(t *testing.T) {
 	}
 	t.Errorf("--paging lost after a prose line; got %+v", p.Flags)
 }
+
+func TestParseHelp_choiceListValue(t *testing.T) {
+	p := discovery.ParseHelpOutput("Usage: ruby [switches]\n  --enable={jit|rubyopt|...}[,...]\n  --disable={jit|rubyopt|...}[,...]\n                  disable features\n")
+	got := map[string]string{}
+	for _, f := range p.Flags {
+		got[f.Name] = f.ValueType
+	}
+	if got["--disable"] != "{jit|rubyopt|...}" || got["--enable"] == "" {
+		t.Errorf("choice-list options not parsed: %v", got)
+	}
+}

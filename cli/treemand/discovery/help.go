@@ -380,11 +380,20 @@ func (h *HelpDiscoverer) raceForms(ctx context.Context, resolved string, args []
 		return h.tryForm(ctx, resolved, args, forms[0]), forms[0]
 	}
 	rctx, cancel := context.WithCancel(ctx)
+	// Cancel the losers and wait for them: a form still running after
+	// raceForms returns would outlive the discovery that started it (and could
+	// report into hooks such as OnOutputTruncated after the caller moved on).
+	var wg sync.WaitGroup
+	defer wg.Wait()
 	defer cancel()
 	results := make([]chan string, len(forms))
 	start := func(i int) {
 		results[i] = make(chan string, 1)
-		go func(ch chan<- string, f helpForm) { ch <- h.tryForm(rctx, resolved, args, f) }(results[i], forms[i])
+		wg.Add(1)
+		go func(ch chan<- string, f helpForm) {
+			defer wg.Done()
+			ch <- h.tryForm(rctx, resolved, args, f)
+		}(results[i], forms[i])
 	}
 	// Hedge: the preferred form gets a head start, so a CLI that answers it
 	// quickly never pays for the other. A slow or failing one holds the other
@@ -716,6 +725,8 @@ var skipSubcmdWords = map[string]bool{
 	"true": true, "false": true,
 	"none": true, "all": true, "on": true, "off": true,
 	"yes": true, "no": true, "default": true,
+	// "or" starts a usage continuation ("   or  java [options] -jar …").
+	"or": true,
 	// Single-letter "commands" are almost always hotkey hints in help text, not subcommands.
 	"a": true, "b": true, "c": true, "d": true, "e": true, "f": true,
 	"g": true, "h": true, "i": true, "j": true, "k": true, "l": true,
@@ -843,6 +854,18 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 				}
 				continue
 			}
+		}
+		// A header the parser does not know ("Features:", "Dump List:",
+		// " FORMAT is one of the following:") introduces a list of values, not
+		// of commands (#154): read flags there, but no subcommands. One that
+		// names commands ("These are common Git commands …:", stripe's
+		// "Available Operations:") stays free-form.
+		if trimmed != "" && strings.HasSuffix(trimmed, ":") && len(rawLine)-len(strings.TrimLeft(rawLine, " ")) <= 2 &&
+			!strings.HasPrefix(trimmed, "-") && !namesCommands(lower) && !inUsageBlock {
+			section = secDesc
+			currentSectionName = ""
+			inNameSection = false
+			continue
 		}
 		// A non-indented non-empty line resets the section — EXCEPT for
 		// man-page headers that are themselves section detectors (handled above).
@@ -991,7 +1014,9 @@ func ParseHelpOutputFor(text, selfName string) ParsedHelp {
 				addFlag(f)
 			}
 			// Git-style free-form subcommand lists: indented word + required description.
-			if m2 := subcmdRe.FindStringSubmatch(rawLine); m2 != nil && m2[2] != "" {
+			// The description reads as words: a version row ("libavutil  59.  8.100")
+			// is not a command.
+			if m2 := subcmdRe.FindStringSubmatch(rawLine); m2 != nil && m2[2] != "" && !startsWithDigit(m2[2]) {
 				name := m2[1]
 				if !seenSubs[name] && !skipSubcmdWords[name] && name != selfName {
 					seenSubs[name] = true
@@ -1169,7 +1194,7 @@ func parseOptionSpec(line string) (models.Flag, bool) {
 		spec, desc = t[:loc[0]], strings.TrimSpace(t[loc[1]:])
 	}
 	var long, short, value string
-	for _, part := range strings.Split(spec, ",") {
+	for _, part := range splitTopLevelCommas(spec) {
 		part = strings.TrimSpace(part)
 		if part == "" {
 			continue
@@ -1213,7 +1238,8 @@ var (
 // "[=N]", "[N]", " <arg>", "=..." or nothing. A trailing "..." alone marks a
 // repeatable option, not a value. ok is false when the text is not a value.
 func optionValue(rest string) (string, bool) {
-	r := strings.TrimSpace(rest)
+	// A repeatable list suffix ("={a|b}[,...]") says nothing about the value.
+	r := strings.TrimSuffix(strings.TrimSpace(rest), "[,...]")
 	switch {
 	case r == "" || r == "...":
 		return "", true
@@ -1228,7 +1254,8 @@ func optionValue(rest string) (string, bool) {
 	if r == "" || strings.ContainsAny(r, " \t") {
 		return "", false
 	}
-	if r == "..." || strings.HasPrefix(r, "[") || valueWordRe.MatchString(r) {
+	if r == "..." || strings.HasPrefix(r, "[") || valueWordRe.MatchString(r) ||
+		(strings.HasPrefix(r, "{") && strings.HasSuffix(r, "}")) { // choices: {jit|rubyopt|...}
 		return r, true
 	}
 	return "", false
@@ -1344,4 +1371,46 @@ func introducesIndentedList(lines []string, i int) bool {
 
 func isUsageLine(line, cliName string) bool {
 	return strings.HasPrefix(line, cliName+" ") && strings.ContainsAny(line, "<[")
+}
+
+// startsWithDigit reports whether s begins with a digit, as version numbers do.
+func startsWithDigit(s string) bool {
+	s = strings.TrimSpace(s)
+	return s != "" && s[0] >= '0' && s[0] <= '9'
+}
+
+// commandWords are the words CLIs use for their subcommands in list headers.
+var commandWords = []string{"command", "operation", "action", "topic", "verb", "service"}
+
+// namesCommands reports whether a header line introduces a list of commands.
+func namesCommands(lower string) bool {
+	for _, w := range commandWords {
+		if strings.Contains(lower, w) {
+			return true
+		}
+	}
+	return false
+}
+
+// splitTopLevelCommas splits an option spec on commas outside [] and {}:
+// "--disable={jit|rubyopt}[,...]" is one option, "-n, --quiet" two.
+func splitTopLevelCommas(spec string) []string {
+	var parts []string
+	depth, start := 0, 0
+	for i, r := range spec {
+		switch r {
+		case '[', '{':
+			depth++
+		case ']', '}':
+			if depth > 0 {
+				depth--
+			}
+		case ',':
+			if depth == 0 {
+				parts = append(parts, spec[start:i])
+				start = i + 1
+			}
+		}
+	}
+	return append(parts, spec[start:])
 }

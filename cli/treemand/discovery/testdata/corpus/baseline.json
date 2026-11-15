@@ -43,7 +43,7 @@
   },
   "cmake": {
     "subcommands": 0,
-    "flags": 55,
+    "flags": 57,
     "has_description": true,
     "description_is_synopsis": false
   },
@@ -78,7 +78,7 @@
     "description_is_synopsis": false
   },
   "ffmpeg": {
-    "subcommands": 8,
+    "subcommands": 0,
     "flags": 1,
     "has_description": true,
     "description_is_synopsis": false
@@ -168,7 +168,7 @@
     "description_is_synopsis": false
   },
   "java": {
-    "subcommands": 1,
+    "subcommands": 0,
     "flags": 18,
     "has_description": false,
     "description_is_synopsis": false
@@ -288,14 +288,14 @@
     "description_is_synopsis": false
   },
   "rsync": {
-    "subcommands": 1,
+    "subcommands": 0,
     "flags": 136,
     "has_description": true,
     "description_is_synopsis": false
   },
   "ruby": {
-    "subcommands": 10,
-    "flags": 38,
+    "subcommands": 0,
+    "flags": 41,
     "has_description": false,
     "description_is_synopsis": false
   },
@@ -324,7 +324,7 @@
     "description_is_synopsis": false
   },
   "tar": {
-    "subcommands": 8,
+    "subcommands": 0,
     "flags": 153,
     "has_description": true,
     "description_is_synopsis": false
