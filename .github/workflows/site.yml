@@ -1,0 +1,68 @@
+name: Deploy Site
+
+# Deploys infra/site.yaml and publishes the Hugo site to https://treemand.dev.
+# Runs on site-affecting pushes to main, after the demo video is re-recorded,
+# on demand, and from the Release workflow (workflow_call).
+#
+# AWS access is the treemand-deploy role through GitHub OIDC; its trust policy
+# only accepts jobs in the "production" environment (branch main, tags v*).
+# Role ARNs are environment secrets, and account-derived values are masked.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "www/treemand/**"
+      - "cli/treemand/**"
+      - "infra/site.yaml"
+      - "scripts/infra/**"
+      - "scripts/gen-web-trees.sh"
+      - ".github/workflows/site.yml"
+  workflow_run:
+    workflows: ["Demo Video"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-site
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy treemand.dev
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://treemand.dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/treemand/go.mod
+          cache-dependency-path: cli/treemand/go.sum
+
+      - uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: "0.157.0"
+          extended: true
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+          mask-aws-account-id: true
+
+      - name: Deploy site stack
+        env:
+          AWS_CFN_EXEC_ROLE_ARN: ${{ secrets.AWS_CFN_EXEC_ROLE_ARN }}
+        run: bash scripts/infra/deploy_site.sh
+
+      - name: Publish site
+        run: bash scripts/infra/publish_site.sh
