@@ -15,7 +15,7 @@
   "gh": {"subcommands_include": ["auth", "repo", "pr", "issue"]},
   "git": {"subcommands_include": ["clone", "commit", "push", "rebase"]},
   "go": {"subcommands_include": ["build", "test", "mod", "run"]},
-  "gofmt": {"flags_include": ["-l", "-w", "-d", "-s"], "gaps": [156]},
+  "gofmt": {"flags_include": ["-l", "-w", "-d", "-s"]},
   "golangci-lint": {"subcommands_include": ["run", "linters", "fmt"]},
   "grep": {"max_subcommands": 0, "flags_include": ["--ignore-case", "--recursive", "--count"]},
   "helm": {"subcommands_include": ["install", "upgrade", "repo", "template"]},
@@ -60,6 +60,6 @@
   "poetry": {"subcommands_include": ["add", "install", "build", "publish"], "gaps": [166]},
   "promtool": {"subcommands_include": ["check", "query", "test", "tsdb"], "gaps": [165]},
   "rg": {"max_subcommands": 0, "flags_include": ["--ignore-case", "--glob", "--type", "--files"]},
-  "terraform": {"subcommands_include": ["init", "plan", "apply", "fmt"], "flags_include": ["-chdir", "-help", "-version"], "gaps": [156]},
+  "terraform": {"subcommands_include": ["init", "plan", "apply", "fmt"], "flags_include": ["-chdir", "-help", "-version"]},
   "thor": {"subcommands_include": ["help", "install", "list", "version"], "gaps": [167]}
 }
