@@ -31,15 +31,38 @@
 </head>
 <body>
   <header>
-    <nav>
+    <nav aria-label="Main">
       <a href="{{ .Site.Home.RelPermalink }}" class="site-title">🌲 {{ .Site.Title }}</a>
-      <ul>
+      {{- /* Narrow screens collapse the links behind this button; without JS the list stays visible. */}}
+      <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="site-menu" hidden>
+        <span class="nav-toggle-bars" aria-hidden="true"></span>
+        <span class="visually-hidden">Menu</span>
+      </button>
+      <ul id="site-menu">
+        {{- $current := .RelPermalink }}
         {{ range .Site.Menus.main }}
-        <li><a href="{{ .URL | relURL }}">{{ .Name }}</a></li>
+        {{- $href := .URL | relURL }}
+        <li><a href="{{ $href }}"{{ if eq $href $current }} aria-current="page"{{ end }}>{{ .Name }}</a></li>
         {{ end }}
       </ul>
     </nav>
   </header>
+  <script>
+    (function () {
+      var nav = document.querySelector('header nav');
+      var btn = nav.querySelector('.nav-toggle');
+      btn.hidden = false;
+      nav.classList.add('js-nav');
+      function setOpen(open) {
+        btn.setAttribute('aria-expanded', String(open));
+        nav.classList.toggle('open', open);
+      }
+      btn.addEventListener('click', function () { setOpen(btn.getAttribute('aria-expanded') !== 'true'); });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && nav.classList.contains('open')) { setOpen(false); btn.focus(); }
+      });
+    })();
+  </script>
   <main>{{ block "main" . }}{{ end }}</main>
   <footer><p>MIT License · <a href="https://github.com/aallbrig/treemand">GitHub</a></p></footer>
 </body>
