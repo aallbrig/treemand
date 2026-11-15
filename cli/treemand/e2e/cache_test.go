@@ -23,7 +23,7 @@ func cacheEnv(t *testing.T) (envs []string, logPath, cacheDir string) {
 
 func invocations(t *testing.T, logPath string) int {
 	t.Helper()
-	b, err := os.ReadFile(logPath) //nolint:gosec // test-owned path
+	b, err := os.ReadFile(logPath)
 	if os.IsNotExist(err) {
 		return 0
 	}

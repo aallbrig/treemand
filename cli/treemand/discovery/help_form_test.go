@@ -22,7 +22,7 @@ func formCLI(t *testing.T, delay time.Duration, body string) (string, string) {
 		"sleep " + fmt.Sprintf("%.3f", delay.Seconds()) + "\n" +
 		body
 	bin := filepath.Join(dir, "formcli")
-	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil { //nolint:gosec // test fixture must be executable
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return bin, logPath
@@ -30,7 +30,7 @@ func formCLI(t *testing.T, delay time.Duration, body string) (string, string) {
 
 func calls(t *testing.T, logPath string) []string {
 	t.Helper()
-	b, err := os.ReadFile(logPath) //nolint:gosec // test-owned path
+	b, err := os.ReadFile(logPath)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -335,7 +335,7 @@ func RunWithOptions(root *models.Node, cfg *config.Config, opts RunOptions) erro
 	if fm, ok := finalModel.(*Model); ok && fm.commandToRun != "" {
 		parts := strings.Fields(fm.commandToRun)
 		if len(parts) > 0 {
-			c := exec.Command(parts[0], parts[1:]...) //nolint:gosec
+			c := exec.Command(parts[0], parts[1:]...)
 			c.Stdin = os.Stdin
 			c.Stdout = os.Stdout
 			c.Stderr = os.Stderr

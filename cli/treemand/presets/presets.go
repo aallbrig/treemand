@@ -76,7 +76,7 @@ func Graft(root, seed *models.Node) {
 }
 
 func seedStripe(ctx context.Context, cli string) (*models.Node, error) {
-	out, err := exec.CommandContext(ctx, cli, "--map").Output() //nolint:gosec
+	out, err := exec.CommandContext(ctx, cli, "--map").Output()
 	if err != nil {
 		return nil, err
 	}

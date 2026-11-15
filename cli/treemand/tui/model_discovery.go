@@ -97,11 +97,11 @@ func (m *Model) openDocsURL() tea.Cmd {
 	var cmd *exec.Cmd
 	switch {
 	case isWSL():
-		cmd = exec.Command("wslview", url) //nolint:gosec
+		cmd = exec.Command("wslview", url)
 	case isMacOS():
-		cmd = exec.Command("open", url) //nolint:gosec
+		cmd = exec.Command("open", url)
 	default:
-		cmd = exec.Command("xdg-open", url) //nolint:gosec
+		cmd = exec.Command("xdg-open", url)
 	}
 	if err := cmd.Start(); err != nil {
 		m.statusMsg = "failed to open browser: " + err.Error()

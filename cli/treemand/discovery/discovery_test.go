@@ -338,7 +338,7 @@ func nodeNames(nodes []*models.Node) []string {
 func TestHelpDiscoverer_hangingCLI_honoursContext(t *testing.T) {
 	dir := t.TempDir()
 	script := "#!/bin/sh\nsleep 30 &\nsleep 30\n"
-	if err := os.WriteFile(filepath.Join(dir, "hangcli"), []byte(script), 0o755); err != nil { //nolint:gosec
+	if err := os.WriteFile(filepath.Join(dir, "hangcli"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -359,7 +359,7 @@ func TestHelpDiscoverer_rootDescriptionFallsBackToManName(t *testing.T) {
 	cli := "#!/bin/sh\nprintf 'usage: tool [-ab] [-c file]\\n           [command [flags]]\\n'\n"
 	man := "#!/bin/sh\nprintf 'NAME\\n       tool - a friendly terminal tool\\n\\nSYNOPSIS\\n       tool [-ab]\\n'\n"
 	for name, body := range map[string]string{"tool": cli, "man": man} {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o755); err != nil { //nolint:gosec
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -395,7 +395,7 @@ func TestHelpDiscoverer_timeoutIsPerCommandNotPerSubtree(t *testing.T) {
 		"esac\n" +
 		"if [ \"$2\" = \"--help\" ] || [ \"$3\" = \"--help\" ] || [ \"$2\" = \"-h\" ] || [ \"$3\" = \"-h\" ]; then sleep 0.5; printf 'leaf help\\n\\nOptions:\\n  --x   an option\\n'; exit 0; fi\n" +
 		"printf 'tool\\n\\nCommands:\\n  grp   a group\\n'\n"
-	if err := os.WriteFile(filepath.Join(dir, "tool"), []byte(script), 0o755); err != nil { //nolint:gosec
+	if err := os.WriteFile(filepath.Join(dir, "tool"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -440,7 +440,7 @@ func TestHelpDiscoverer_oneHelpInvocationPerNode(t *testing.T) {
 		"alpha|bravo|charlie) printf '%s help\\n\\nOptions:\\n  --x   an option\\n' \"$1\"; exit 0;;\n" +
 		"esac\n" +
 		"printf 'root help\\n\\nCommands:\\n  alpha   first\\n  bravo   second\\n  charlie   third\\n'\n"
-	if err := os.WriteFile(filepath.Join(dir, "tool"), []byte(script), 0o755); err != nil { //nolint:gosec
+	if err := os.WriteFile(filepath.Join(dir, "tool"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -494,7 +494,7 @@ func TestHelpDiscoverer_capsConcurrentProcesses(t *testing.T) {
 		"echo $n >> " + maxFile + "; rm " + runDir + "/$$; printf 'leaf help\\n\\nOptions:\\n  --x   an option\\n'; exit 0;;\n" +
 		"esac\n" +
 		"printf 'root help\\n\\nCommands:\\n" + listing + "'\n"
-	if err := os.WriteFile(filepath.Join(dir, "tool"), []byte(script), 0o755); err != nil { //nolint:gosec
+	if err := os.WriteFile(filepath.Join(dir, "tool"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -537,7 +537,7 @@ func TestHelpDiscoverer_capsConcurrentProcesses(t *testing.T) {
 func TestHelpDiscoverer_capsHugeOutput(t *testing.T) {
 	dir := t.TempDir()
 	script := "#!/bin/sh\nyes 'Commands: lots of text that goes on and on and on' | head -c 50000000\n"
-	if err := os.WriteFile(filepath.Join(dir, "floodcli"), []byte(script), 0o755); err != nil { //nolint:gosec
+	if err := os.WriteFile(filepath.Join(dir, "floodcli"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -570,7 +570,7 @@ func TestHelpDiscoverer_outputAtTheCapIsNotTruncated(t *testing.T) {
 	dir := t.TempDir()
 	// Exactly the cap in bytes: must be kept whole and not reported as truncated.
 	script := "#!/bin/sh\nhead -c 1000 /dev/zero | tr '\\0' 'a'\n"
-	if err := os.WriteFile(filepath.Join(dir, "exactcli"), []byte(script), 0o755); err != nil { //nolint:gosec
+	if err := os.WriteFile(filepath.Join(dir, "exactcli"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -631,7 +631,7 @@ func TestHelpDiscoverer_resultDoesNotDependOnTiming(t *testing.T) {
 		"  printf '%s group\\n\\nCommands:\\n" + rows(leaves, "leaf") + "\\nFlags:\\n  -h, --help   help\\n' \"$1\"; exit 0;;\n" +
 		"esac\n" +
 		"printf 'root tool\\n\\nCommands:\\n" + rows(groups, "group") + "\\nFlags:\\n  -h, --help   help\\n'\n"
-	if err := os.WriteFile(filepath.Join(dir, "jittertool"), []byte(script), 0o755); err != nil { //nolint:gosec
+	if err := os.WriteFile(filepath.Join(dir, "jittertool"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))

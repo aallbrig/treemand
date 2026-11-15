@@ -2,6 +2,7 @@
 package cache
 
 import (
+	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
@@ -201,9 +202,17 @@ func (c *Cache) ListEntries() ([]Entry, error) {
 	return entries, rows.Err()
 }
 
+// VersionTimeout bounds `<cli> --version`. A cold run waits for the version
+// before writing the cache, so a CLI whose --version never returns must not
+// hang treemand.
+const VersionTimeout = 5 * time.Second
+
 // CLIVersion attempts to get the version string for a CLI by running <cli> --version.
 func CLIVersion(cli string) string {
-	cmd := exec.Command(cli, "--version") //nolint:gosec
+	ctx, cancel := context.WithTimeout(context.Background(), VersionTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, cli, "--version")
+	cmd.WaitDelay = time.Second // don't wait on pipes held open by orphaned children
 	out, err := cmd.CombinedOutput()
 	if err != nil || len(out) == 0 {
 		return "unknown"

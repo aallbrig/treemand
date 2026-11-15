@@ -19,7 +19,7 @@ case "$*" in
   *) exit 1 ;;
 esac
 `
-	if err := os.WriteFile(filepath.Join(dir, "fakecli"), []byte(script), 0o755); err != nil { //nolint:gosec
+	if err := os.WriteFile(filepath.Join(dir, "fakecli"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))

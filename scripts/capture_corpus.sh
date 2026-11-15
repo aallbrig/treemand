@@ -16,13 +16,18 @@ if [ ${#targets[@]} -eq 0 ]; then
   targets=(git docker kubectl gh aws npm pip go cargo helm terraform systemctl apt tmux ssh curl tar jq)
 fi
 
+# Discovery runs the real CLIs; run them from an empty directory so nothing
+# they might write lands in the repository.
+cwd="$(mktemp -d)"
+trap 'rm -rf "$cwd" "$(dirname "$bin")"' EXIT
+
 for cli in "${targets[@]}"; do
   if ! command -v "$cli" >/dev/null 2>&1; then
     echo "skip $cli (not installed)"
     continue
   fi
   # help_text on the root node is exactly the text treemand parsed.
-  text="$("$bin" --no-cache --output=json --depth=1 --timeout=60 "$cli" 2>/dev/null | jq -r '.help_text // empty')"
+  text="$(cd "$cwd" && "$bin" --no-cache --output=json --depth=1 --timeout=60 "$cli" 2>/dev/null | jq -r '.help_text // empty')"
   if [ -z "$text" ]; then
     echo "skip $cli (no help text)"
     continue

@@ -6,9 +6,22 @@ linters:
     - gosec
     - misspell
     - revive
+    # Bug finders: each flagged something real when adopted (see PR).
+    - errorlint    # type assertions on errors miss wrapped errors
+    - nilerr       # returning nil while holding a non-nil error
+    - wastedassign
+    - bodyclose
+    - unconvert
+    - copyloopvar
+    - errname
+    - gocritic
+    - nolintlint   # every //nolint must still be needed
   disable:
     - depguard
   settings:
+    gocritic:
+      disabled-checks:
+        - ifElseChain # style only
     gosec:
       excludes:
         - G304

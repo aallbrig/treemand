@@ -51,7 +51,7 @@ func (c *cappedBuffer) Write(p []byte) (int, error) {
 func runCapped(ctx context.Context, name string, args, extraEnv []string, limit int) (out []byte, truncated bool, err error) {
 	cctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	cmd := exec.CommandContext(cctx, name, args...) //nolint:gosec
+	cmd := exec.CommandContext(cctx, name, args...)
 	if extraEnv != nil {
 		cmd.Env = append(cmd.Environ(), extraEnv...)
 	}

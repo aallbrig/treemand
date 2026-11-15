@@ -86,7 +86,7 @@ func TestHelpDiscoverer_listCommandsFallback(t *testing.T) {
 		"else printf 'usage: lc [-2CDlNuVv] [command [flags]]\\n'; fi\n"
 	man := "#!/bin/sh\nprintf 'NAME\\n       lc - a multiplexer\\n\\nCOMMANDS\\n       kill-server\\n               Kill the server and all sessions.\\n'\n"
 	for name, body := range map[string]string{"lc": cli, "man": man} {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o755); err != nil { //nolint:gosec
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}

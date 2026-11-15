@@ -4,6 +4,7 @@ package e2e
 
 import (
 	"bytes"
+	"errors"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -114,7 +115,8 @@ func (s *session) exitCode(within time.Duration) int {
 		if err == nil {
 			return 0
 		}
-		if ee, ok := err.(*exec.ExitError); ok {
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
 			return ee.ExitCode()
 		}
 		s.t.Fatalf("waiting for treemand: %v", err)
