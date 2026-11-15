@@ -2,6 +2,7 @@ package cache_test
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -318,5 +319,22 @@ func TestCacheWrites_reportDatabaseErrors(t *testing.T) {
 	}
 	if _, err := c.ListEntries(); err == nil {
 		t.Error("ListEntries on a closed cache returned no error")
+	}
+}
+
+func TestCLIVersion_aHangingVersionCommandTimesOut(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "hangs")
+	// exec, so the kill reaches the sleeping process itself.
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\nexec sleep 60\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	start := time.Now()
+	got := cache.CLIVersion(bin)
+	if elapsed := time.Since(start); elapsed > cache.VersionTimeout+2*time.Second {
+		t.Errorf("CLIVersion took %v on a hanging --version; it must give up after %v", elapsed, cache.VersionTimeout)
+	}
+	if got != "unknown" {
+		t.Errorf("CLIVersion = %q, want unknown", got)
 	}
 }
