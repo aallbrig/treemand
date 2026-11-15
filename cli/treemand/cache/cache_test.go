@@ -300,3 +300,23 @@ func TestCacheUpdateTree_growsTheTreeButKeepsVersionAndCrawlTime(t *testing.T) {
 		t.Errorf("UpdateTree on a missing key = %v, %v; want false, nil", ok, err)
 	}
 }
+
+func TestCacheWrites_reportDatabaseErrors(t *testing.T) {
+	c, err := cache.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = c.Close()
+	if ok, err := c.UpdateTree("k", &models.Node{Name: "x"}); err == nil || ok {
+		t.Errorf("UpdateTree on a closed cache = %v, %v; want an error", ok, err)
+	}
+	if err := c.Put("k", "x", "1", "help", &models.Node{Name: "x"}); err == nil {
+		t.Error("Put on a closed cache returned no error")
+	}
+	if _, err := c.ListCLIs(); err == nil {
+		t.Error("ListCLIs on a closed cache returned no error")
+	}
+	if _, err := c.ListEntries(); err == nil {
+		t.Error("ListEntries on a closed cache returned no error")
+	}
+}
