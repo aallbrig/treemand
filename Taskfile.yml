@@ -149,11 +149,13 @@ tasks:
       - task: lint-fix
 
   precommit:
-    desc: Pre-commit gate — secrets, infra lint, fmt, vet, lint, vuln, tests with coverage floors
+    desc: Pre-commit gate — secrets, infra lint, fmt check, vet, lint, vuln, tests with coverage floors
     cmds:
       - task: secrets
       - task: infra:lint
-      - task: fmt
+      # Check, don't rewrite: a rewrite after staging commits the unformatted
+      # copy and fails CI's fmt:check (#178). Run `task fmt` and re-stage.
+      - task: fmt:check
       - task: vet
       - task: lint
       - task: vuln
@@ -371,7 +373,9 @@ tasks:
   fmt:check:
     desc: Fail if any Go file needs formatting
     cmds:
-      - test -z "$(gofmt -l ./cli/treemand)"
+      - |
+        files="$(gofmt -l ./cli/treemand)"
+        if [ -n "$files" ]; then echo "needs gofmt (run: task fmt, then re-stage):"; echo "$files"; exit 1; fi
 
   docs:check:
     desc: Every `task X` named in docs, scripts, CI or the loop skill must exist in this Taskfile
