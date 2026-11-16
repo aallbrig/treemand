@@ -1,1 +1,2 @@
 {"date": "2026-11-16T01:26:18Z", "host": "unicorn-tp", "metrics": {"clis_with_gaps": 1, "corpus_clis": 62, "described_pct": 80.6, "flags_total": 2105, "subcommands_total": 1672, "truth_pass_pct": 98.4, "unexpected_misses": 0}, "sha": "b7fa70f", "version": "v0.8.0-6-gb7fa70f"}
+{"date": "2026-11-16T02:20:20Z", "host": "unicorn-tp", "load": 1.87, "metrics": {"clis_with_gaps": 1, "corpus_clis": 62, "described_pct": 80.6, "flags_total": 2105, "subcommands_total": 1672, "truth_pass_pct": 98.4, "unexpected_misses": 0}, "sha": "22b06f2", "version": "v0.8.0-18-g22b06f2"}
