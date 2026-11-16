@@ -30,6 +30,7 @@
   function known(os) { return panels.some(function (p) { return p.dataset.os === os; }); }
 
   function show(os, byUser) {
+    document.documentElement.dataset.os = os;
     panels.forEach(function (p) { p.hidden = p.dataset.os !== os; });
     buttons.forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.os === os)); });
     if (byUser) remember(os);

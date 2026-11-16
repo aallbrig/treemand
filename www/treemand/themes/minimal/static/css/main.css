@@ -171,6 +171,14 @@ kbd { background: var(--code-bg); border: 1px solid var(--border); border-bottom
 .os-btn:hover { border-color: var(--accent); }
 .os-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
 .os-detected { color: var(--muted); font-size: .95rem; margin-bottom: 1rem; }
+/* With JS, the head script has already chosen the OS: show only its panel and
+   keep the switch and the detection note's line in place from first paint. */
+html.js[data-os="macos"] .os-panel:not([data-os="macos"]),
+html.js[data-os="linux"] .os-panel:not([data-os="linux"]),
+html.js[data-os="windows"] .os-panel:not([data-os="windows"]) { display: none; }
+.os-switch[hidden] { display: none; }
+html.js .os-switch[hidden] { display: flex; }
+html.js .os-detected[hidden] { display: block; visibility: hidden; }
 .os-panel h2 { margin-top: 1rem; }
 .channel { border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; margin: 1rem 0; background: var(--bg); }
 .channel.recommended { border-color: var(--accent); }

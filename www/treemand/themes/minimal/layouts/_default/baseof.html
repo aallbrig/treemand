@@ -13,8 +13,10 @@
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0d1117" media="(prefers-color-scheme: dark)">
-  {{- /* Apply a remembered theme before first paint, so a reader who chose one never sees the other flash. */}}
-  <script>try{var t=localStorage.getItem("treemand.theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+  {{- /* Before first paint: apply a remembered theme (no flash of the other one), and pick the
+         reader's OS (URL hash, then their last choice, then detection, as install.js does) so
+         OS-specific install steps are laid out right away instead of shifting later. */}}
+  <script>(function(d){d.classList.add("js");var k=["macos","linux","windows"],o=location.hash.slice(1),s="";try{var t=localStorage.getItem("treemand.theme");if(t==="light"||t==="dark")d.dataset.theme=t;s=localStorage.getItem("treemand.os")}catch(e){}if(k.indexOf(o)<0)o=s;if(k.indexOf(o)<0){var u=(((navigator.userAgentData||{}).platform||navigator.platform||"")+" "+navigator.userAgent).toLowerCase();o=/win/.test(u)&&!/darwin/.test(u)?"windows":/mac|iphone|ipad|darwin/.test(u)?"macos":"linux"}d.dataset.os=o})(document.documentElement)</script>
   <link rel="icon" href="{{ "icon.svg" | relURL }}" type="image/svg+xml">
   <link rel="icon" href="{{ "favicon-32.png" | relURL }}" type="image/png" sizes="32x32">
   <link rel="apple-touch-icon" href="{{ "apple-touch-icon.png" | relURL }}">
