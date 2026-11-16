@@ -16,6 +16,7 @@ import (
 	"unicode"
 
 	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/presets"
 )
 
 // Discoverer is the interface for CLI hierarchy discovery strategies.
@@ -367,6 +368,13 @@ func (h *HelpDiscoverer) runHelp(ctx context.Context, cliName string, args []str
 	// an argument a subcommand may act on ("npm prune help" prunes, #176), so
 	// they only ever follow flag forms that answered and refused.
 	var timedOut atomic.Bool
+	// A preset may document "<cli> [path...] help" as the CLI's help (aws):
+	// ask that first, one call instead of two failing flag forms before it.
+	if p, ok := presets.Lookup(cliName); ok && p.HelpSubcommand {
+		if s := h.tryForm(ctx, resolved, args, formSuffix, &timedOut); s != "" {
+			return s, nil
+		}
+	}
 	if s, f := h.raceForms(ctx, resolved, args, flags, &timedOut); s != "" {
 		h.form.CompareAndSwap(int32(formUnknown), int32(f))
 		return s, nil

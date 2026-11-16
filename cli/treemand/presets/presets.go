@@ -22,6 +22,11 @@ type Preset struct {
 	// Depth is the discovery depth used when the user did not pass --depth.
 	// Zero means "no preset opinion".
 	Depth int
+	// HelpSubcommand: the CLI documents "<cli> [path...] help" as its help and
+	// answers neither --help nor -h, so discovery asks that form first instead
+	// of after two failing flag forms. Only for CLIs that document it: for an
+	// unknown CLI a positional "help" may be acted on (#149, #176).
+	HelpSubcommand bool
 	// Seed returns a tree of additional (usually stub) nodes rooted at the
 	// CLI, or nil when none are available.
 	Seed func(ctx context.Context, cli string) (*models.Node, error)
@@ -35,9 +40,10 @@ var registry = map[string]*Preset{
 		Seed:    seedStripe,
 	},
 	"aws": {
-		Name:    "aws",
-		Summary: "AWS CLI: ~400 services as lazy stubs; commands load when a service is opened",
-		Depth:   1,
+		Name:           "aws",
+		Summary:        "AWS CLI: ~400 services as lazy stubs; commands load when a service is opened",
+		Depth:          1,
+		HelpSubcommand: true,
 	},
 }
 
