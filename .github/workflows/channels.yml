@@ -1,0 +1,24 @@
+name: Install channels
+
+# Fails when a documented install channel lags the latest release by more than
+# one version, or when the site documents a channel that is not published (#45).
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_run:
+    workflows: ["Publish to Package Managers"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  channels:
+    name: Documented channels are current
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check channels
+        run: bash scripts/channels_check.sh
