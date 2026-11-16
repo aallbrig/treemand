@@ -451,6 +451,44 @@ async function docsScenarios() {
 }
 await docsScenarios();
 
+// ── Search: Ctrl+K opens the dialog, and a query finds the page about it
+async function searchScenarios() {
+  const url = new URL("getting-started/", BASE).href;
+  const fail = (detail) => add(url, "-", "search", detail);
+  const p = await newPage();
+  await p.send("Page.enable");
+  await p.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
+  await p.send("Page.navigate", { url });
+  await new Promise((r) => setTimeout(r, 700));
+  const ev = (expression) => p.send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true }).then((r) => r.result.value);
+  await p.send("Input.dispatchKeyEvent", { type: "keyDown", key: "k", code: "KeyK", modifiers: 2, windowsVirtualKeyCode: 75 });
+  await p.send("Input.dispatchKeyEvent", { type: "keyUp", key: "k", code: "KeyK", modifiers: 2, windowsVirtualKeyCode: 75 });
+  await new Promise((r) => setTimeout(r, 800));
+  if (!(await ev('document.getElementById("search-dialog").open'))) { fail("Ctrl+K does not open the search dialog"); p.close(); return; }
+  for (const [q, want] of [["cache clear", "/commands/cache/"], ["completion zsh", "/commands/completion/"], ["json yaml", "/commands/output/"]]) {
+    const first = await ev(`(async () => {
+      const input = document.querySelector("#search input");
+      if (!input) return "no input";
+      input.value = ${JSON.stringify(q)};
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      for (let i = 0; i < 40; i++) {
+        await new Promise((r) => setTimeout(r, 100));
+        // Results belong to this query once the message names it.
+        const msg = document.querySelector("#search .pagefind-ui__message")?.textContent || "";
+        const a = document.querySelector("#search .pagefind-ui__result-link");
+        if (a && msg.includes(${JSON.stringify(q)})) return new URL(a.href).pathname;
+      }
+      return "no results";
+    })()`);
+    if (first !== want) fail(`"${q}": first result ${first}, want ${want}`);
+  }
+  await p.send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
+  await new Promise((r) => setTimeout(r, 200));
+  if (await ev('document.getElementById("search-dialog").open')) fail("Esc does not close the search dialog");
+  p.close();
+}
+await searchScenarios();
+
 const titles = new Map();
 let audited = 0;
 for (const vp of VIEWPORTS) {
