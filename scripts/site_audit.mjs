@@ -19,9 +19,13 @@ if (!BASE || !CHROME) {
   process.exit(2);
 }
 const origin = new URL(BASE).origin;
+// Every page is checked in both colour schemes: the site follows the system
+// setting, so a contrast bug in either theme is a real reader's bug.
 const VIEWPORTS = [
-  { name: "desktop", width: 1280, height: 800, mobile: false },
-  { name: "mobile", width: 390, height: 844, mobile: true },
+  { name: "desktop", width: 1280, height: 800, mobile: false, scheme: "light" },
+  { name: "mobile", width: 390, height: 844, mobile: true, scheme: "light" },
+  { name: "desktop-dark", width: 1280, height: 800, mobile: false, scheme: "dark" },
+  { name: "mobile-dark", width: 390, height: 844, mobile: true, scheme: "dark" },
 ];
 
 // ── Chrome and the DevTools protocol ────────────────────────────────────────
@@ -327,6 +331,61 @@ async function installPageScenarios() {
 }
 await installPageScenarios();
 
+// ── Theme toggle and code-block copy buttons ────────────────────────────────
+async function siteScenarios() {
+  const url = new URL("getting-started/", BASE).href;
+  const fail = (detail) => add(url, "-", "site-js", detail);
+  const evalv = (p, expression) => p.send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true }).then((r) => r.result.value);
+  async function open(scheme, keepStorage = false) {
+    const p = await newPage();
+    await p.send("Page.enable");
+    await p.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
+    await p.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: scheme }] });
+    if (!keepStorage) await p.send("Storage.clearDataForOrigin", { origin, storageTypes: "local_storage" });
+    await p.send("Page.navigate", { url });
+    await new Promise((r) => setTimeout(r, 700));
+    return p;
+  }
+  const bg = 'getComputedStyle(document.body).backgroundColor';
+  const pressed = 'document.getElementById("theme-toggle").getAttribute("aria-pressed")';
+
+  let p = await open("light");
+  if (await evalv(p, bg) !== "rgb(255, 255, 255)") fail(`light system: body is ${await evalv(p, bg)}, want white`);
+  if (await evalv(p, pressed) !== "false") fail("light system: the toggle reads as pressed");
+  await evalv(p, 'document.getElementById("theme-toggle").click()');
+  if (await evalv(p, bg) !== "rgb(13, 17, 23)") fail("clicking the toggle does not switch to the dark theme");
+  if (await evalv(p, pressed) !== "true") fail("after switching to dark the toggle is not pressed");
+  p.close();
+  p = await open("light", true);
+  if (await evalv(p, bg) !== "rgb(13, 17, 23)") fail("the chosen dark theme is not remembered on the next visit");
+  p.close();
+  p = await open("dark");
+  if (await evalv(p, bg) !== "rgb(13, 17, 23)") fail("dark system: the page is not dark");
+  p.close();
+
+  // Every code block outside the Installation picker gets a working copy button.
+  p = await open("light");
+  const r = await evalv(p, `(async () => {
+    window.__copied = null;
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: (t) => { window.__copied = t; return Promise.resolve(); } } });
+    const pres = [...document.querySelectorAll("main pre")];
+    const btn = document.querySelector("main .copy-btn");
+    if (!btn) return { pres: pres.length, buttons: 0 };
+    btn.click();
+    await new Promise((res) => setTimeout(res, 100));
+    const code = btn.parentElement.querySelector("code").textContent.replace(/\\n$/, "");
+    return { pres: pres.length, buttons: document.querySelectorAll("main .copy-btn").length, copied: window.__copied, code, label: btn.textContent };
+  })()`);
+  if (r.pres === 0) fail("no code blocks on the page used for the copy check");
+  else if (r.buttons !== r.pres) fail(`${r.buttons} copy buttons for ${r.pres} code blocks`);
+  else {
+    if (r.copied !== r.code) fail("the copy button does not copy the block's text exactly");
+    if (r.label !== "Copied") fail(`the copy button says "${r.label}" after a click`);
+  }
+  p.close();
+}
+await siteScenarios();
+
 const titles = new Map();
 let audited = 0;
 for (const vp of VIEWPORTS) {
@@ -357,6 +416,7 @@ for (const vp of VIEWPORTS) {
     await page.send("Runtime.enable");
     await page.send("Page.enable");
     await page.send("Emulation.setDeviceMetricsOverride", { width: vp.width, height: vp.height, deviceScaleFactor: vp.mobile ? 2 : 1, mobile: vp.mobile });
+    await page.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: vp.scheme }] });
     await page.send("Page.addScriptToEvaluateOnNewDocument", { source: `
       window.__cls = 0;
       new PerformanceObserver((l) => { for (const e of l.getEntries()) if (!e.hadRecentInput) window.__cls += e.value; })

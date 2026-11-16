@@ -7,10 +7,10 @@ theme = "minimal"
 disableKinds = ["taxonomy", "term"]
 
 [markup]
-  # github-dark keeps code comments readable (4.5:1 or better) on the dark page;
-  # Hugo's default style draws them at 3.5:1.
+  # Classes, not inline colours, so code follows the light/dark theme;
+  # themes/minimal/static/css/chroma.css holds GitHub light and dark.
   [markup.highlight]
-    style = "github-dark"
+    noClasses = false
   [markup.goldmark]
     [markup.goldmark.renderer]
       unsafe = true
@@ -25,23 +25,13 @@ disableKinds = ["taxonomy", "term"]
 
 [menu]
   [[menu.main]]
-    identifier = "home"
-    name = "Home"
-    url = "/"
-    weight = 1
-  [[menu.main]]
     identifier = "try"
     name = "Try it"
     url = "/try/"
     weight = 2
   [[menu.main]]
-    identifier = "installation"
-    name = "Installation"
-    url = "/installation/"
-    weight = 3
-  [[menu.main]]
     identifier = "getting-started"
-    name = "Getting Started"
+    name = "Getting started"
     url = "/getting-started/"
     weight = 4
   [[menu.main]]
