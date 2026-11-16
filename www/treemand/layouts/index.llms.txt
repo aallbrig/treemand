@@ -1,0 +1,22 @@
+{{- $p := .Site.Params -}}
+{{- $docs := slice (site.GetPage "/getting-started") (site.GetPage "/installation") (site.GetPage "/reference") -}}
+{{- $cmds := site.GetPage "/commands" -}}
+# treemand
+
+> {{ $p.description }}
+
+treemand is a Go command-line tool. Run `treemand <cli>` to print a tool's command tree, `treemand -i <cli>` to explore it in a terminal UI, and `treemand --output=json <cli>` for a machine-readable tree. The full text of every page below is in [llms-full.txt]({{ "llms-full.txt" | absURL }}).
+
+## Docs
+
+{{ range $docs }}- [{{ .Title }}]({{ .Permalink }}): {{ .Description }}
+{{ end }}
+## Commands
+
+- [{{ $cmds.Title }}]({{ $cmds.Permalink }}): {{ $cmds.Description }}
+{{ range $cmds.Pages.ByWeight }}- [{{ .Title }}]({{ .Permalink }}): {{ .Description }}
+{{ end }}
+## Optional
+
+- [Try it]({{ "try/" | absURL }}): {{ (site.GetPage "/try").Description }}
+- [Source code](https://github.com/aallbrig/treemand): MIT licensed

@@ -1,0 +1,16 @@
+{{- $pages := slice (site.GetPage "/getting-started") (site.GetPage "/installation") (site.GetPage "/reference") (site.GetPage "/commands") -}}
+{{- $pages = $pages | append (site.GetPage "/commands").Pages.ByWeight -}}
+# treemand
+
+> {{ .Site.Params.description }}
+
+This file joins the Markdown source of every treemand docs page. Map: {{ "llms.txt" | absURL }}
+{{ range $pages }}
+---
+
+# {{ .Title }}
+
+Source: {{ .Permalink }}
+
+{{ .RawContent | replaceRE `\{\{<\s*install\s*>\}\}` "(The install channels per OS are listed at https://treemand.dev/installation/.)" | replaceRE `\{\{<\s*demo [^>]*alt="([^"]*)"[^>]*>\}\}` "(Animated demo: $1.)" }}
+{{ end }}

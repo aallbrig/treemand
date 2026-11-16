@@ -8,7 +8,7 @@
 // not Lighthouse and produces no Lighthouse score: it checks the same families
 // of rules deterministically, in this repository, with no downloads.
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -385,6 +385,36 @@ async function siteScenarios() {
   p.close();
 }
 await siteScenarios();
+
+// ── Home page: the proof count is the corpus's, the tree expands, agent files exist
+async function homeScenarios() {
+  const url = BASE;
+  const fail = (detail) => add(url, "-", "home", detail);
+  const corpus = JSON.parse(readFileSync(new URL("../cli/treemand/discovery/testdata/corpus/expect.json", import.meta.url), "utf8"));
+  const want = Object.keys(corpus).filter((k) => !k.startsWith("_")).length;
+  const p = await newPage();
+  await p.send("Page.enable");
+  await p.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
+  await p.send("Page.navigate", { url });
+  await new Promise((r) => setTimeout(r, 700));
+  const r = (await p.send("Runtime.evaluate", { returnByValue: true, expression: `(() => {
+    const proof = document.querySelector(".proof strong")?.textContent || "";
+    const s = [...document.querySelectorAll(".hero2-demo details")].find((d) => !d.open && d.querySelector("ul li"));
+    const before = s ? s.getBoundingClientRect().height : 0;
+    if (s) s.querySelector("summary").click();
+    return { proof, expandable: !!s, grew: s ? s.getBoundingClientRect().height > before : false };
+  })()` })).result.value;
+  p.close();
+  if (!r.proof.includes(`Tested against ${want} real CLIs`)) fail(`proof says "${r.proof}", want "Tested against ${want} real CLIs"`);
+  if (!r.expandable) fail("the hero tree has no collapsed command to expand");
+  else if (!r.grew) fail("clicking a command in the hero tree does not expand it");
+  for (const f of ["llms.txt", "llms-full.txt"]) {
+    const res = await fetch(new URL(f, BASE));
+    const text = res.ok ? await res.text() : "";
+    if (!res.ok || !text.startsWith("# treemand")) fail(`/${f} is missing or does not start with "# treemand"`);
+  }
+}
+await homeScenarios();
 
 const titles = new Map();
 let audited = 0;

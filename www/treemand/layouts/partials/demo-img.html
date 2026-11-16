@@ -1,0 +1,2 @@
+{{- /* Image from static/, resolved against baseURL, with its pixel size so the browser reserves space before it loads. */ -}}
+<img class="demo-img" src="{{ .src | relURL }}" alt="{{ .alt }}" width="{{ .width }}" height="{{ .height }}" loading="lazy" decoding="async">

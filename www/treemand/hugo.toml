@@ -44,3 +44,32 @@ disableKinds = ["taxonomy", "term"]
     name = "Commands"
     url = "/commands/"
     weight = 6
+
+# The home page reads the corpus ground truth so its "tested against N CLIs"
+# count is the real one, never typed in.
+[module]
+  [[module.mounts]]
+    source = "data"
+    target = "data"
+  [[module.mounts]]
+    source = "../../cli/treemand/discovery/testdata/corpus"
+    target = "data/corpus"
+    includeFiles = "expect.json"
+
+# /llms.txt (a map of the docs for LLM agents, https://llmstxt.org) and
+# /llms-full.txt (every docs page's Markdown in one file), both generated
+# from the page list so they never go stale.
+[outputFormats]
+  [outputFormats.llms]
+    mediaType = "text/plain"
+    baseName = "llms"
+    isPlainText = true
+    notAlternative = true
+  [outputFormats.llmsfull]
+    mediaType = "text/plain"
+    baseName = "llms-full"
+    isPlainText = true
+    notAlternative = true
+
+[outputs]
+  home = ["HTML", "RSS", "llms", "llmsfull"]
