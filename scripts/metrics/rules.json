@@ -1,1 +1,45 @@
-{}
+{
+  "complexity": {
+    "cognitive_max":        {"budget": {"max": 30}, "ratchet": "lower"},
+    "cognitive_avg":        {"ratchet": "lower", "tolerance": 0.02},
+    "functions_over_15":    {"budget": {"max": 15}, "ratchet": "lower"},
+    "functions_over_30":    {"budget": {"max": 0}, "ratchet": "lower"},
+    "files_over_800_lines": {"budget": {"max": 0}, "ratchet": "lower"}
+  },
+  "perf": {
+    "cold_s.*": {"budget": {"max": 5},   "ratchet": "lower", "tolerance": 0.3,  "min_delta": 1.0, "host_bound": true},
+    "cpu_s.*":  {"ratchet": "lower", "tolerance": 0.25, "min_delta": 2.0, "host_bound": true},
+    "warm_s.*": {"budget": {"max": 0.3}, "ratchet": "lower", "tolerance": 0.5,  "min_delta": 0.1, "host_bound": true},
+    "tti_s.*":  {"budget": {"max": 1.0}, "ratchet": "lower", "tolerance": 0.5,  "min_delta": 0.3, "host_bound": true},
+    "rss_mb.*": {"budget": {"max": 200}, "ratchet": "lower", "tolerance": 0.25, "min_delta": 10,  "host_bound": true},
+    "nodes.*":  {"ratchet": "higher", "tolerance": 0.02, "host_bound": true}
+  },
+  "tui": {
+    "frame_ms.keydown_*":   {"budget": {"max": 4},    "ratchet": "lower", "tolerance": 0.3, "min_delta": 0.5, "host_bound": true},
+    "frame_ms.view_*":      {"budget": {"max": 4},    "ratchet": "lower", "tolerance": 0.3, "min_delta": 0.5, "host_bound": true},
+    "frame_ms.filter*":     {"budget": {"max": 8},    "ratchet": "lower", "tolerance": 0.3, "min_delta": 0.5, "host_bound": true},
+    "frame_ms.expandall_*": {"budget": {"max": 16.7}, "ratchet": "lower", "tolerance": 0.3, "min_delta": 2.0, "host_bound": true},
+    "allocs.*":             {"ratchet": "lower", "tolerance": 0.1}
+  },
+  "tui-layout": {
+    "overflow_lines.*":  {"budget": {"max": 0},  "ratchet": "lower"},
+    "excess_lines.*":    {"budget": {"max": 0},  "ratchet": "lower"},
+    "truncated_hints.*": {"budget": {"max": 0},  "ratchet": "lower"},
+    "blank_pct.*":       {"budget": {"max": 30}, "ratchet": "lower", "min_delta": 5}
+  },
+  "parser": {
+    "truth_pass_pct":    {"budget": {"min": 100}, "ratchet": "higher"},
+    "unexpected_misses": {"budget": {"max": 0},   "ratchet": "lower"},
+    "clis_with_gaps":    {"ratchet": "lower"},
+    "subcommands_total": {"ratchet": "higher"},
+    "flags_total":       {"ratchet": "higher"},
+    "described_pct":     {"ratchet": "higher"}
+  },
+  "zoo": {
+    "sweep_panics":    {"budget": {"max": 0}, "ratchet": "lower"},
+    "sweep_timeouts":  {"budget": {"max": 0}, "ratchet": "lower"},
+    "sweep_error_pct": {"budget": {"max": 1}, "ratchet": "lower", "min_delta": 0.5},
+    "nodes.*":         {"ratchet": "higher"},
+    "flags.*":         {"ratchet": "higher"}
+  }
+}
