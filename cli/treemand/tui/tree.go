@@ -39,7 +39,8 @@ type treeRow struct {
 
 	// rowKindSection
 	sectionKey     string
-	sectionLabel   string
+	sectionName    string // "Flags"; label() adds the count
+	sectionCount   int
 	sectionDefault bool // default expanded state
 
 	// rowKindFlag / rowKindPositional
@@ -308,7 +309,7 @@ func (t *TreeModel) rowMatchesSearch(idx int, lowerSearch string) bool {
 	case rowKindPositional:
 		return strings.Contains(strings.ToLower(row.positional.Name), lowerSearch)
 	case rowKindSection:
-		return strings.Contains(strings.ToLower(row.sectionLabel), lowerSearch)
+		return strings.Contains(strings.ToLower(row.label()), lowerSearch)
 	}
 	return false
 }
@@ -560,7 +561,7 @@ func (t *TreeModel) firstSectionChild(section treeRow) int {
 
 // ExpandAllFrom recursively expands the given node and all its descendants.
 func (t *TreeModel) ExpandAllFrom(node *models.Node, depth int) {
-	t.nodeExpanded[nodeKey(node, depth)] = true
+	t.nodeExpanded[t.keyOf(node, depth, keyNode)] = true
 	for _, c := range node.Children {
 		if !c.Virtual {
 			t.ExpandAllFrom(c, depth+1)
@@ -599,7 +600,7 @@ func (t *TreeModel) reserveRows(n int) {
 // expandAllSections recursively marks every section under node as expanded.
 func (t *TreeModel) expandAllSections(node *models.Node, depth int) {
 	if len(node.Children) > 0 {
-		t.sectionExpanded[t.keyOf(node, depth, "subcommands")] = true
+		t.sectionExpanded[t.keyOf(node, depth, keySubcommands)] = true
 	}
 	var ownFlags, inheritedFlags int
 	for _, f := range node.Flags {
@@ -610,13 +611,13 @@ func (t *TreeModel) expandAllSections(node *models.Node, depth int) {
 		}
 	}
 	if ownFlags > 0 {
-		t.sectionExpanded[t.keyOf(node, depth, "flags")] = true
+		t.sectionExpanded[t.keyOf(node, depth, keyFlags)] = true
 	}
 	if inheritedFlags > 0 {
-		t.sectionExpanded[t.keyOf(node, depth, "inherited")] = true
+		t.sectionExpanded[t.keyOf(node, depth, keyInherited)] = true
 	}
 	if len(node.Positionals) > 0 {
-		t.sectionExpanded[t.keyOf(node, depth, "positionals")] = true
+		t.sectionExpanded[t.keyOf(node, depth, keyPositionals)] = true
 	}
 	for _, c := range node.Children {
 		if !c.Virtual {
@@ -1082,7 +1083,7 @@ func (t *TreeModel) renderSectionRow(row treeRow, selected bool, maxW int) strin
 		icon = t.cfg.Icons.SectionExpanded
 	}
 	dimStyle := lipgloss.NewStyle().Faint(true).Italic(true)
-	line := dimStyle.Render(indent + icon + row.sectionLabel)
+	line := dimStyle.Render(indent + icon + row.label())
 	if selected {
 		return t.applySelection(line, true, maxW)
 	}
@@ -1178,7 +1179,7 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int, graphPrefix string
 		return
 	}
 
-	key := t.keyOf(node, depth, "")
+	key := t.keyOf(node, depth, keyNode)
 	expanded := t.nodeExpanded[key]
 
 	// Collect visible (non-virtual) children up front — needed by filter logic.
@@ -1233,14 +1234,15 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int, graphPrefix string
 
 	// Inherited (global) flags section — shown first.
 	if len(inheritedFlags) > 0 {
-		sKey := t.keyOf(node, depth, "inherited")
+		sKey := t.keyOf(node, depth, keyInherited)
 		inhExpanded := t.hideSections || t.isSectionExpanded(sKey, false)
 		if !t.hideSections {
 			t.rows = append(t.rows, treeRow{
 				kind:           rowKindSection,
 				depth:          depth + 1,
 				sectionKey:     sKey,
-				sectionLabel:   "Inherited flags (" + strconv.Itoa(len(inheritedFlags)) + ")",
+				sectionName:    "Inherited flags",
+				sectionCount:   len(inheritedFlags),
 				sectionDefault: false,
 			})
 		}
@@ -1260,7 +1262,7 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int, graphPrefix string
 
 	// Own (local) flags section.
 	if len(ownFlags) > 0 {
-		sKey := t.keyOf(node, depth, "flags")
+		sKey := t.keyOf(node, depth, keyFlags)
 		flagDefault := len(ownFlags) <= 5
 		flagExpanded := t.hideSections || t.isSectionExpanded(sKey, flagDefault)
 		if !t.hideSections {
@@ -1268,7 +1270,8 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int, graphPrefix string
 				kind:           rowKindSection,
 				depth:          depth + 1,
 				sectionKey:     sKey,
-				sectionLabel:   "Flags (" + strconv.Itoa(len(ownFlags)) + ")",
+				sectionName:    "Flags",
+				sectionCount:   len(ownFlags),
 				sectionDefault: flagDefault,
 			})
 		}
@@ -1288,7 +1291,7 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int, graphPrefix string
 
 	// Subcommands section.
 	if len(visChildren) > 0 {
-		sKey := t.keyOf(node, depth, "subcommands")
+		sKey := t.keyOf(node, depth, keySubcommands)
 		subDefault := len(visChildren) <= 6
 		subExpanded := t.hideSections || t.isSectionExpanded(sKey, subDefault)
 		if !t.hideSections {
@@ -1296,7 +1299,8 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int, graphPrefix string
 				kind:           rowKindSection,
 				depth:          depth + 1,
 				sectionKey:     sKey,
-				sectionLabel:   "Subcommands (" + strconv.Itoa(len(visChildren)) + ")",
+				sectionName:    "Subcommands",
+				sectionCount:   len(visChildren),
 				sectionDefault: subDefault,
 			})
 		}
@@ -1317,7 +1321,7 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int, graphPrefix string
 
 	// Positional arguments section.
 	if len(node.Positionals) > 0 {
-		sKey := t.keyOf(node, depth, "positionals")
+		sKey := t.keyOf(node, depth, keyPositionals)
 		posDefault := len(node.Positionals) <= 5
 		posExpanded := t.hideSections || t.isSectionExpanded(sKey, posDefault)
 		if !t.hideSections {
@@ -1325,7 +1329,8 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int, graphPrefix string
 				kind:           rowKindSection,
 				depth:          depth + 1,
 				sectionKey:     sKey,
-				sectionLabel:   "Positional arguments (" + strconv.Itoa(len(node.Positionals)) + ")",
+				sectionName:    "Positional arguments",
+				sectionCount:   len(node.Positionals),
 				sectionDefault: posDefault,
 			})
 		}
@@ -1366,27 +1371,44 @@ func (t *TreeModel) scrollIntoView() {
 
 // ---------- helpers ----------
 
+// keySection names a node's own key or one of its sections. A small integer
+// keeps keyID fixed-size, so memo lookups hash no strings.
+type keySection uint8
+
+const (
+	keyNode keySection = iota
+	keyInherited
+	keyFlags
+	keySubcommands
+	keyPositionals
+)
+
+var keySectionSuffix = [...]string{"", "/inherited", "/flags", "/subcommands", "/positionals"}
+
 type keyID struct {
 	n       *models.Node
 	depth   int
-	section string
+	section keySection
 }
 
-// keyOf is nodeKey (plus "/section" when section is set), memoized.
-func (t *TreeModel) keyOf(n *models.Node, depth int, section string) string {
+// keyOf is nodeKey (plus "/section" for a section), memoized.
+func (t *TreeModel) keyOf(n *models.Node, depth int, section keySection) string {
 	id := keyID{n, depth, section}
 	if k, ok := t.keys[id]; ok {
 		return k
 	}
-	k := nodeKey(n, depth)
-	if section != "" {
-		k += "/" + section
-	}
+	k := nodeKey(n, depth) + keySectionSuffix[section]
 	if t.keys == nil {
 		t.keys = map[keyID]string{}
 	}
 	t.keys[id] = k
 	return k
+}
+
+// label is a section row's text, "Flags (3)". Built when drawn, not on every
+// rebuild: a big tree has thousands of sections and a frame shows a few.
+func (r treeRow) label() string {
+	return r.sectionName + " (" + strconv.Itoa(r.sectionCount) + ")"
 }
 
 func nodeKey(n *models.Node, depth int) string {
