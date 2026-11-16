@@ -3,6 +3,7 @@
 For each: the **probe** (run it), what a **3** looks like.
 
 ## 1. Discovery quality
+Measured: `task measure -- parser` and `zoo` (treemand-parser-quality).
 Probe: `bash scripts/loop/corpus.sh` (real binaries on this machine); extend with
 `compgen -c | shuf -n 15` and any CLI the vision names. Read the TSV for failures,
 stub nodes (`no_desc`, `no_flags`), root descriptions that are usage synopses,
@@ -17,6 +18,7 @@ Probe: run `treemand` bare, `--help`, bad input, nonexistent CLI, `| cat` (non-T
 NO_COLOR are honoured, completions install in one documented step.
 
 ## 3. TUI experience
+Measured: `task measure -- tui` and `tui-layout` (treemand-tui-responsiveness, treemand-tui-layout).
 Probe: `task visual:check` and drive `-i` through tmux (`send-keys`, `capture-pane`) at
 80x24, 120x40 and 200x50 on a 500-node CLI (aws) and a small one. Try search, expand all,
 resize, mouse, value entry, copy/run. Score against the newest `docs/design/*_design_rubric.md`.
@@ -47,6 +49,7 @@ issue/PR hygiene.
 3 = matches the checklist of a well-regarded Go CLI (compare with peers in landscape.md).
 
 ## 8. Test adequacy
+Measured: `task measure -- complexity` for where tests matter most (treemand-code-complexity).
 Probe: `cd cli/treemand && go test -cover ./...`; find untested exported functions in
 parsers; check for fuzz tests, golden tests per corpus CLI, an end-to-end test of the built
 binary against hermetic fake CLIs, race and flake runs, coverage enforced in `task ci`.
@@ -68,6 +71,7 @@ exit codes for scripts; feasibility notes for an MCP server or `treemand mcp`.
 3 = documented schema with a compatibility promise; MCP/API proposals filed as `loop:proposed`.
 
 ## 12. Performance and reliability
+Measured: `task measure -- perf` (treemand-perf-diagnose).
 Probe: `task perf:show` (trend across releases), `task perf` (now), `task chaos` (hostile CLIs;
 every line in `scripts/loop/chaos.xfail` is an open reliability bug), `task test-race`, odd locales.
 Add a new hostile case to `chaos.sh` for every failure mode you can imagine that is not covered.
