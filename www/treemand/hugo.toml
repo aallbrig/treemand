@@ -11,6 +11,10 @@ disableKinds = ["taxonomy", "term"]
   # themes/minimal/static/css/chroma.css holds GitHub light and dark.
   [markup.highlight]
     noClasses = false
+  # The docs pages' "On this page" outline: sections and subsections.
+  [markup.tableOfContents]
+    startLevel = 2
+    endLevel = 3
   [markup.goldmark]
     [markup.goldmark.renderer]
       unsafe = true

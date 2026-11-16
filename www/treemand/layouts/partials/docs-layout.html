@@ -1,0 +1,67 @@
+{{- /* Docs chrome around a page: sidebar, content, on-page outline, edit link, prev/next. */ -}}
+{{- $page := . -}}
+{{- $pages := partial "docs-pages.html" . -}}
+{{- $cmds := site.GetPage "/commands" -}}
+{{- $i := -1 -}}
+{{- range $k, $p := $pages }}{{ if eq $p $page }}{{ $i = $k }}{{ end }}{{ end -}}
+<div class="docs">
+  {{- /* The same links twice: an always-open sidebar for wide screens and a
+         collapsed menu for phones. CSS shows one (display: none also hides the
+         other from screen readers), so neither needs JS or shifts the page. */}}
+  <nav class="docs-nav docs-nav-wide" aria-label="Docs">
+      <p class="docs-nav-group">Guide</p>
+      <ul>
+        {{- range first 3 $pages }}
+        <li><a href="{{ .RelPermalink }}"{{ if eq . $page }} aria-current="page"{{ end }}>{{ .LinkTitle }}</a></li>
+        {{- end }}
+      </ul>
+      <p class="docs-nav-group"><a href="{{ $cmds.RelPermalink }}"{{ if eq $cmds $page }} aria-current="page"{{ end }}>Commands</a></p>
+      <ul>
+        {{- range $cmds.Pages.ByWeight }}
+        <li><a href="{{ .RelPermalink }}"{{ if eq . $page }} aria-current="page"{{ end }}>{{ .LinkTitle }}</a></li>
+        {{- end }}
+      </ul>
+  </nav>
+  <nav class="docs-nav docs-nav-narrow" aria-label="Docs">
+    <details class="docs-nav-menu">
+      <summary>Docs menu</summary>
+      <p class="docs-nav-group">Guide</p>
+      <ul>
+        {{- range first 3 $pages }}
+        <li><a href="{{ .RelPermalink }}"{{ if eq . $page }} aria-current="page"{{ end }}>{{ .LinkTitle }}</a></li>
+        {{- end }}
+      </ul>
+      <p class="docs-nav-group"><a href="{{ $cmds.RelPermalink }}"{{ if eq $cmds $page }} aria-current="page"{{ end }}>Commands</a></p>
+      <ul>
+        {{- range $cmds.Pages.ByWeight }}
+        <li><a href="{{ .RelPermalink }}"{{ if eq . $page }} aria-current="page"{{ end }}>{{ .LinkTitle }}</a></li>
+        {{- end }}
+      </ul>
+    </details>
+  </nav>
+
+  <article class="docs-body">
+    {{ $page.Content }}
+    {{- with $page.File }}
+    <p class="edit-link"><a href="https://github.com/aallbrig/treemand/edit/main/www/treemand/content/{{ .Path }}">Edit this page on GitHub</a></p>
+    {{- end }}
+    {{- if ge $i 0 }}
+    <nav class="pager" aria-label="Previous and next page">
+      {{- if gt $i 0 }}{{ with index $pages (sub $i 1) }}
+      <a class="pager-prev" href="{{ .RelPermalink }}" rel="prev"><span>Previous</span>{{ .LinkTitle }}</a>
+      {{- end }}{{ end }}
+      {{- if lt (add $i 1) (len $pages) }}{{ with index $pages (add $i 1) }}
+      <a class="pager-next" href="{{ .RelPermalink }}" rel="next"><span>Next</span>{{ .LinkTitle }}</a>
+      {{- end }}{{ end }}
+    </nav>
+    {{- end }}
+  </article>
+
+  {{- $toc := $page.TableOfContents -}}
+  {{- if and (gt (len $page.Fragments.Headings) 0) (findRE "<li>" $toc) }}
+  <aside class="docs-toc" aria-labelledby="toc-title">
+    <p id="toc-title" class="docs-toc-title">On this page</p>
+    {{ $toc }}
+  </aside>
+  {{- end }}
+</div>

@@ -1,0 +1,6 @@
+{{- /* The docs pages in reading order: the sidebar and prev/next both use it. Returns a slice of pages. */ -}}
+{{- $pages := slice (site.GetPage "/getting-started") (site.GetPage "/installation") (site.GetPage "/reference") -}}
+{{- $cmds := site.GetPage "/commands" -}}
+{{- $pages = $pages | append $cmds -}}
+{{- $pages = $pages | append $cmds.Pages.ByWeight -}}
+{{- return $pages -}}
