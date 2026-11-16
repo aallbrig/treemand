@@ -159,25 +159,32 @@ func TestLayoutFitsTheTerminal(t *testing.T) {
 		{"compact style", []string{"T", "T"}},
 		{"graph style", []string{"T", "T", "T"}},
 	}
-	for _, size := range [][2]int{{80, 24}, {120, 40}, {200, 50}} {
-		w, h := size[0], size[1]
-		for _, st := range states {
-			t.Run(fmt.Sprintf("%dx%d/%s", w, h, st.name), func(t *testing.T) {
-				m := tui.NewModel(scaleTree(60, 6, 4), config.DefaultConfig())
-				m.Update(tea.WindowSizeMsg{Width: w, Height: h})
-				for _, k := range st.keys {
-					m.Update(key(k))
-				}
-				lines := strings.Split(strings.TrimRight(m.View(), "\n"), "\n")
-				if len(lines) > h {
-					t.Errorf("view has %d lines, terminal has %d", len(lines), h)
-				}
-				for i, l := range lines {
-					if lw := lipgloss.Width(l); lw > w {
-						t.Errorf("line %d is %d columns wide, terminal has %d: %q", i+1, lw, w, l)
+	shapes := map[string]func() *models.Node{
+		"aws-shaped": func() *models.Node { return scaleTree(60, 6, 4) },
+		"long-text":  longTextTree, // the tui-layout probe's shape: long descriptions and flag names
+	}
+	for shape, build := range shapes {
+		for _, size := range [][2]int{{80, 24}, {120, 40}, {200, 50}} {
+			w, h := size[0], size[1]
+			for _, st := range states {
+				tree := build()
+				t.Run(fmt.Sprintf("%s/%dx%d/%s", shape, w, h, st.name), func(t *testing.T) {
+					m := tui.NewModel(tree, config.DefaultConfig())
+					m.Update(tea.WindowSizeMsg{Width: w, Height: h})
+					for _, k := range st.keys {
+						m.Update(key(k))
 					}
-				}
-			})
+					lines := strings.Split(strings.TrimRight(m.View(), "\n"), "\n")
+					if len(lines) > h {
+						t.Errorf("view has %d lines, terminal has %d", len(lines), h)
+					}
+					for i, l := range lines {
+						if lw := lipgloss.Width(l); lw > w {
+							t.Errorf("line %d is %d columns wide, terminal has %d: %q", i+1, lw, w, l)
+						}
+					}
+				})
+			}
 		}
 	}
 }
@@ -265,4 +272,27 @@ func TestPageKeysMoveByAScreenful(t *testing.T) {
 			}
 		})
 	}
+}
+
+// longTextTree has long descriptions and long flag names, the shape that made
+// frames taller than the terminal (#212). Mirrors tools/tuiprobe's tree.
+func longTextTree() *models.Node {
+	root := &models.Node{Name: "tool", FullPath: []string{"tool"}, Discovered: true,
+		Description: "a sample command-line tool with a long description to exercise wrapping in narrow terminals"}
+	for i := 0; i < 6; i++ {
+		root.Flags = append(root.Flags, models.Flag{Name: fmt.Sprintf("--global-option-%d", i), ValueType: "string", Description: "a global option with a reasonably long description"})
+	}
+	for s := 0; s < 40; s++ {
+		n := fmt.Sprintf("subcommand-%02d", s)
+		c := &models.Node{Name: n, FullPath: []string{"tool", n}, Discovered: true, Description: "does the " + n + " thing across several resources"}
+		for f := 0; f < 4; f++ {
+			c.Flags = append(c.Flags, models.Flag{Name: fmt.Sprintf("--%s-flag-%d", n, f), ValueType: "string", Description: "flag description"})
+		}
+		for k := 0; k < 3; k++ {
+			kn := fmt.Sprintf("child-%d", k)
+			c.Children = append(c.Children, &models.Node{Name: kn, FullPath: []string{"tool", n, kn}, Discovered: true, Description: "nested"})
+		}
+		root.Children = append(root.Children, c)
+	}
+	return root
 }

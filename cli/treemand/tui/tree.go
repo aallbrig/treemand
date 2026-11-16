@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/aallbrig/treemand/config"
 	"github.com/aallbrig/treemand/discovery"
@@ -772,7 +773,9 @@ func (t *TreeModel) ViewSized(w, h int) string {
 		end = len(t.rows)
 	}
 	for i := t.offset; i < end; i++ {
-		line := t.renderRow(t.rows[i], i == t.cursor, innerW)
+		// One row is one line: a row wider than the pane would wrap inside the
+		// box and push the frame past the terminal's height (#212).
+		line := ansi.Truncate(t.renderRow(t.rows[i], i == t.cursor, innerW), innerW, "…")
 		lines = append(lines, line)
 	}
 	for len(lines) < innerH {
