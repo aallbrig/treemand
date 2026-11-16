@@ -17,6 +17,7 @@ cat >"$MEASURE_RULES" <<'J'
           "score":    {"budget": {"min": 90}, "ratchet": "higher"}}}
 J
 m() { python3 -I scripts/metrics/measure.py "$@"; }
+export MEASURE_LOAD="${MEASURE_LOAD:-0.1}"
 
 probe 4 95
 out="$(m demo --record)"; [[ "$out" == *"no findings"* ]] && ok "first run: within budgets, nothing to compare" || bad "first run: $out"
@@ -44,4 +45,18 @@ open(p,"w").write(json.dumps(r)+"\n")
 PY
 probe 9 95
 out="$(m demo)"; [[ "$out" != *"REGRESSION cold_s.big"* ]] && ok "host-bound metrics only compare against the same host" || bad "host_bound: $out"
+
+# Load awareness: on a busy machine host-bound metrics are not judged, and a
+# record taken while busy is never a ratchet baseline.
+rm -f "$MEASURE_HISTORY/demo.jsonl"
+probe 4 95
+MEASURE_LOAD=0.3 m demo --record >/dev/null 2>&1
+probe 9 95
+out="$(MEASURE_LOAD=2.5 m demo)"
+if [[ "$out" == *"UNRELIABLE"* && "$out" != *"cold_s.big = 9"* ]]; then ok "busy machine: host-bound metrics reported unreliable, not judged"; else bad "busy: $out"; fi
+probe 2 95
+MEASURE_LOAD=2.5 m demo --record >/dev/null 2>&1
+probe 4.1 95
+out="$(MEASURE_LOAD=0.3 m demo)"
+if [[ "$out" != *"REGRESSION cold_s.big"* ]]; then ok "a busy record is not a ratchet baseline"; else bad "busy baseline: $out"; fi
 exit "$fail"

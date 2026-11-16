@@ -19,12 +19,13 @@ Verdicts:
 - **budget**: the metric is past its absolute limit. That is direction: the gap is work to schedule.
 - **regression**: worse than the last record (the same host for host-bound metrics) beyond the rule's tolerance. Something recent broke it: find the commit.
 - **improved**: better than the last record. A fix proving itself.
+- **unreliable**: the machine is too busy (load per CPU above 1.0) for timing to mean anything; host-bound metrics were not judged. Re-run later; never file timing from a busy run.
 
 ## From finding to issue
 
 For each budget or regression finding:
 
-1. **Read the evidence** in `details` and confirm the number is real: re-run once when the metric is timing on a loaded host (`cat /proc/loadavg`).
+1. **Read the evidence** in `details` and confirm the number is real. Findings of one metric family (`excess_lines.*`) are one issue.
 2. **Deduplicate**: `gh issue list --search "in:title [measure] <probe>: <metric>" --state open`. If an issue exists, comment the new value instead of filing.
 3. **File** with the title `[measure] <probe>: <metric> = <value> (<limit or previous>)` and labels `area:<area>` and `loop:ready` (a regression, or a budget gap the probe's skill names a fix for), otherwise `loop:proposed`. The body carries the probe command, the finding JSON, the last history lines, and the skill that knows how to act on it.
 4. **Fix and prove**: the PR that fixes it re-runs the probe, quotes the before/after verdict (it should read **improved**), and records the new value with `--record`.

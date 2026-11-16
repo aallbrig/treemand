@@ -23,6 +23,9 @@ scripts/metrics/rules.json, keyed by probe and then by a metric glob:
 - --gate:    exit 3 when there is any regression (for CI); budget breaches alone
              never fail the gate, they are direction, not a floor.
 - --findings print the verdicts as JSON for the interpretation step.
+- Load:      above 1.0 load per CPU, host-bound metrics are reported as
+             "unreliable" (not judged), and busy records never become a
+             ratchet's baseline. Each record stores the load it was taken at.
 """
 import datetime
 import fnmatch
@@ -37,6 +40,17 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 PROBES = os.environ.get("MEASURE_PROBES", os.path.join(ROOT, "scripts", "metrics", "probes"))
 RULES = os.environ.get("MEASURE_RULES", os.path.join(ROOT, "scripts", "metrics", "rules.json"))
 HISTORY = os.environ.get("MEASURE_HISTORY", os.path.join(ROOT, "docs", "metrics"))
+
+# Above this 1-minute load average per CPU, timing is measuring the machine,
+# not treemand: host-bound metrics are reported as unreliable instead of judged,
+# and records taken that busy are never used as a ratchet's baseline.
+MAX_LOAD_PER_CPU = 1.0
+
+
+def load_per_cpu():
+    if "MEASURE_LOAD" in os.environ:  # tests
+        return float(os.environ["MEASURE_LOAD"])
+    return round(os.getloadavg()[0] / (os.cpu_count() or 1), 2)
 
 
 def git(*args):
@@ -84,9 +98,10 @@ def last_record(probe, host_bound_host):
             if not line.strip():
                 continue
             rec = json.loads(line)
+            calm = rec.get("load", 0) <= MAX_LOAD_PER_CPU
             for k, v in rec["metrics"].items():
                 any_host[k] = (v, rec)
-                if rec.get("host") == host_bound_host:
+                if rec.get("host") == host_bound_host and calm:
                     same_host[k] = (v, rec)
     return any_host, same_host
 
@@ -95,10 +110,16 @@ def evaluate(probe, result):
     rules = load_rules(probe)
     host = platform.node()
     any_host, same_host = last_record(probe, host)
+    load = load_per_cpu()
+    busy = load > MAX_LOAD_PER_CPU
     findings = []
+    unreliable = []
     for metric, value in sorted(result.get("metrics", {}).items()):
         rule = rule_for(rules, metric)
         if rule is None or not isinstance(value, (int, float)):
+            continue
+        if busy and rule.get("host_bound"):
+            unreliable.append(metric)
             continue
         budget = rule.get("budget", {})
         if "max" in budget and value > budget["max"]:
@@ -122,6 +143,9 @@ def evaluate(probe, result):
             findings.append({"kind": "regression", "metric": metric, "value": value, "previous": before, "since": since})
         elif better and abs(delta) > tol and abs(delta) > min_delta:
             findings.append({"kind": "improved", "metric": metric, "value": value, "previous": before, "since": since})
+    if unreliable:
+        findings.append({"kind": "unreliable", "metric": ",".join(unreliable), "value": load,
+                         "limit": f"load per CPU <= {MAX_LOAD_PER_CPU}"})
     return findings
 
 
@@ -132,6 +156,7 @@ def record(probe, result):
         "version": git("describe", "--tags", "--always") or "unknown",
         "sha": git("rev-parse", "--short", "HEAD"),
         "host": platform.node(),
+        "load": load_per_cpu(),
         "metrics": result.get("metrics", {}),
     }
     with open(os.path.join(HISTORY, probe + ".jsonl"), "a") as f:
@@ -158,6 +183,10 @@ def main(argv):
         for m, v in sorted(result.get("metrics", {}).items()):
             print(f"  {m:<{width}}  {v}")
         for f in findings:
+            if f["kind"] == "unreliable":
+                print(f"UNRELIABLE host-bound metrics skipped: load per CPU {f['value']} > {MAX_LOAD_PER_CPU} "
+                      f"({len(f['metric'].split(','))} metrics); re-run when the machine is quieter")
+                continue
             extra = f"limit {f['limit']}" if f["kind"] == "budget" else f"was {f['previous']} at {f['since']}"
             print(f"{f['kind'].upper():<10} {f['metric']} = {f['value']} ({extra})")
         if not findings:
