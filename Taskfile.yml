@@ -146,6 +146,11 @@ tasks:
     cmds:
       - python3 -I scripts/metrics/measure.py {{.CLI_ARGS}}
 
+  measure:pull:
+    desc: Record the latest CI timing run (tui, perf) into docs/metrics under the runner's host name
+    cmds:
+      - bash scripts/metrics/pull_ci.sh
+
   measure:list:
     desc: List the measurement probes
     cmds:

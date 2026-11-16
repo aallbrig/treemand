@@ -40,6 +40,12 @@ further wakeup) and say so.
    issue that fixes a chaos case also deletes its line from `scripts/loop/chaos.xfail`. For anything user-visible also
    run `task visual:check` and score the evidence against the newest
    `docs/design/*_design_rubric.md`; any fail blocks the merge (fix it, or park).
+   **Prove it with a number**: re-run the probe the issue names (`task measure --
+   <probe>`); it must print **improved** on that metric with no new regression, and
+   the PR quotes the before and after. Record with `--record` on the branch. When
+   the proof is wall-clock time, show it with counts locally, and after merge run
+   `task measure:pull` once the CI timing run finishes and quote that verdict on
+   the issue. A cycle whose work has no metric says so in the PR.
 6. **Ship**: push the branch, open a PR (`## Summary` / `## Test plan`, closes the
    issue), `task pr:merge -- <PR>`. Commit and PR text follow the repo's CLAUDE.md.
 7. **Release**: `bash scripts/loop/release.sh <patch|minor>`. patch = fix/polish,

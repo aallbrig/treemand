@@ -3,7 +3,9 @@
 #   metrics per CLI: cold_s (uncached full discovery), warm_s (cache hit),
 #   cpu_s (user+sys CPU of the cold run, child processes included: the cost
 #   that load cannot hide), rss_mb, nodes, and tti_s (seconds until -i shows
-#   the tree) for the TUI_CLIS subset.
+#   the tree) for the TUI_CLIS subset, and help_calls (processes of the CLI
+#   that the cold run started, counted by a logging PATH shim: the cost that
+#   load cannot distort at all).
 # Runs from an empty scratch directory, per treemand-safe-real-cli-run, and
 # fails if discovery changed git branches or the Docker context.
 set -euo pipefail
@@ -21,8 +23,12 @@ rows=""
 for cli in $clis; do
   command -v "$cli" >/dev/null 2>&1 || continue
   cache="$work/cache-$cli"
+  mkdir -p "$work/shim-$cli"
+  printf '#!/bin/sh\necho >>"%s"\nexec "%s" "$@"\n' "$work/calls-$cli" "$(command -v "$cli")" >"$work/shim-$cli/$cli"
+  chmod +x "$work/shim-$cli/$cli"
+  : >"$work/calls-$cli"
   /usr/bin/time -o "$work/t" -f "%e %U %S %M" \
-    env -C "$work/cwd" TREEMAND_CACHE_DIR="$cache" "$work/treemand" --no-cache --output=json --timeout=120 "$cli" >"$work/out.json" 2>/dev/null || true
+    env -C "$work/cwd" PATH="$work/shim-$cli:$PATH" TREEMAND_CACHE_DIR="$cache" "$work/treemand" --no-cache --output=json --timeout=120 "$cli" >"$work/out.json" 2>/dev/null || true
   read -r cold user sys rss <"$work/t"
   env -C "$work/cwd" TREEMAND_CACHE_DIR="$cache" "$work/treemand" --output=json --timeout=120 "$cli" >/dev/null 2>&1 || true
   /usr/bin/time -o "$work/t" -f "%e" env -C "$work/cwd" TREEMAND_CACHE_DIR="$cache" "$work/treemand" --output=json "$cli" >/dev/null 2>&1 || true
@@ -35,7 +41,8 @@ except Exception: print(0)' "$work/out.json")"
   if [[ " $tui_clis " == *" $cli "* ]]; then
     tti="$(cd "$work/cwd" && TREEMAND_CACHE_DIR="$work/tti-$cli" python3 -I "$repo/scripts/metrics/tti.py" "$work/treemand" "$cli")"
   fi
-  rows+="$cli $cold $user $sys $rss $warm $nodes ${tti:--}"$'\n'
+  calls="$(wc -l <"$work/calls-$cli")"
+  rows+="$cli $cold $user $sys $rss $warm $nodes ${tti:--} $calls"$'\n'
 done
 
 state >"$work/after"
@@ -52,7 +59,8 @@ metrics, details = {}, []
 for line in sys.argv[1].splitlines():
     if not line.strip():
         continue
-    cli, cold, user, sys_, rss, warm, nodes, tti = line.split()
+    cli, cold, user, sys_, rss, warm, nodes, tti, calls = line.split()
+    metrics[f"help_calls.{cli}"] = int(calls)
     metrics[f"cold_s.{cli}"] = float(cold)
     metrics[f"warm_s.{cli}"] = float(warm)
     metrics[f"cpu_s.{cli}"] = round(float(user) + float(sys_), 2)

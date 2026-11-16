@@ -7,18 +7,19 @@
     "files_over_800_lines": {"budget": {"max": 0}, "ratchet": "lower"}
   },
   "perf": {
-    "cold_s.*": {"budget": {"max": 5},   "ratchet": "lower", "tolerance": 0.3,  "min_delta": 1.0, "host_bound": true},
+    "cold_s.*": {"budget": {"max": 5},   "ratchet": "lower", "tolerance": 0.3,  "min_delta": 1.0, "host_bound": true, "timing": true},
     "cpu_s.*":  {"ratchet": "lower", "tolerance": 0.25, "min_delta": 2.0, "host_bound": true},
-    "warm_s.*": {"budget": {"max": 0.3}, "ratchet": "lower", "tolerance": 0.5,  "min_delta": 0.1, "host_bound": true},
-    "tti_s.*":  {"budget": {"max": 1.0}, "ratchet": "lower", "tolerance": 0.5,  "min_delta": 0.3, "host_bound": true},
+    "warm_s.*": {"budget": {"max": 0.3}, "ratchet": "lower", "tolerance": 0.5,  "min_delta": 0.1, "host_bound": true, "timing": true},
+    "tti_s.*":  {"budget": {"max": 1.0}, "ratchet": "lower", "tolerance": 0.5,  "min_delta": 0.3, "host_bound": true, "timing": true},
     "rss_mb.*": {"budget": {"max": 200}, "ratchet": "lower", "tolerance": 0.25, "min_delta": 10,  "host_bound": true},
-    "nodes.*":  {"ratchet": "higher", "tolerance": 0.02, "host_bound": true}
+    "nodes.*":  {"ratchet": "higher", "tolerance": 0.02, "host_bound": true},
+    "help_calls.*": {"ratchet": "lower", "tolerance": 0.02, "host_bound": true}
   },
   "tui": {
-    "frame_ms.keydown_*":   {"budget": {"max": 4},    "ratchet": "lower", "tolerance": 0.3, "min_delta": 0.5, "host_bound": true},
-    "frame_ms.view_*":      {"budget": {"max": 4},    "ratchet": "lower", "tolerance": 0.3, "min_delta": 0.5, "host_bound": true},
-    "frame_ms.filter*":     {"budget": {"max": 8},    "ratchet": "lower", "tolerance": 0.3, "min_delta": 0.5, "host_bound": true},
-    "frame_ms.expandall_*": {"budget": {"max": 16.7}, "ratchet": "lower", "tolerance": 0.3, "min_delta": 2.0, "host_bound": true},
+    "frame_ms.keydown_*":   {"budget": {"max": 4},    "ratchet": "lower", "tolerance": 0.3, "min_delta": 0.5, "host_bound": true, "timing": true},
+    "frame_ms.view_*":      {"budget": {"max": 4},    "ratchet": "lower", "tolerance": 0.3, "min_delta": 0.5, "host_bound": true, "timing": true},
+    "frame_ms.filter*":     {"budget": {"max": 8},    "ratchet": "lower", "tolerance": 0.3, "min_delta": 0.5, "host_bound": true, "timing": true},
+    "frame_ms.expandall_*": {"budget": {"max": 16.7}, "ratchet": "lower", "tolerance": 0.3, "min_delta": 2.0, "host_bound": true, "timing": true},
     "allocs.*":             {"ratchet": "lower", "tolerance": 0.1}
   },
   "tui-layout": {

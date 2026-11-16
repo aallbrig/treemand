@@ -10,10 +10,11 @@ fail=0
 ok() { echo "  ok   $1"; }
 bad() { echo "  FAIL $1"; fail=1; }
 probe() { # probe <cold> <score>
-  printf 'echo '"'"'{"probe":"demo","metrics":{"cold_s.big":%s,"cold_s.small":0.1,"score":%s}}'"'"'\n' "$1" "$2" >"$MEASURE_PROBES/demo.sh"
+  printf 'echo '"'"'{"probe":"demo","metrics":{"cold_s.big":%s,"cold_s.small":0.1,"score":%s,"calls":%s}}'"'"'\n' "$1" "$2" "${CALLS:-3}" >"$MEASURE_PROBES/demo.sh"
 }
 cat >"$MEASURE_RULES" <<'J'
-{"demo": {"cold_s.*": {"budget": {"max": 5}, "ratchet": "lower", "tolerance": 0.1, "min_delta": 0.5, "host_bound": true},
+{"demo": {"cold_s.*": {"budget": {"max": 5}, "ratchet": "lower", "tolerance": 0.1, "min_delta": 0.5, "host_bound": true, "timing": true},
+          "calls":    {"ratchet": "lower", "host_bound": true},
           "score":    {"budget": {"min": 90}, "ratchet": "higher"}}}
 J
 m() { python3 -I scripts/metrics/measure.py "$@"; }
@@ -59,4 +60,14 @@ MEASURE_LOAD=2.5 m demo --record >/dev/null 2>&1
 probe 4.1 95
 out="$(MEASURE_LOAD=0.3 m demo)"
 if [[ "$out" != *"REGRESSION cold_s.big"* ]]; then ok "a busy record is not a ratchet baseline"; else bad "busy baseline: $out"; fi
+out="$(CALLS=5 probe 4 95; MEASURE_LOAD=2.5 m demo)"
+if [[ "$out" == *"REGRESSION calls"* ]]; then ok "counts are judged on a busy machine"; else bad "busy counts: $out"; fi
+
+# MEASURE_HOST names the host: CI runners get a new hostname every run.
+rm -f "$MEASURE_HISTORY/demo.jsonl"
+probe 4 95
+MEASURE_HOST=ci-runner m demo --record >/dev/null 2>&1
+probe 9 95
+out="$(MEASURE_HOST=ci-runner m demo)"
+if [[ "$out" == *"REGRESSION cold_s.big"* ]]; then ok "MEASURE_HOST: history from the named host is the baseline"; else bad "MEASURE_HOST: $out"; fi
 exit "$fail"

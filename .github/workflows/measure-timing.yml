@@ -1,0 +1,56 @@
+name: Measure timing
+
+# Wall-clock probes (tui frame time, perf cold/warm/time-to-tree) on a fresh
+# runner: the development host is shared and too loaded for timing to mean
+# anything. Results are judged against the history recorded from this runner
+# (MEASURE_HOST) and uploaded; `task measure:pull` records them into
+# docs/metrics so the next run compares against them.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cli/treemand/**"
+      - "scripts/metrics/**"
+  schedule:
+    - cron: "23 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: measure-timing
+  cancel-in-progress: false
+
+jobs:
+  timing:
+    name: Timing probes
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      MEASURE_HOST: gha-ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/treemand/go.mod
+          cache-dependency-path: cli/treemand/go.sum
+      - name: Run probes
+        run: |
+          mkdir -p timing
+          awk -v n="$(nproc)" '{ printf "%.2f\n", $1 / n }' /proc/loadavg > timing/load.txt
+          for p in tui perf; do
+            bash "scripts/metrics/probes/$p.sh" > "timing/$p.json"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: timing
+          path: timing/
+      - name: Judge against this runner's history
+        run: |
+          MEASURE_LOAD="$(cat timing/load.txt)"
+          export MEASURE_LOAD
+          for p in tui perf; do
+            python3 -I scripts/metrics/measure.py "$p" --input "timing/$p.json" --gate
+          done
