@@ -115,6 +115,32 @@ tasks:
     cmds:
       - docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD/cli/treemand/discovery/testdata/corpus:/out/corpus" treemand-cli-zoo capture
 
+  ab:
+    desc: "Full discovery of real CLIs, origin/main vs this tree, with a side-effect audit: task ab -- [--base REF] <cli>..."
+    cmds:
+      - bash scripts/real_cli_ab.sh {{.CLI_ARGS}}
+
+  corpus:show:
+    desc: "What the parser extracts from corpus fixtures: task corpus:show -- <cli>..."
+    dir: cli/treemand
+    cmds:
+      - go run ./tools/corpusdump discovery/testdata/corpus {{.CLI_ARGS}}
+
+  corpus:diff:
+    desc: "Every subcommand, flag and description the parser gains or loses on the corpus vs a ref: task corpus:diff -- [ref]"
+    cmds:
+      - bash scripts/corpus_diff.sh {{.CLI_ARGS}}
+
+  ship:start:
+    desc: "Start work on a branch from a freshly fetched origin/main: task ship:start -- <branch>"
+    cmds:
+      - bash scripts/ship.sh start {{.CLI_ARGS}}
+
+  ship:pr:
+    desc: "Commit what is staged, push, open the PR and merge it, stopping at the first failure: task ship:pr -- --subject S --title T --body FILE [--trailer K:V]..."
+    cmds:
+      - bash scripts/ship.sh pr {{.CLI_ARGS}}
+
   gates:test:
     desc: Prove the account-identifier and Project-tag gates fire on fixtures
     cmds:
