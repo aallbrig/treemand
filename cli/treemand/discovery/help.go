@@ -375,7 +375,15 @@ func (h *HelpDiscoverer) runHelp(ctx context.Context, cliName string, args []str
 			return s, nil
 		}
 	}
-	if s, f := h.raceForms(ctx, resolved, args, flags, &timedOut); s != "" {
+	// Until the CLI's flag form is known, race the two (hedged). Once a node
+	// has answered one, ask that alone and the other only if it refuses:
+	// hedging every slow child doubled the processes (gh: 457 for 236 nodes,
+	// #216).
+	race := h.raceForms
+	if h.learnedForm() != formUnknown {
+		race = h.formsInTurn
+	}
+	if s, f := race(ctx, resolved, args, flags, &timedOut); s != "" {
 		h.form.CompareAndSwap(int32(formUnknown), int32(f))
 		return s, nil
 	}
@@ -453,6 +461,20 @@ func (h *HelpDiscoverer) raceForms(ctx context.Context, resolved string, args []
 		}
 		if s := <-ch; s != "" {
 			return s, forms[i]
+		}
+	}
+	return "", formUnknown
+}
+
+// formsInTurn tries flag forms one after another, stopping at the first that
+// answers, or when one times out (a timeout is no refusal).
+func (h *HelpDiscoverer) formsInTurn(ctx context.Context, resolved string, args []string, forms []helpForm, timedOut *atomic.Bool) (string, helpForm) {
+	for _, f := range forms {
+		if s := h.tryForm(ctx, resolved, args, f, timedOut); s != "" {
+			return s, f
+		}
+		if timedOut.Load() || ctx.Err() != nil {
+			break
 		}
 	}
 	return "", formUnknown
