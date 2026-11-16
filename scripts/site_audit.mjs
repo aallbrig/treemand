@@ -465,25 +465,29 @@ async function searchScenarios() {
   await p.send("Input.dispatchKeyEvent", { type: "keyUp", key: "k", code: "KeyK", modifiers: 2, windowsVirtualKeyCode: 75 });
   await new Promise((r) => setTimeout(r, 800));
   if (!(await ev('document.getElementById("search-dialog").open'))) { fail("Ctrl+K does not open the search dialog"); p.close(); return; }
+  // The UI renders results for a query typed into it.
+  const shown = await ev(`(async () => {
+    const input = document.querySelector("#search input");
+    if (!input) return 0;
+    input.value = "cache";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    for (let i = 0; i < 40; i++) {
+      await new Promise((r) => setTimeout(r, 100));
+      const n = document.querySelectorAll("#search .pagefind-ui__result-link").length;
+      if (n) return n;
+    }
+    return 0;
+  })()`);
+  if (!shown) fail("typing in the search box shows no results");
+  // Ranking, through Pagefind's own API (what the UI calls): the page about a
+  // topic must be among the top 3 pages for it.
   for (const [q, want] of [["cache clear", "/commands/cache/"], ["completion zsh", "/commands/completion/"], ["json yaml", "/commands/output/"]]) {
-    const first = await ev(`(async () => {
-      const input = document.querySelector("#search input");
-      if (!input) return "no input";
-      input.value = ${JSON.stringify(q)};
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      for (let i = 0; i < 40; i++) {
-        await new Promise((r) => setTimeout(r, 100));
-        // Results belong to this query once the message names it.
-        const msg = document.querySelector("#search .pagefind-ui__message")?.textContent || "";
-        // Page-level results only: sub-results (sections of a page) are nested links.
-        const pages = [...new Set([...document.querySelectorAll("#search .pagefind-ui__result-link")]
-          .filter((l) => !l.closest(".pagefind-ui__result-nested")).map((l) => new URL(l.href).pathname))].slice(0, 3);
-        if (pages.length && msg.includes(${JSON.stringify(q)})) return pages;
-      }
-      return "no results";
+    const top = await ev(`(async () => {
+      const pf = await import(document.getElementById("search").dataset.base + "pagefind.js");
+      const s = await pf.search(${JSON.stringify(q)});
+      return Promise.all(s.results.slice(0, 3).map(async (x) => new URL((await x.data()).url, location.href).pathname));
     })()`);
-    // Ranking shifts a little between builds (Reference also covers JSON); the page must be in the top 3.
-    if (!Array.isArray(first) || !first.includes(want)) fail(`"${q}": top results ${first}, want ${want} among them`);
+    if (!Array.isArray(top) || !top.includes(want)) fail(`"${q}": top results ${top}, want ${want} among them`);
   }
   await p.send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
   await new Promise((r) => setTimeout(r, 200));
