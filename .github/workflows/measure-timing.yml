@@ -30,6 +30,7 @@ jobs:
     timeout-minutes: 45
     env:
       MEASURE_HOST: gha-ubuntu-latest
+      PERF_REPEAT: "3" # median of 3: one runner sample is noise too (#230)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

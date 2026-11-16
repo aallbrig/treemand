@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Probe: treemand performance on real installed CLIs (PERF_CLIS overrides the set).
 #   metrics per CLI: cold_s (uncached full discovery), warm_s (cache hit),
+#   Every cold metric is the median of PERF_REPEAT runs (default 1).
 #   cpu_s (user+sys CPU of the cold run, child processes included: the cost
 #   that load cannot hide), rss_mb, nodes, and tti_s (seconds until -i shows
 #   the tree) for the TUI_CLIS subset, and help_calls (processes of the CLI
@@ -12,6 +13,16 @@ set -euo pipefail
 repo="$(cd "$(dirname "$0")/../../.." && pwd)"
 clis="${PERF_CLIS:-git docker kubectl gh npm pip go helm apt systemctl tar aws}"
 tui_clis="${TUI_CLIS:-docker gh kubectl aws}"
+# Cold runs per CLI; every metric is the median. One sample is noise even on a
+# CI runner (gh 3.8 vs 5.4 s for the same commit, #230).
+repeat="${PERF_REPEAT:-1}"
+med() { sort -g | awk '{ v[NR] = $1 } END { print v[int((NR + 1) / 2)] }'; }
+count_nodes() {
+  python3 -I -c 'import json,sys
+def n(x): return 1 + sum(n(c) for c in x.get("children") or [])
+try: print(n(json.load(open(sys.argv[1]))))
+except Exception: print(0)' "$1"
+}
 work="$(mktemp -d)"
 mkdir -p "$work/cwd"
 trap 'rm -rf "$work"' EXIT
@@ -26,23 +37,27 @@ for cli in $clis; do
   mkdir -p "$work/shim-$cli"
   printf '#!/bin/sh\necho >>"%s"\nexec "%s" "$@"\n' "$work/calls-$cli" "$(command -v "$cli")" >"$work/shim-$cli/$cli"
   chmod +x "$work/shim-$cli/$cli"
-  : >"$work/calls-$cli"
-  /usr/bin/time -o "$work/t" -f "%e %U %S %M" \
-    env -C "$work/cwd" PATH="$work/shim-$cli:$PATH" TREEMAND_CACHE_DIR="$cache" "$work/treemand" --no-cache --output=json --timeout=120 "$cli" >"$work/out.json" 2>/dev/null || true
-  read -r cold user sys rss <"$work/t"
+  : >"$work/runs-$cli"
+  for _ in $(seq "$repeat"); do
+    : >"$work/calls-$cli"
+    /usr/bin/time -o "$work/t" -f "%e %U %S %M" \
+      env -C "$work/cwd" PATH="$work/shim-$cli:$PATH" TREEMAND_CACHE_DIR="$cache" "$work/treemand" --no-cache --output=json --timeout=120 "$cli" >"$work/out.json" 2>/dev/null || true
+    read -r c u s m <"$work/t"
+    echo "$c $(awk -v u="$u" -v s="$s" 'BEGIN { print u + s }') $m $(wc -l <"$work/calls-$cli") $(count_nodes "$work/out.json")" >>"$work/runs-$cli"
+  done
+  col() { awk -v k="$1" '{ print $k }' "$work/runs-$cli" | med; }
+  cold="$(col 1)" cpu="$(col 2)" rss="$(col 3)" calls="$(col 4)" nodes="$(col 5)"
+  spread="$(awk '{ print $1 }' "$work/runs-$cli" | sort -g | tr '\n' ' ')"
   env -C "$work/cwd" TREEMAND_CACHE_DIR="$cache" "$work/treemand" --output=json --timeout=120 "$cli" >/dev/null 2>&1 || true
   /usr/bin/time -o "$work/t" -f "%e" env -C "$work/cwd" TREEMAND_CACHE_DIR="$cache" "$work/treemand" --output=json "$cli" >/dev/null 2>&1 || true
   warm="$(cat "$work/t")"
-  nodes="$(python3 -I -c 'import json,sys
-def n(x): return 1 + sum(n(c) for c in x.get("children") or [])
-try: print(n(json.load(open(sys.argv[1]))))
-except Exception: print(0)' "$work/out.json")"
   tti=""
   if [[ " $tui_clis " == *" $cli "* ]]; then
-    tti="$(cd "$work/cwd" && TREEMAND_CACHE_DIR="$work/tti-$cli" python3 -I "$repo/scripts/metrics/tti.py" "$work/treemand" "$cli")"
+    tti="$(for r in $(seq "$repeat"); do
+      (cd "$work/cwd" && TREEMAND_CACHE_DIR="$work/tti-$cli-$r" python3 -I "$repo/scripts/metrics/tti.py" "$work/treemand" "$cli")
+    done | med)"
   fi
-  calls="$(wc -l <"$work/calls-$cli")"
-  rows+="$cli $cold $user $sys $rss $warm $nodes ${tti:--} $calls"$'\n'
+  rows+="$cli $cold $cpu $rss $warm $nodes ${tti:--} $calls ${spread// /,}"$'\n'
 done
 
 state >"$work/after"
@@ -59,17 +74,18 @@ metrics, details = {}, []
 for line in sys.argv[1].splitlines():
     if not line.strip():
         continue
-    cli, cold, user, sys_, rss, warm, nodes, tti, calls = line.split()
+    cli, cold, cpu, rss, warm, nodes, tti, calls, spread = line.split()
     metrics[f"help_calls.{cli}"] = int(calls)
     metrics[f"cold_s.{cli}"] = float(cold)
     metrics[f"warm_s.{cli}"] = float(warm)
-    metrics[f"cpu_s.{cli}"] = round(float(user) + float(sys_), 2)
+    metrics[f"cpu_s.{cli}"] = round(float(cpu), 2)
     metrics[f"rss_mb.{cli}"] = round(int(rss) / 1024, 1)
     metrics[f"nodes.{cli}"] = int(nodes)
     if tti != "-":
         metrics[f"tti_s.{cli}"] = float(tti)
-    details.append({"cli": cli, "cold_s": float(cold), "cpu_s": round(float(user) + float(sys_), 2),
-                    "cpu_per_wall": round((float(user) + float(sys_)) / max(float(cold), 0.01), 1)})
+    details.append({"cli": cli, "cold_s": float(cold), "cpu_s": round(float(cpu), 2),
+                    "cpu_per_wall": round(float(cpu) / max(float(cold), 0.01), 1),
+                    "cold_runs": [float(x) for x in spread.strip(",").split(",") if x]})
 print(json.dumps({"probe": "perf", "metrics": metrics,
                   "details": [{"loadavg": sys.argv[2]}, {"per_cli": details}]}))
 PY
