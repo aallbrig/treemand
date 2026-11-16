@@ -156,6 +156,16 @@ tasks:
     cmds:
       - bash scripts/metrics/measure_test.sh
 
+  channels:check:
+    desc: Check every documented install channel is published and current (network)
+    cmds:
+      - bash scripts/channels_check.sh
+
+  channels:test:
+    desc: Test the install-channel check offline
+    cmds:
+      - bash scripts/channels_check_test.sh
+
   gates:test:
     desc: Prove the account-identifier and Project-tag gates fire on fixtures
     cmds:
@@ -272,7 +282,7 @@ tasks:
   loop:check:
     desc: Static checks for the loop machinery (shellcheck, state script, guard hook, skill present)
     cmds:
-      - shellcheck -x -S warning scripts/loop/*.sh scripts/dev_session.sh scripts/pr_merge.sh scripts/check_*.sh scripts/install_test.sh scripts/site_audit.sh scripts/make_site_assets.sh www/treemand/static/install.sh scripts/infra/*.sh scripts/gates_test.sh scripts/infra_lint.sh scripts/real_cli_ab.sh scripts/corpus_diff.sh scripts/ship.sh scripts/metrics/*.sh
+      - shellcheck -x -S warning scripts/loop/*.sh scripts/dev_session.sh scripts/pr_merge.sh scripts/check_*.sh scripts/install_test.sh scripts/site_audit.sh scripts/make_site_assets.sh www/treemand/static/install.sh scripts/infra/*.sh scripts/gates_test.sh scripts/infra_lint.sh scripts/real_cli_ab.sh scripts/corpus_diff.sh scripts/ship.sh scripts/metrics/*.sh scripts/channels_check*.sh
       - python3 -I scripts/loop/state.py summary >/dev/null
       - bash scripts/loop/guard_test.sh
       - test -f .claude/skills/treemand-loop/SKILL.md
@@ -395,6 +405,7 @@ tasks:
       - task: infra:lint
       - task: gates:test
       - task: measure:test
+      - task: channels:test
       - task: fmt:check
       - task: vet
       - task: lint
