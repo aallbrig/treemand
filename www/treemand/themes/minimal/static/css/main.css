@@ -336,3 +336,26 @@ h2[id], h3[id], h4[id] { scroll-margin-top: 4.5rem; }
   .pager { grid-template-columns: minmax(0, 1fr); }
   .pager-next { grid-column: 1; }
 }
+
+/* ── Search (Pagefind) ───────────────────────────────────────────────────── */
+.search-btn { display: inline-flex; align-items: center; gap: .5rem; min-height: 40px; padding: .35rem .5rem .35rem .75rem; margin-right: .35rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-soft); color: var(--muted); font: inherit; font-size: .9rem; cursor: pointer; }
+.search-btn:hover { border-color: var(--accent); color: var(--fg); }
+.search-btn[hidden] { display: none; }
+.search-kbd { font-size: .75rem; padding: .1rem .4rem; }
+.search-dialog { margin: 10vh auto auto; width: min(680px, calc(100vw - 2rem)); max-height: 75vh; padding: 1rem; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); color: var(--fg); box-shadow: 0 24px 64px rgba(1, 4, 9, .3); }
+.search-dialog::backdrop { background: rgba(1, 4, 9, .45); }
+.search-head { display: flex; gap: .5rem; align-items: flex-start; }
+.search-head #search { flex: 1; min-width: 0; }
+.search-close { flex: none; min-height: 44px; padding: 0 .75rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-soft); color: var(--muted); font: inherit; font-size: .85rem; cursor: pointer; }
+.search-missing { color: var(--muted); padding: .75rem 0; }
+#search {
+  --pagefind-ui-scale: .85; --pagefind-ui-primary: var(--accent); --pagefind-ui-text: var(--fg);
+  --pagefind-ui-background: var(--bg); --pagefind-ui-border: var(--border); --pagefind-ui-tag: var(--bg-soft);
+  --pagefind-ui-border-width: 1px; --pagefind-ui-border-radius: 8px; --pagefind-ui-font: var(--sans);
+}
+#search mark { background: var(--accent-soft); color: var(--fg); }
+@media (max-width: 760px) {
+  .search-btn { padding: 0; width: 44px; min-height: 44px; justify-content: center; margin-right: 0; border: 0; background: none; }
+  .search-btn-label, .search-kbd { display: none; }
+  .search-dialog { margin-top: 1rem; max-height: calc(100vh - 2rem); }
+}

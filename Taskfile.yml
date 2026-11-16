@@ -287,7 +287,7 @@ tasks:
   loop:check:
     desc: Static checks for the loop machinery (shellcheck, state script, guard hook, skill present)
     cmds:
-      - shellcheck -x -S warning scripts/loop/*.sh scripts/dev_session.sh scripts/pr_merge.sh scripts/check_*.sh scripts/install_test.sh scripts/site_audit.sh scripts/make_site_assets.sh www/treemand/static/install.sh scripts/infra/*.sh scripts/gates_test.sh scripts/infra_lint.sh scripts/real_cli_ab.sh scripts/corpus_diff.sh scripts/ship.sh scripts/metrics/*.sh scripts/channels_check*.sh
+      - shellcheck -x -S warning scripts/loop/*.sh scripts/dev_session.sh scripts/pr_merge.sh scripts/check_*.sh scripts/install_test.sh scripts/site_audit.sh scripts/site_search_index.sh scripts/make_site_assets.sh www/treemand/static/install.sh scripts/infra/*.sh scripts/gates_test.sh scripts/infra_lint.sh scripts/real_cli_ab.sh scripts/corpus_diff.sh scripts/ship.sh scripts/metrics/*.sh scripts/channels_check*.sh
       - python3 -I scripts/loop/state.py summary >/dev/null
       - bash scripts/loop/guard_test.sh
       - test -f .claude/skills/treemand-loop/SKILL.md
@@ -498,11 +498,12 @@ tasks:
       - scripts/gen-web-trees.sh {{.CLI_ARGS}}
 
   site:build:
-    desc: Build the Hugo site, including the Try page wasm
+    desc: Build the Hugo site, including the Try page wasm and the search index
     deps: [web:wasm]
     dir: www/treemand
     cmds:
       - hugo --minify
+      - bash ../../scripts/site_search_index.sh public
 
   site:dev:
     desc: Start the Hugo dev server, including the Try page wasm

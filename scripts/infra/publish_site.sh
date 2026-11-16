@@ -18,6 +18,7 @@ out="$(mktemp -d)"
 trap 'rm -rf "$out"' EXIT
 cli/treemand/web/wasm/build.sh www/treemand/static/try >/dev/null
 (cd www/treemand && HUGO_PARAMS_ORIGIN="$origin" hugo --quiet --minify -b "$origin/" -d "$out")
+bash scripts/site_search_index.sh "$out"
 
 echo "[site:publish] syncing $(find "$out" -type f | wc -l) files to $origin"
 aws s3 sync "$out" "s3://$bucket/" --delete --exclude 'releases/*' \

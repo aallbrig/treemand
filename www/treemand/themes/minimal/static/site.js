@@ -109,3 +109,60 @@
     box.appendChild(button);
   });
 })();
+
+// ── Search (Pagefind) ─────────────────────────────────────────────────────
+// The index is built after hugo (scripts/site_search_index.sh). The UI loads on
+// first open; Ctrl+K, Cmd+K or "/" opens it and Esc closes it.
+(function () {
+  "use strict";
+  var open = document.getElementById("search-open");
+  var dialog = document.getElementById("search-dialog");
+  var box = document.getElementById("search");
+  if (!open || !dialog || !box || typeof dialog.showModal !== "function") return;
+  var base = box.dataset.base;
+  var mac = /mac|iphone|ipad/i.test(navigator.platform || "");
+  var kbd = open.querySelector(".search-kbd");
+  if (kbd && mac) kbd.textContent = "⌘K";
+  open.hidden = false;
+  var loaded = null;
+
+  function load() {
+    if (loaded) return loaded;
+    loaded = new Promise(function (resolve, reject) {
+      var css = document.createElement("link");
+      css.rel = "stylesheet";
+      css.href = base + "pagefind-ui.css";
+      document.head.appendChild(css);
+      var js = document.createElement("script");
+      js.src = base + "pagefind-ui.js";
+      js.onload = function () {
+        /* global PagefindUI */
+        new PagefindUI({ element: "#search", showSubResults: true, showImages: false, resetStyles: false, autofocus: true });
+        resolve();
+      };
+      js.onerror = function () {
+        box.innerHTML = '<p class="search-missing">Search is not available in this build (run <code>task site:build</code>).</p>';
+        reject(new Error("pagefind missing"));
+      };
+      document.head.appendChild(js);
+    });
+    return loaded;
+  }
+  function show() {
+    if (dialog.open) return;
+    dialog.showModal();
+    load().then(function () {
+      var input = box.querySelector("input");
+      if (input) input.focus();
+    }, function () { /* message already shown */ });
+  }
+  open.addEventListener("click", show);
+  document.getElementById("search-close").addEventListener("click", function () { dialog.close(); });
+  dialog.addEventListener("click", function (e) { if (e.target === dialog) dialog.close(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.target && e.target.closest && e.target.closest(".try-stage")) return; // keys belong to the TUI
+    var typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target && e.target.tagName) || "") || (e.target && e.target.isContentEditable);
+    if ((e.key === "k" || e.key === "K") && (e.metaKey || e.ctrlKey)) { e.preventDefault(); show(); }
+    else if (e.key === "/" && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); show(); }
+  });
+})();

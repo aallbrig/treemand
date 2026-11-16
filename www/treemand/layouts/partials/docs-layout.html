@@ -40,13 +40,13 @@
     </details>
   </nav>
 
-  <article class="docs-body">
+  <article class="docs-body" data-pagefind-body>
     {{ $page.Content }}
     {{- with $page.File }}
-    <p class="edit-link"><a href="https://github.com/aallbrig/treemand/edit/main/www/treemand/content/{{ .Path }}">Edit this page on GitHub</a></p>
+    <p class="edit-link" data-pagefind-ignore><a href="https://github.com/aallbrig/treemand/edit/main/www/treemand/content/{{ .Path }}">Edit this page on GitHub</a></p>
     {{- end }}
     {{- if ge $i 0 }}
-    <nav class="pager" aria-label="Previous and next page">
+    <nav class="pager" aria-label="Previous and next page" data-pagefind-ignore>
       {{- if gt $i 0 }}{{ with index $pages (sub $i 1) }}
       <a class="pager-prev" href="{{ .RelPermalink }}" rel="prev"><span>Previous</span>{{ .LinkTitle }}</a>
       {{- end }}{{ end }}

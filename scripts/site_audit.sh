@@ -18,6 +18,7 @@ trap cleanup EXIT
 # The Try page needs the compiled wasm next to the site.
 bash cli/treemand/web/wasm/build.sh www/treemand/static/try >/dev/null
 (cd www/treemand && hugo --quiet -b / -d "$out")
+bash scripts/site_search_index.sh "$out" >/dev/null
 
 port="${AUDIT_PORT:-18181}"
 python3 -m http.server "$port" --bind 127.0.0.1 --directory "$out" >/dev/null 2>&1 &
