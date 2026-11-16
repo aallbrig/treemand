@@ -12,18 +12,11 @@ Discovery executes the user's tools with arguments. A stray argument is an actio
 - **Prefer the zoo**: `task zoo:smoke` and `task zoo:capture` run inside the disposable `test/cli-zoo` container. Use it for any sweep across many CLIs.
 - **On the host, from an empty directory** made with `mktemp -d`, never the repo, with `TREEMAND_CACHE_DIR` pointed at a throwaway directory too. `scripts/loop/perf.py` and `scripts/capture_corpus.sh` already do this; a new script must as well.
 
-## Measuring
+## Comparing against main
 
-- Compare against `main` **A/B, interleaved**, alternating old and new binaries run by run: other projects load this host (check `cat /proc/loadavg`), so a wall-clock number alone proves nothing. Build the old binary from `git archive main cli/treemand`.
-- Prefer load-independent evidence: invocation counts from a logging fake CLI, CPU seconds (`/usr/bin/time -f "%e %U %S"`), and whole-tree equality (every path, description and flag) between the two binaries.
+`task ab -- <cli>...` (`--base REF` to compare another ref) builds origin/main's treemand and the working tree's, runs full discovery of each CLI from an empty scratch directory, and compares the trees: nodes, flags and descriptions gained or lost. It also audits this machine before and after (git branches and status, Docker context, builders, volumes, networks, the scratch directory) and **fails on any side effect**. If it fails, restore what the run created before anything else (timestamps show what is yours).
 
-## Audit after every run
-
-Snapshot before, compare after, and restore anything the run created (the timestamps show what is yours):
-
-- `git branch --list` and `git status -s` in the repo
-- `docker context show` (must be `default`), `docker buildx ls`, `docker volume ls`
-- the scratch directory: it should still be empty
+For speed, wall-clock numbers alone prove nothing: other projects load this host (`cat /proc/loadavg`). Alternate old and new binaries run by run, and prefer load-independent evidence: invocation counts from a logging fake CLI, CPU seconds (`/usr/bin/time -f "%e %U %S"`).
 
 ## Changing what discovery sends to a CLI
 
