@@ -141,6 +141,21 @@ tasks:
     cmds:
       - bash scripts/ship.sh pr {{.CLI_ARGS}}
 
+  measure:
+    desc: "Run a measurement probe and judge it against its rules: task measure -- <probe> [--record] [--gate] [--findings]"
+    cmds:
+      - python3 -I scripts/metrics/measure.py {{.CLI_ARGS}}
+
+  measure:list:
+    desc: List the measurement probes
+    cmds:
+      - python3 -I scripts/metrics/measure.py --list
+
+  measure:test:
+    desc: Test the measurement engine (budgets, ratchets, history, gate)
+    cmds:
+      - bash scripts/metrics/measure_test.sh
+
   gates:test:
     desc: Prove the account-identifier and Project-tag gates fire on fixtures
     cmds:
@@ -257,7 +272,7 @@ tasks:
   loop:check:
     desc: Static checks for the loop machinery (shellcheck, state script, guard hook, skill present)
     cmds:
-      - shellcheck -x -S warning scripts/loop/*.sh scripts/dev_session.sh scripts/pr_merge.sh scripts/check_*.sh scripts/install_test.sh scripts/site_audit.sh scripts/make_site_assets.sh www/treemand/static/install.sh scripts/infra/*.sh scripts/gates_test.sh scripts/infra_lint.sh
+      - shellcheck -x -S warning scripts/loop/*.sh scripts/dev_session.sh scripts/pr_merge.sh scripts/check_*.sh scripts/install_test.sh scripts/site_audit.sh scripts/make_site_assets.sh www/treemand/static/install.sh scripts/infra/*.sh scripts/gates_test.sh scripts/infra_lint.sh scripts/real_cli_ab.sh scripts/corpus_diff.sh scripts/ship.sh scripts/metrics/*.sh
       - python3 -I scripts/loop/state.py summary >/dev/null
       - bash scripts/loop/guard_test.sh
       - test -f .claude/skills/treemand-loop/SKILL.md
@@ -379,6 +394,7 @@ tasks:
       - task: secrets:history
       - task: infra:lint
       - task: gates:test
+      - task: measure:test
       - task: fmt:check
       - task: vet
       - task: lint
