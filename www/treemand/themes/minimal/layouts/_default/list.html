@@ -1,9 +1,3 @@
 {{ define "main" }}
-{{ .Content }}
-{{ range .Pages }}
-<article>
-  <h2><a href="{{ .Permalink }}">{{ .Title }}</a></h2>
-  <p>{{ .Description | default .Summary }}</p>
-</article>
-{{ end }}
+{{ partial "docs-layout.html" . }}
 {{ end }}

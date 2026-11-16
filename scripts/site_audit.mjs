@@ -416,6 +416,41 @@ async function homeScenarios() {
 }
 await homeScenarios();
 
+// ── Docs layout: sidebar marks the page, prev/next follow the sidebar, anchors resolve
+async function docsScenarios() {
+  const url = new URL("commands/cache/", BASE).href;
+  const fail = (detail) => add(url, "-", "docs-layout", detail);
+  const p = await newPage();
+  await p.send("Page.enable");
+  await p.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
+  await p.send("Page.navigate", { url });
+  await new Promise((r) => setTimeout(r, 700));
+  const r = (await p.send("Runtime.evaluate", { returnByValue: true, expression: `(() => {
+    const wide = document.querySelector(".docs-nav-wide");
+    const links = wide ? [...wide.querySelectorAll("ul a")].map((a) => a.getAttribute("href")) : [];
+    const here = wide?.querySelector('a[aria-current="page"]')?.getAttribute("href") || "";
+    const i = links.indexOf(here);
+    const anchors = [...document.querySelectorAll("a.anchor")];
+    return {
+      here, path: location.pathname, prevWant: links[i - 1] || null, nextWant: links[i + 1] || null,
+      prev: document.querySelector(".pager-prev")?.getAttribute("href") || null,
+      next: document.querySelector(".pager-next")?.getAttribute("href") || null,
+      toc: document.querySelectorAll(".docs-toc a").length,
+      anchors: anchors.length,
+      broken: anchors.filter((a) => !document.getElementById(decodeURIComponent(a.hash.slice(1)))).map((a) => a.hash),
+      edit: document.querySelector(".edit-link a")?.href || "",
+    };
+  })()` })).result.value;
+  p.close();
+  if (r.here !== r.path) fail(`sidebar marks ${r.here || "nothing"} as current, want ${r.path}`);
+  if (r.prev !== r.prevWant || r.next !== r.nextWant) fail(`pager ${r.prev} / ${r.next}, want ${r.prevWant} / ${r.nextWant} (sidebar order)`);
+  if (r.toc === 0) fail("no 'On this page' outline");
+  if (r.anchors === 0) fail("no heading anchors");
+  if (r.broken.length) fail(`heading anchors with no target: ${r.broken.join(" ")}`);
+  if (!r.edit.startsWith("https://github.com/aallbrig/treemand/edit/main/www/treemand/content/commands/cache.md")) fail(`edit link: ${r.edit}`);
+}
+await docsScenarios();
+
 const titles = new Map();
 let audited = 0;
 for (const vp of VIEWPORTS) {
