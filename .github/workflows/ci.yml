@@ -107,6 +107,27 @@ jobs:
       - name: task ci
         run: task ci
 
+  measure:
+    name: Measurement gate (ratchets)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the complexity probe reads git churn
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/treemand/go.mod
+          cache-dependency-path: cli/treemand/go.sum
+      # Deterministic probes only: timing history belongs to the host that
+      # recorded it. A regression against docs/metrics fails the PR; a fix
+      # that improves a metric records the new value (treemand-measure).
+      - name: complexity
+        run: python3 -I scripts/metrics/measure.py complexity --gate
+      - name: parser
+        run: python3 -I scripts/metrics/measure.py parser --gate
+      - name: tui-layout
+        run: python3 -I scripts/metrics/measure.py tui-layout --gate
+
   build-matrix:
     name: Cross-platform build
     runs-on: ubuntu-latest

@@ -1,0 +1,38 @@
+name: Measure (weekly)
+
+# Heavy measurements that are too slow for every PR. The findings are uploaded
+# for the interpretation step (treemand-measure, run by treemand-product-audit
+# or a scheduled session), which files issues and records history.
+
+on:
+  schedule:
+    - cron: "41 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    name: Heavy probes
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/treemand/go.mod
+          cache-dependency-path: cli/treemand/go.sum
+      - name: zoo (sweep + smoke)
+        run: python3 -I scripts/metrics/measure.py zoo --findings | tee zoo.json
+      - name: complexity, parser, tui, tui-layout
+        run: |
+          for p in complexity parser tui tui-layout; do
+            python3 -I scripts/metrics/measure.py "$p" --findings >"$p.json"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: measurements
+          path: "*.json"
