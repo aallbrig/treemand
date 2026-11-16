@@ -23,9 +23,12 @@ scripts/metrics/rules.json, keyed by probe and then by a metric glob:
 - --gate:    exit 3 when there is any regression (for CI); budget breaches alone
              never fail the gate, they are direction, not a floor.
 - --findings print the verdicts as JSON for the interpretation step.
-- Load:      above 1.0 load per CPU, host-bound metrics are reported as
-             "unreliable" (not judged), and busy records never become a
-             ratchet's baseline. Each record stores the load it was taken at.
+- Load:      above 1.0 load per CPU, wall-clock metrics (rule "timing": true)
+             are reported as "unreliable" (not judged), and busy records never
+             become their baseline. Counts, CPU time and allocations are judged
+             at any load. Each record stores the load it was taken at.
+- Host:      host_bound metrics compare against the same host; MEASURE_HOST
+             names it when the hostname is not stable (CI runners).
 """
 import datetime
 import fnmatch
@@ -45,6 +48,12 @@ HISTORY = os.environ.get("MEASURE_HISTORY", os.path.join(ROOT, "docs", "metrics"
 # not treemand: host-bound metrics are reported as unreliable instead of judged,
 # and records taken that busy are never used as a ratchet's baseline.
 MAX_LOAD_PER_CPU = 1.0
+
+
+def host_name():
+    # MEASURE_HOST names a stable host for history recorded elsewhere (CI
+    # runners get a new hostname every run).
+    return os.environ.get("MEASURE_HOST") or platform.node()
 
 
 def load_per_cpu():
@@ -91,8 +100,8 @@ def rule_for(rules, metric):
 def last_record(probe, host_bound_host):
     path = os.path.join(HISTORY, probe + ".jsonl")
     if not os.path.exists(path):
-        return {}, {}
-    any_host, same_host = {}, {}
+        return {}, {}, {}
+    any_host, same_host, same_host_calm = {}, {}, {}
     with open(path) as f:
         for line in f:
             if not line.strip():
@@ -101,15 +110,16 @@ def last_record(probe, host_bound_host):
             calm = rec.get("load", 0) <= MAX_LOAD_PER_CPU
             for k, v in rec["metrics"].items():
                 any_host[k] = (v, rec)
-                if rec.get("host") == host_bound_host and calm:
+                if rec.get("host") == host_bound_host:
                     same_host[k] = (v, rec)
-    return any_host, same_host
+                    if calm:
+                        same_host_calm[k] = (v, rec)
+    return any_host, same_host, same_host_calm
 
 
 def evaluate(probe, result):
     rules = load_rules(probe)
-    host = platform.node()
-    any_host, same_host = last_record(probe, host)
+    any_host, same_host, same_host_calm = last_record(probe, host_name())
     load = load_per_cpu()
     busy = load > MAX_LOAD_PER_CPU
     findings = []
@@ -118,7 +128,10 @@ def evaluate(probe, result):
         rule = rule_for(rules, metric)
         if rule is None or not isinstance(value, (int, float)):
             continue
-        if busy and rule.get("host_bound"):
+        # Only wall-clock ("timing") metrics depend on load: counts, CPU time
+        # and allocations are judged on any machine.
+        timing = rule.get("timing", False)
+        if busy and timing:
             unreliable.append(metric)
             continue
         budget = rule.get("budget", {})
@@ -129,7 +142,12 @@ def evaluate(probe, result):
         direction = rule.get("ratchet")
         if not direction:
             continue
-        prev = (same_host if rule.get("host_bound") else any_host).get(metric)
+        if timing:
+            prev = same_host_calm.get(metric)
+        elif rule.get("host_bound"):
+            prev = same_host.get(metric)
+        else:
+            prev = any_host.get(metric)
         if prev is None:
             continue
         before, rec = prev
@@ -155,7 +173,7 @@ def record(probe, result):
         "date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "version": git("describe", "--tags", "--always") or "unknown",
         "sha": git("rev-parse", "--short", "HEAD"),
-        "host": platform.node(),
+        "host": host_name(),
         "load": load_per_cpu(),
         "metrics": result.get("metrics", {}),
     }
