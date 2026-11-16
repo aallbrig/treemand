@@ -245,3 +245,18 @@ esac
 		t.Errorf("positional help ran after the flag forms timed out; calls: %q", calls(t, logPath))
 	}
 }
+
+func TestRunHelp_aLearnedFormIsAskedAloneOnSlowChildren(t *testing.T) {
+	// Each call takes 400ms, past the hedge delay. Once the root has shown
+	// that --help works, a child must not also be asked -h: on a slow CLI
+	// that doubled the processes on every node (gh: 457 for 236 nodes, #216).
+	bin, logPath := formCLI(t, 400*time.Millisecond, flagOnly)
+	if _, err := NewHelpDiscoverer(2).Discover(context.Background(), bin, nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range calls(t, logPath) {
+		if f := strings.Fields(c); len(f) == 2 && f[1] == "-h" {
+			t.Errorf("child asked %q although --help was learned; calls: %q", c, calls(t, logPath))
+		}
+	}
+}
