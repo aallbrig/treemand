@@ -12,4 +12,12 @@ if [ -n "$bad" ]; then
   echo "$bad" >&2
   exit 1
 fi
+# The agent files (llms.txt, llms-full.txt) exist, point inside the base URL
+# and carry no unrendered shortcodes.
+for f in llms.txt llms-full.txt; do
+  [ -s "$out/$f" ] || { echo "missing $f" >&2; exit 1; }
+  if grep -q '{{<' "$out/$f"; then echo "$f contains an unrendered shortcode" >&2; exit 1; fi
+done
+grep -q '(/treemand/getting-started/)' "$out/llms.txt" ||
+  { echo "llms.txt does not link the docs under the base URL" >&2; exit 1; }
 echo "site baseURL check passed"

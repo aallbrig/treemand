@@ -1,0 +1,11 @@
+{{- /* One node of a treemand JSON tree as a clickable <details> row; the Try page snapshots feed it. Context: dict "node" and "depth" (levels still to render). */ -}}
+{{- $n := .node -}}
+{{- $kids := $n.children | default slice -}}
+{{- $desc := $n.description | default "" | truncate 70 -}}
+{{- if and $kids (gt .depth 0) }}
+<li><details><summary><span class="tn-name">{{ $n.name }}</span>{{ with $desc }} <span class="tn-desc">{{ . }}</span>{{ end }}</summary>
+<ul>{{ range $kids }}{{ partial "tree-node.html" (dict "node" . "depth" (sub $.depth 1)) }}{{ end }}</ul>
+</details></li>
+{{- else }}
+<li class="tn-leaf"><span class="tn-name">{{ $n.name }}</span>{{ with $desc }} <span class="tn-desc">{{ . }}</span>{{ end }}</li>
+{{- end }}

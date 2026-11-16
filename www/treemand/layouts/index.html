@@ -1,0 +1,120 @@
+{{ define "main" }}
+{{- $tree := os.ReadFile "static/try/trees/kubectl.json" | transform.Unmarshal -}}
+{{- $clis := slice -}}
+{{- range $k, $_ := .Site.Data.corpus.expect }}{{ if not (hasPrefix $k "_") }}{{ $clis = $clis | append $k }}{{ end }}{{ end -}}
+{{- $install := .Site.Data.install -}}
+<div class="home">
+
+<section class="hero2" aria-labelledby="hero-title">
+  <div class="hero2-copy">
+    <p class="eyebrow">Open source · MIT · macOS, Linux, Windows</p>
+    <h1 id="hero-title">Every command of any CLI, <span class="grad">as a tree</span></h1>
+    <p class="lead">treemand reads a tool's help and maps its subcommands, flags and arguments into a tree you can browse, search, and turn into a command to copy or run.</p>
+    <div class="hero2-ctas">
+      <a class="btn btn-primary" href="{{ "try/" | relURL }}">Try it in your browser</a>
+      <a class="btn btn-secondary" href="{{ "getting-started/" | relURL }}">Get started</a>
+    </div>
+    <div class="quick-install" data-tabs>
+      <div class="qi-tabs" role="group" aria-label="Install command for">
+        {{- range $install.os }}
+        <button type="button" class="qi-tab" data-tab="{{ .id }}" aria-pressed="false">{{ .name }}</button>
+        {{- end }}
+      </div>
+      {{- range $install.os }}
+      {{- $os := . }}
+      {{- range first 1 (where .channels "recommended" true) }}
+      <div class="qi-panel" data-tab="{{ $os.id }}">
+        <span class="qi-label">{{ $os.name }} · {{ .title }}</span>
+        <pre><code>{{ delimit .commands "\n" }}</code></pre>
+      </div>
+      {{- end }}
+      {{- end }}
+    </div>
+  </div>
+
+  <figure class="hero2-demo">
+    <div class="term" role="group" aria-label="kubectl as a treemand tree; select a command to expand it">
+      <div class="term-bar" aria-hidden="true"><span></span><span></span><span></span><code>treemand kubectl</code></div>
+      <ul class="tn-root">
+        <li><details open><summary><span class="tn-name">{{ $tree.name }}</span> <span class="tn-desc">{{ $tree.description | truncate 60 }}</span></summary>
+          <ul>{{ range $tree.children }}{{ partial "tree-node.html" (dict "node" . "depth" 1) }}{{ end }}</ul>
+        </details></li>
+      </ul>
+    </div>
+    <figcaption>A real kubectl snapshot. Click a command to expand it, or <a href="{{ "try/?cli=kubectl" | relURL }}">open it in the full TUI</a>.</figcaption>
+  </figure>
+</section>
+
+<section class="proof" aria-label="Tested against real CLIs">
+  <p><strong>Tested against {{ len $clis }} real CLIs</strong> in every CI run, including</p>
+  <ul class="chips">
+    {{- range (slice "git" "kubectl" "docker" "aws" "gh" "terraform" "helm" "npm" "go" "uv" "jq" "ffmpeg") }}
+    {{- if in $clis . }}<li>{{ . }}</li>{{ end }}
+    {{- end }}
+  </ul>
+</section>
+
+<section class="features" aria-labelledby="features-title">
+  <h2 id="features-title">Stop scrolling through <code>--help</code></h2>
+  <div class="cards">
+    <a class="card" href="{{ "commands/tree/" | relURL }}">
+      <h3>See any CLI at a glance</h3>
+      <p>Point it at a tool and get the whole command hierarchy, found by reading <code>--help</code> recursively. No plugins, no config.</p>
+      <span class="card-more">Tree output →</span>
+    </a>
+    <a class="card" href="{{ "commands/interactive/" | relURL }}">
+      <h3>Build the command, don't memorize it</h3>
+      <p>Browse, fuzzy-search every flag by its description, pick the ones you need, then copy the command or run it.</p>
+      <span class="card-more">Interactive mode →</span>
+    </a>
+    <a class="card" href="{{ "commands/cache/" | relURL }}">
+      <h3>Fast the second time</h3>
+      <p>Discovered trees are cached on disk, so opening a big CLI again is instant until the tool itself changes.</p>
+      <span class="card-more">Caching →</span>
+    </a>
+    <a class="card" href="{{ "commands/output/" | relURL }}">
+      <h3>Made for scripts and agents too</h3>
+      <p>The same tree as JSON or YAML: pipe it to <code>jq</code>, diff it between versions, or hand it to an LLM agent.</p>
+      <span class="card-more">Output formats →</span>
+    </a>
+  </div>
+</section>
+
+<section class="router" aria-labelledby="router-title">
+  <h2 id="router-title">Start where you are</h2>
+  <div class="cards cards-3">
+    <div class="card card-static">
+      <span class="num">01</span>
+      <h3>Exploring a CLI</h3>
+      <p>Click around a real tree without installing anything, then run it on your own tools.</p>
+      <p class="links"><a href="{{ "try/" | relURL }}">Try it</a> · <a href="{{ "getting-started/" | relURL }}">Getting started</a></p>
+    </div>
+    <div class="card card-static">
+      <span class="num">02</span>
+      <h3>Need exact flags or config</h3>
+      <p>Every command, flag, config key and environment variable.</p>
+      <p class="links"><a href="{{ "commands/" | relURL }}">Commands</a> · <a href="{{ "reference/" | relURL }}">Reference</a></p>
+    </div>
+    <div class="card card-static">
+      <span class="num">03</span>
+      <h3>An agent, or building one</h3>
+      <p>A plain-text map of these docs, and trees as JSON.</p>
+      <p class="links"><a href="{{ "llms.txt" | relURL }}">llms.txt</a> · <a href="{{ "llms-full.txt" | relURL }}">llms-full.txt</a> · <a href="{{ "commands/output/" | relURL }}">--output=json</a></p>
+    </div>
+  </div>
+</section>
+
+<section class="tui-demo" aria-labelledby="tui-title">
+  <h2 id="tui-title">The terminal UI</h2>
+  <p><code>treemand -i kubectl</code> opens an explorer with a live preview, fuzzy search and mouse support.</p>
+  {{ partial "demo-img.html" (dict "src" "demo.gif" "alt" "treemand's interactive TUI exploring a CLI" "width" 1100 "height" 650) }}
+</section>
+
+<section class="closing" aria-labelledby="closing-title">
+  <h2 id="closing-title">Install in one line</h2>
+  <pre><code>curl -fsSL https://treemand.dev/install.sh | sh</code></pre>
+  <p class="muted">Signed and checksum-verified, no sudo. Homebrew, Windows and source builds: <a href="{{ "installation/" | relURL }}">Installation</a>.</p>
+</section>
+
+</div>
+{{ end }}

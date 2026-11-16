@@ -31,6 +31,29 @@
     if (media && media.addEventListener) media.addEventListener("change", sync);
   }
 
+  // ── OS tabs (home install one-liner) ────────────────────────────────────
+  // Without JS every OS's command shows with its label; with JS one shows,
+  // the OS the head script picked (shared with the Installation page).
+  Array.prototype.forEach.call(document.querySelectorAll("[data-tabs]"), function (box) {
+    var tabs = box.querySelectorAll(".qi-tab");
+    var panels = box.querySelectorAll(".qi-panel");
+    if (!tabs.length) return;
+    var os = root.dataset.os || "linux";
+    function show(id) {
+      root.dataset.os = id;
+      Array.prototype.forEach.call(panels, function (p) { p.hidden = p.dataset.tab !== id; });
+      Array.prototype.forEach.call(tabs, function (t) { t.setAttribute("aria-pressed", String(t.dataset.tab === id)); });
+    }
+    Array.prototype.forEach.call(tabs, function (t) {
+      t.addEventListener("click", function () {
+        show(t.dataset.tab);
+        try { localStorage.setItem("treemand.os", t.dataset.tab); } catch (e) { /* storage may be blocked */ }
+      });
+    });
+    box.classList.add("js-tabs");
+    show(box.querySelector('.qi-panel[data-tab="' + os + '"]') ? os : tabs[0].dataset.tab);
+  });
+
   // ── Copy buttons ────────────────────────────────────────────────────────
   // The Installation page has its own named buttons (install.js); the Try
   // page's terminal is not a code block.
