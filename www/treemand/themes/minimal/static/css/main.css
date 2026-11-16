@@ -1,27 +1,81 @@
+/* ── Theme tokens ──────────────────────────────────────────────────────────
+   Light by default, dark when the system asks for it, and either one when the
+   reader picks it with the header toggle (data-theme on <html>). Every colour
+   below comes from these tokens; terminals (Try page, sample output) stay dark
+   in both themes and use the --term-* tokens. */
 :root {
-  --bg: #0d1117;
-  --fg: #e6edf3;
-  --accent: #58a6ff;
-  --muted: #8b949e;
-  --border: #30363d;
-  --code-bg: #161b22;
+  --bg: #ffffff;
+  --bg-soft: #f6f8fa;
+  --fg: #1f2328;
+  --muted: #57606a;
+  --border: #d0d7de;
+  --accent: #0969da;
+  --accent-fg: #ffffff;
+  --accent-soft: rgba(9, 105, 218, .08);
+  --code-bg: #f6f8fa;
+  --ok: #1a7f37;
+  --term-bg: #0d1117;
+  --term-fg: #e6edf3;
+  --term-muted: #8b949e;
+  --term-border: #30363d;
+  --shadow: 0 1px 2px rgba(31, 35, 40, .06), 0 8px 24px rgba(31, 35, 40, .06);
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  color-scheme: light;
 }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1117; --bg-soft: #161b22; --fg: #e6edf3; --muted: #8b949e; --border: #30363d;
+    --accent: #58a6ff; --accent-fg: #0d1117; --accent-soft: rgba(88, 166, 255, .1); --code-bg: #161b22; --ok: #3fb950;
+    --shadow: none; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1117; --bg-soft: #161b22; --fg: #e6edf3; --muted: #8b949e; --border: #30363d;
+  --accent: #58a6ff; --accent-fg: #0d1117; --accent-soft: rgba(88, 166, 255, .1); --code-bg: #161b22; --ok: #3fb950;
+  --shadow: none; color-scheme: dark;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; }
-header { border-bottom: 1px solid var(--border); padding: 1rem 2rem; }
-header nav { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem 2rem; }
-.site-title { font-size: 1.4rem; font-weight: 700; color: var(--fg); text-decoration: none; }
-nav ul { list-style: none; display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; }
-nav a { color: var(--muted); text-decoration: none; display: inline-block; padding: .35rem .25rem; white-space: nowrap; }
-nav a:hover { color: var(--accent); }
-nav a[aria-current="page"] { color: var(--fg); }
+body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 16px; line-height: 1.6; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.skip-link { position: absolute; left: .5rem; top: -3rem; z-index: 10; background: var(--accent); color: var(--accent-fg); padding: .5rem 1rem; border-radius: 6px; font-weight: 600; text-decoration: none; }
+.skip-link:focus { top: .5rem; }
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+header { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--border); padding: .6rem 2rem; }
+header nav { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem 2rem; max-width: 1200px; margin: 0 auto; }
+.site-title { display: inline-flex; align-items: center; gap: .55rem; font-size: 1.2rem; font-weight: 700; color: var(--fg); text-decoration: none; letter-spacing: -.01em; }
+.site-title img { display: block; border-radius: 6px; }
+nav ul { list-style: none; margin: 0; display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; }
+nav ul a { color: var(--muted); text-decoration: none; display: inline-block; padding: .55rem .25rem; white-space: nowrap; font-weight: 500; }
+nav ul a:hover { color: var(--fg); }
+nav ul a[aria-current="page"] { color: var(--accent); }
+.nav-actions { display: flex; align-items: center; gap: .35rem; margin-left: auto; }
+.icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 8px; color: var(--muted); background: none; border: 0; cursor: pointer; }
+.icon-btn:hover { color: var(--fg); background: var(--bg-soft); }
+.theme-toggle .i-sun { display: none; }
+.theme-toggle[aria-pressed="true"] .i-sun { display: block; }
+.theme-toggle[aria-pressed="true"] .i-moon { display: none; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .nav-toggle { display: none; }
 
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; min-height: 44px; padding: .55rem 1.2rem; border-radius: 999px; font-weight: 600; text-decoration: none; border: 1px solid transparent; white-space: nowrap; }
+.btn-primary { background: var(--accent); color: var(--accent-fg); }
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-secondary { background: var(--bg-soft); color: var(--fg); border-color: var(--border); }
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+.btn-sm { min-height: 40px; padding: .35rem .95rem; font-size: .92rem; }
+
 /* Phones: the links collapse behind a menu button (only once JS has run). */
 @media (max-width: 760px) {
-  header { padding: .75rem 1rem; }
-  header nav.js-nav { flex-wrap: wrap; justify-content: space-between; }
+  header { padding: .5rem 1rem; }
+  header nav.js-nav { flex-wrap: wrap; gap: .5rem; }
+  .js-nav .nav-actions { order: 1; gap: 0; }
+  .js-nav .nav-toggle { order: 2; }
+  .js-nav ul { order: 3; }
+  .js-nav .nav-actions a.icon-btn { display: none; }
   .js-nav .nav-toggle {
     display: inline-flex; align-items: center; justify-content: center;
     width: 44px; height: 44px; background: none; color: var(--fg);
@@ -46,21 +100,32 @@ nav a[aria-current="page"] { color: var(--fg); }
   .nav-toggle-bars, .nav-toggle-bars::before, .nav-toggle-bars::after { transition: none; }
 }
 main { max-width: 860px; margin: 3rem auto; padding: 0 2rem; }
-h1 { font-size: 2.5rem; margin-bottom: 1rem; }
-h2 { font-size: 1.8rem; margin: 2rem 0 0.8rem; }
-h3 { font-size: 1.3rem; margin: 1.5rem 0 0.5rem; }
-p { margin-bottom: 1rem; color: var(--fg); }
+h1 { font-size: 2.5rem; line-height: 1.2; letter-spacing: -.02em; margin-bottom: 1rem; }
+h2 { font-size: 1.7rem; line-height: 1.25; letter-spacing: -.01em; margin: 2.25rem 0 .8rem; }
+h3 { font-size: 1.25rem; margin: 1.5rem 0 .5rem; }
+p { margin-bottom: 1rem; }
+ul, ol { margin: 0 0 1rem 1.4rem; }
+li { margin: .2rem 0; }
 a { color: var(--accent); }
-pre, code { background: var(--code-bg); border-radius: 6px; font-family: 'Fira Code', Consolas, monospace; }
-pre { padding: 1rem; overflow-x: auto; margin: 1rem 0; border: 1px solid var(--border); }
+pre, code { background: var(--code-bg); border-radius: 6px; font-family: var(--mono); }
+pre { padding: 1rem; overflow-x: auto; margin: 1rem 0; border: 1px solid var(--border); line-height: 1.5; }
 code { padding: 0.15em 0.4em; font-size: 0.9em; }
-pre code { padding: 0; font-size: 1em; }
+pre code { padding: 0; font-size: .92em; background: none; }
+.highlight { position: relative; margin: 1rem 0; }
+.highlight pre { margin: 0; }
+.highlight pre.chroma { background: var(--code-bg); }
+.copyable { position: relative; }
+.copyable > .copy-btn { opacity: 0; transition: opacity .15s; }
+.copyable:hover > .copy-btn, .copyable > .copy-btn:focus-visible, .copyable > .copy-btn.done { opacity: 1; }
+@media (hover: none) { .copyable > .copy-btn { opacity: 1; } }
+table { border-collapse: collapse; margin: 1rem 0; display: block; overflow-x: auto; }
+th, td { border: 1px solid var(--border); padding: .4rem .75rem; text-align: left; }
+th { background: var(--bg-soft); }
 .hero { text-align: center; padding: 4rem 0 3rem; }
-.hero h1 { font-size: 3.5rem; background: linear-gradient(135deg, #58a6ff, #79c0ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.hero h1 { font-size: 3.5rem; }
 .hero p { font-size: 1.2rem; color: var(--muted); max-width: 600px; margin: 1rem auto; }
-.install-box { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin: 2rem 0; }
 .badges { display: flex; gap: 1rem; justify-content: center; margin: 1.5rem 0; flex-wrap: wrap; }
-footer { text-align: center; padding: 2rem; border-top: 1px solid var(--border); color: var(--muted); margin-top: 4rem; }
+footer { text-align: center; padding: 2rem; border-top: 1px solid var(--border); color: var(--muted); margin-top: 4rem; background: var(--bg-soft); }
 footer a { color: var(--muted); }
 
 /* ── Try it (in-browser TUI) ───────────────────────────────────────────── */
@@ -69,24 +134,24 @@ footer a { color: var(--muted); }
 .try-picker, .try-keys { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0; }
 .try-picker button, .try-keys button, .try-ended button {
   background: var(--code-bg); color: var(--fg); border: 1px solid var(--border); border-radius: 6px;
-  padding: .4rem .8rem; font: inherit; font-family: 'Fira Code', Consolas, monospace; font-size: .9rem; cursor: pointer;
+  padding: .4rem .8rem; font: inherit; font-family: var(--mono); font-size: .9rem; cursor: pointer;
 }
 .try-picker button:hover, .try-keys button:hover, .try-ended button:hover { border-color: var(--accent); color: var(--accent); }
-.try-picker button.active { background: var(--accent); border-color: var(--accent); color: #0d1117; font-weight: 700; }
+.try-picker button.active { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 700; }
 .try-keys .hot { border-color: var(--accent); color: var(--accent); }
 .try-stage { position: relative; width: min(1100px, calc(100vw - 2rem)); left: 50%; transform: translateX(-50%); }
-.try-term { height: min(70vh, 640px); min-height: 360px; background: #0d1117; border: 1px solid var(--border);
+.try-term { height: min(70vh, 640px); min-height: 360px; background: var(--term-bg); border: 1px solid var(--term-border);
   border-radius: 8px; padding: 0; overflow: hidden; }
 .try-term:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(88,166,255,.25); }
 .try-status, .try-ended { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  flex-direction: column; gap: 1rem; color: var(--muted); background: rgba(13,17,23,.85); border-radius: 8px; }
+  flex-direction: column; gap: 1rem; color: var(--term-fg); background: rgba(13,17,23,.85); border-radius: 8px; }
 .try-status[hidden], .try-ended[hidden] { display: none; }
 .try-keys { max-width: 860px; }
 .try-ideas { padding-left: 1.2rem; color: var(--fg); }
 .try-ideas li { margin: .35rem 0; }
 kbd { background: var(--code-bg); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: .05em .4em; font-size: max(.85em, 12px); }
 .muted { color: var(--muted); font-size: .9rem; }
-.cta { display: inline-block; background: var(--accent); color: #0d1117 !important; font-weight: 700; padding: .7rem 1.4rem;
+.cta { display: inline-block; background: var(--accent); color: var(--accent-fg) !important; font-weight: 700; padding: .7rem 1.4rem;
   border-radius: 8px; text-decoration: none; margin: .5rem 0 1rem; }
 .cta:hover { filter: brightness(1.1); }
 .try-term .xterm-viewport { overflow-y: hidden !important; }
@@ -104,19 +169,27 @@ kbd { background: var(--code-bg); border: 1px solid var(--border); border-bottom
 .os-switch { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .75rem; }
 .os-btn { background: var(--code-bg); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: .5rem 1rem; min-height: 40px; font: inherit; cursor: pointer; }
 .os-btn:hover { border-color: var(--accent); }
-.os-btn[aria-pressed="true"] { background: var(--accent); color: #0d1117; border-color: var(--accent); font-weight: 600; }
+.os-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
 .os-detected { color: var(--muted); font-size: .95rem; margin-bottom: 1rem; }
+/* With JS, the head script has already chosen the OS: show only its panel and
+   keep the switch and the detection note's line in place from first paint. */
+html.js[data-os="macos"] .os-panel:not([data-os="macos"]),
+html.js[data-os="linux"] .os-panel:not([data-os="linux"]),
+html.js[data-os="windows"] .os-panel:not([data-os="windows"]) { display: none; }
+.os-switch[hidden] { display: none; }
+html.js .os-switch[hidden] { display: flex; }
+html.js .os-detected[hidden] { display: block; visibility: hidden; }
 .os-panel h2 { margin-top: 1rem; }
 .channel { border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; margin: 1rem 0; background: var(--bg); }
 .channel.recommended { border-color: var(--accent); }
 .channel h3 { margin: 0 0 .4rem; font-size: 1.15rem; }
 .channel p { margin-bottom: .6rem; color: var(--muted); }
-.channel .tag { margin-left: .5rem; padding: .1rem .5rem; border-radius: 999px; background: var(--accent); color: #0d1117; font-size: .75rem; font-weight: 700; vertical-align: middle; }
+.channel .tag { margin-left: .5rem; padding: .1rem .5rem; border-radius: 999px; background: var(--accent); color: var(--accent-fg); font-size: .75rem; font-weight: 700; vertical-align: middle; }
 .cmd { position: relative; }
 .cmd pre { margin: 0; padding-right: 5.5rem; }
 .copy-btn { position: absolute; top: .5rem; right: .5rem; background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: .3rem .7rem; min-height: 32px; font: inherit; font-size: .85rem; cursor: pointer; }
 .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
-.copy-btn.done { border-color: #3fb950; color: #3fb950; }
+.copy-btn.done { border-color: var(--ok); color: var(--ok); }
 .os-btn:focus-visible, .copy-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* Narrow screens: wrap long commands instead of hiding them under the Copy
