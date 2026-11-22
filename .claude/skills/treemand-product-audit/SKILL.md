@@ -1,6 +1,6 @@
 ---
 name: treemand-product-audit
-description: Whole-product audit of treemand that turns evidence into a ranked backlog of GitHub issues. Run by treemand-loop when no trusted loop:ready issue exists; invoke manually to refresh the backlog.
+description: Whole-product audit of treemand that turns evidence into a ranked backlog of GitHub issues. Invoke manually to refresh the backlog; the dev loop never runs it on its own.
 ---
 
 # treemand product audit

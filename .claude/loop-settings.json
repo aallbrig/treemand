@@ -39,8 +39,7 @@
       "Skill",
       "WebFetch",
       "WebSearch",
-      "PushNotification",
-      "ScheduleWakeup"
+      "PushNotification"
     ],
     "deny": [
       "Bash(git push --force:*)",

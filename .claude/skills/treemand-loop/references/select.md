@@ -11,7 +11,11 @@ improve treemand in ways a probe can show. Before selecting, run the cheap probe
 budget or regression finding per **treemand-measure**, as `loop:ready` with the
 `measure:finding` label.
 
-Pick the first that applies:
+**Resume first**: when `.loop/work` says `in-progress #N` (an issue this host
+claimed before a crash or reboot, whose worktree recovery kept), that issue is
+the cycle's work. Never start a second issue while one is in progress.
+
+Otherwise pick the first that applies:
 
 1. **FIX_MAIN** from preflight.
 2. **A measurement finding**: first line of `issues.sh ready measure:finding`.
@@ -26,13 +30,9 @@ Pick the first that applies:
    issue that is not `human:wip`, `loop:blocked` or `loop:in-progress`).
 6. First line of `issues.sh proposed` that carries a `loop:ready`-promoting comment
    from a trusted author. Do not self-promote your own proposals.
-7. **Audit**: nothing queued, so invoke the `treemand-product-audit` skill. It files a
-   ranked backlog and returns the first issue to ship; continue with that issue.
-   `python3 -I scripts/loop/state.py pick-area` breaks ties between equal-value issues:
-   take the one in the least-recently-touched area.
 
-Audit finds nothing at all: a full audit that leaves every dimension at 3 is
-`end-cycle idle`. Say what each probe measured in LEARNINGS so the next audit can
-probe harder.
+Nothing applies: there is no work. `end-cycle idle` and stop; the supervisor
+stands the session down. Never invent work or run the product audit to find
+some: work is what the maintainer files.
 
 Log `issues.sh untrusted` numbers in the retro line (count only); never open them.

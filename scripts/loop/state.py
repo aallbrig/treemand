@@ -6,13 +6,12 @@ Commands (all print to stdout; exit codes are documented per command):
   budget                   exit 0 if under daily caps, 10 if a cap is hit (reason on stdout)
   breaker                  exit 0 if closed, 11 if open (reason on stdout)
   begin-cycle              start a cycle (increments counters), prints the cycle number
-  end-cycle OUTCOME        released | idle | parked | failed
+  end-cycle OUTCOME        released | idle | parked | failed | stopped; writes .loop/cycle-done
   pick-area                print the least-recently-touched focus area
   touch-area AREA          record that AREA was worked this cycle
   escalation               exit 0 and print reason if a phone escalation is due, else exit 1
   mark-escalated           record that the escalation was sent
   request-escalation MSG   flag an escalation (e.g. revert failed)
-  sleep-seconds            seconds to sleep before the next cycle, given the last outcome
 """
 
 import json
@@ -27,6 +26,8 @@ type State = dict[str, Any]
 ROOT = Path(__file__).resolve().parents[2]
 LOOP_DIR = ROOT / ".loop"
 STATE = LOOP_DIR / "state.json"
+# The supervisor (scripts/loop/supervisor.sh) waits for this marker to start the next cycle.
+CYCLE_DONE = LOOP_DIR / "cycle-done"
 
 AREAS = [
     "tui-cli-ux",
@@ -153,8 +154,8 @@ def cmd_begin(state: State) -> int:
 
 
 def cmd_end(state: State, outcome: str) -> int:
-    if outcome not in {"released", "idle", "parked", "failed"}:
-        print("outcome must be released|idle|parked|failed", file=sys.stderr)
+    if outcome not in {"released", "idle", "parked", "failed", "stopped"}:
+        print("outcome must be released|idle|parked|failed|stopped", file=sys.stderr)
         return 2
     state["last_outcome"] = outcome
     if outcome == "failed":
@@ -165,8 +166,9 @@ def cmd_end(state: State, outcome: str) -> int:
         state["pending_escalation"] = ""
         day(state)["releases"] += 1
         state["last_release"] = now()
-    # idle/parked neither help nor hurt the streak: nothing shipped, nothing broke.
+    # idle/parked/stopped neither help nor hurt the streak: nothing shipped, nothing broke.
     save(state)
+    CYCLE_DONE.write_text(f"{outcome} {now()}\n")
     return 0
 
 
@@ -211,15 +213,6 @@ def cmd_request(state: State, msg: str) -> int:
     return 0
 
 
-def cmd_sleep(state: State) -> int:
-    idle = cfg_int("LOOP_IDLE_SLEEP_SECONDS")
-    if breaker_open(state) or budget_hit(state) or state["last_outcome"] == "idle":
-        print(idle)
-    else:
-        print(cfg_int("LOOP_COOLDOWN_SECONDS"))
-    return 0
-
-
 def main(argv: list[str]) -> int:
     if not argv[1:]:
         print(__doc__)
@@ -234,7 +227,6 @@ def main(argv: list[str]) -> int:
         "pick-area": cmd_pick,
         "escalation": cmd_escalation,
         "mark-escalated": cmd_mark_escalated,
-        "sleep-seconds": cmd_sleep,
     }
     if cmd in simple:
         # `budget`/`breaker` may touch days{} via day(); persist only via explicit saves.

@@ -106,17 +106,31 @@ www/treemand/       Hugo documentation site
 task dev            # tmuxinator session treemand_dev (attaches if running)
 task dev:recycle    # kill and restart the session
 task dev:bootstrap  # host readiness report: tools task ci needs, with install hints
-task loop:start     # start the autonomous dev loop: adds an agent pane to the loops window
-task loop:stop      # stop it at the next phase boundary (-- --now kills it immediately); the pane closes
-task loop:status    # state, daily caps, failure streak
+task loop:start     # enable and start the autonomous dev loop: adds an agent pane to the loops window
+task loop:stop      # disable it; the cycle in flight ends, then the pane closes (-- --now kills it immediately)
+task loop:resume    # start the loop only if it is enabled (the loops window runs this when the session starts)
+task loop:status    # enabled?, supervisor, last work check, daily caps, failure streak
 task visual:check   # TUI + site screenshots into .loop/shots/
 ```
 
 The session's windows are `bootstrap` (readiness report, then opens the local and
 production sites; set `TREEMAND_NO_BROWSER=1` to skip the browser), `dev` (shell and
 TUI), `watch` (fmt, test and lint on change), `site` (`task site:dev`), `prod` and
-`loops` (a dev shell showing `task loop:status`). The loop's agent pane exists only
-while the loop runs.
+`loops` (a dev shell that runs `task loop:resume` and `task loop:status`). The
+loop's agent pane exists only while the loop runs.
+
+The loop runs from its own worktree beside your checkout (`../treemand.loop`,
+detached at `origin/main` and fast-forwarded every cycle), so it never touches
+your checkout; its state is in that worktree's `.loop/`. `loop:start` writes
+`.loop/ENABLED` there and `loop:stop` removes it, so an enabled loop comes back
+after a reboot. The agent pane runs `scripts/loop/supervisor.sh`, a token-free
+POSIX `sh` loop: when `scripts/loop/work.sh` finds work it starts one interactive
+Remote Control session ("treemand.dev dev loop") in the pane, and after each
+cycle (`state.py end-cycle` writes `.loop/cycle-done`) it types `/clear` and
+`/treemand-loop` while work remains. After `LOOP_IDLE_EXIT_MINUTES` without work
+it types `/exit` (stands down) and keeps polling every `LOOP_POLL_SECONDS`. On
+start it recovers from a crash: a claimed issue with a clean worktree is resumed,
+anything else goes back to `loop:ready`.
 
 The loop is the `treemand-loop` skill (`.claude/skills/treemand-loop/`). One cycle
 ships one issue as one release. File issues labelled `loop:ready` to feed it, or

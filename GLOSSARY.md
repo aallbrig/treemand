@@ -37,6 +37,10 @@ measurements.
 
 **Loop host**: the one dev host running the dev loop at a given time.
 
+**Loop home**: the git worktree the loop runs from, beside the main checkout
+(`treemand.loop`), detached at `origin/main`. It holds the loop's state
+(`.loop/`) and its per-issue worktrees; a developer's checkout is never used.
+
 **Cycle**: one pass of the dev loop that takes one piece of work from selected to
 shipped (or parked), in one fresh agent session.
 

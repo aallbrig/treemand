@@ -15,8 +15,9 @@ if ! why="$(state breaker)"; then echo "HALT:$why"; exit 0; fi
 if ! why="$(state budget)"; then echo "HALT:$why"; exit 0; fi
 
 git fetch origin main --tags --quiet || { echo "HALT:cannot reach origin"; exit 0; }
-# Keep the checkout the skills are read from in step with main (clean, on main only).
-if [ "$(git branch --show-current)" = main ] && git diff --quiet && git diff --cached --quiet; then
+# Keep the loop's home worktree (detached at origin/main, see loopctl.sh) in step
+# with main. A checkout on a branch, such as a developer's, is never moved.
+if ! git symbolic-ref -q HEAD >/dev/null && git diff --quiet && git diff --cached --quiet; then
   git merge --ff-only origin/main --quiet 2>/dev/null || true
 fi
 conclusion="$(gh run list --branch main --workflow ci.yml --limit 1 --json conclusion --jq '.[0].conclusion // "pending"' 2>/dev/null || echo unknown)"

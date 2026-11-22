@@ -26,7 +26,8 @@ The maintainer is not a bottleneck. Climb only as far as needed.
 
 Check at the end of each cycle: `python3 -I scripts/loop/state.py escalation`
 (exit 0 = due). Never notify for parked issues, reverted releases that recovered,
-or idle audits.
+or idle cycles.
 
-When the breaker is open (`HALT:`), do no work; sleep and let the next cycle
-retry once (a success closes it).
+When the breaker is open (`HALT:`), do no work: `end-cycle idle` and stop. The
+supervisor's work check sees the same verdict and launches nothing while the
+breaker stays open.

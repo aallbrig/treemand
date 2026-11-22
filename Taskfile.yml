@@ -283,29 +283,34 @@ tasks:
   # ── dev loop ─────────────────────────────────────────────────────────────
 
   loop:start:
-    desc: Start the autonomous dev loop (creates the session and the loops agent pane if needed); runs until loop:stop
+    desc: Enable and start the autonomous dev loop (creates the home worktree, the session and the loops agent pane if needed); runs until loop:stop
     cmds:
-      - bash scripts/loop/loopctl.sh start
+      - sh scripts/loop/loopctl.sh start
 
   loop:stop:
-    desc: "Stop the dev loop at its next phase boundary (add -- --now to kill the agent immediately)"
+    desc: "Disable the dev loop; the cycle in flight ends at its next phase boundary (add -- --now to kill the agent immediately)"
     cmds:
-      - bash scripts/loop/loopctl.sh stop {{.CLI_ARGS}}
+      - sh scripts/loop/loopctl.sh stop {{.CLI_ARGS}}
+
+  loop:resume:
+    desc: Start the loop's supervisor only if the loop is enabled (run by the loops window when the session starts)
+    cmds:
+      - sh scripts/loop/loopctl.sh resume
 
   loop:status:
     desc: Show loop state, caps, failure streak and whether the supervisor runs
     cmds:
-      - bash scripts/loop/loopctl.sh status
+      - sh scripts/loop/loopctl.sh status
 
   loop:attach:
     desc: Attach to the loops window of the dev session
     cmds:
-      - bash scripts/loop/loopctl.sh attach
+      - sh scripts/loop/loopctl.sh attach
 
   loop:agent:
-    desc: Run the supervised Remote Control loop agent (run by the agent pane that loop:start creates)
+    desc: Run the loop supervisor and its Remote Control session (run by the agent pane that loop:start creates)
     cmds:
-      - bash scripts/loop/supervisor.sh
+      - sh scripts/loop/supervisor.sh
 
   loop:labels:
     desc: Create the GitHub labels the loop uses (idempotent)
@@ -404,9 +409,10 @@ tasks:
       - python3 -I scripts/loop/perf.py show
 
   loop:test-session:
-    desc: Exercise the dev session and loop control on an isolated tmux server with a stub agent
+    desc: Exercise the dev session, loop control and the supervisor on isolated tmux servers with fake gh and claude
     cmds:
-      - bash scripts/loop/session_test.sh
+      - sh scripts/loop/session_test.sh
+      - sh scripts/loop/supervisor_test.sh
 
   doctor:
     desc: Show what else is running on this machine before touching real infrastructure
@@ -414,7 +420,7 @@ tasks:
       - tmux ls 2>/dev/null || echo "no tmux sessions"
       - (lsof -nP -iTCP -sTCP:LISTEN 2>/dev/null || ss -ltnp 2>/dev/null) | grep -E ':(1313|18080)\b' || echo "dev ports free"
       - git worktree list
-      - bash scripts/loop/loopctl.sh status
+      - sh scripts/loop/loopctl.sh status
 
   # ── composite gates ──────────────────────────────────────────────────────
 

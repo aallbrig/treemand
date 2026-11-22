@@ -9,6 +9,8 @@
 #   untrusted   count of open issues by other authors (numbers only, for the retro log)
 #   claim N     assign N to this gh user and label it loop:in-progress, then re-read it:
 #               exit 4 (and undo) if anyone else holds it, so two sessions never work one issue
+#   in-progress open loop:in-progress issues assigned to this gh user (numbers, one per line)
+#   unclaim N   undo a claim: drop loop:in-progress and the assignee, put it back to loop:ready
 set -euo pipefail
 # shellcheck source=scripts/loop/lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -53,5 +55,15 @@ case "${1:-}" in
     fi
     echo "claimed #$n"
     ;;
-  *) echo "usage: $0 {ready|proposed|view N|untrusted|claim N}" >&2; exit 2 ;;
+  in-progress)
+    gh issue list --state open --label loop:in-progress --assignee @me --limit 100 \
+      --json number --jq '.[].number'
+    ;;
+  unclaim)
+    n="${2:?usage: issues.sh unclaim N}"
+    me="$(gh api user --jq .login)"
+    gh issue edit "$n" --remove-label loop:in-progress --remove-assignee "$me" --add-label loop:ready >/dev/null
+    echo "unclaimed #$n"
+    ;;
+  *) echo "usage: $0 {ready|proposed|view N|untrusted|claim N|in-progress|unclaim N}" >&2; exit 2 ;;
 esac
