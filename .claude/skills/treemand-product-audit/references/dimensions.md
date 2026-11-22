@@ -38,7 +38,8 @@ Measured: `task measure -- site-health`, local and with `SITE_BASE=https://treem
 ## 6. Distribution from the site
 Probe: the Installation page and the README. For each channel (go install, Homebrew, Scoop,
 winget, Chocolatey, AUR, Snap, deb/rpm, Docker image, one-line install script) check it is
-documented, copy-pastable, and current against `gh release list`. Test what this machine can.
+documented, copy-pastable, and current against `gh release list`. Test what this machine can:
+`task install:experience` runs every documented path here and in Linux containers (treemand-install-experience).
 3 = every mainstream channel works and matches the latest release, the site detects the
 visitor's OS and shows the right command first, binaries are checksummed and signed.
 
