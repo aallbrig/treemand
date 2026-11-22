@@ -174,8 +174,9 @@ tasks:
   release:test:
     desc: Test the release planner (which merged PRs ask for which release) and lint the release scripts as POSIX sh
     cmds:
-      - shellcheck --shell=sh scripts/release/plan.sh scripts/release/plan_test.sh scripts/release/dispatch.sh scripts/release/wait.sh
+      - shellcheck --shell=sh -x scripts/release/lib.sh scripts/release/plan.sh scripts/release/plan_test.sh scripts/release/lib_test.sh scripts/release/dispatch.sh scripts/release/wait.sh
       - sh scripts/release/plan_test.sh
+      - sh scripts/release/lib_test.sh
 
   gates:test:
     desc: Prove the account-identifier and Project-tag gates fire on fixtures
