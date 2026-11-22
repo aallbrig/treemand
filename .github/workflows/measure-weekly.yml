@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  actions: read # release-health reads the Auto Release and package-publish runs
 
 jobs:
   measure:
@@ -38,6 +39,14 @@ jobs:
           for p in complexity parser tui tui-layout tui-keymap tui-contrast; do
             python3 -I scripts/metrics/measure.py "$p" --findings >"$p.json"
           done
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: v3.1.4
+      - name: release-health
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -I scripts/metrics/measure.py release-health --findings >release-health.json
       - uses: actions/upload-artifact@v4
         with:
           name: measurements

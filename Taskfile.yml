@@ -408,6 +408,16 @@ tasks:
     cmds:
       - go test -count=1 -v ./cli/treemand/e2e
 
+  release:health:
+    desc: "Judge the last 10 releases and the latest tag's channels from the GitHub API and public URLs (lead time, assets, checksums, cosign bundle, Homebrew tap, treemand.dev mirror, package publish, Auto Release failure rate): task release:health [-- --record]"
+    cmds:
+      - python3 -I scripts/metrics/measure.py release-health {{.CLI_ARGS}}
+
+  release:health:test:
+    desc: Test the release-health probe offline against fixture releases, a fixed clock and a stand-in cosign
+    cmds:
+      - dash scripts/metrics/release_health_test.sh
+
   install:experience:
     desc: "Run every documented install path (one-liner, upgrade, reinstall, uninstall, go; brew with PROBE_BREW=1) on this host and in Linux containers against the real latest release: task install:experience -- [--record]"
     cmds:
@@ -544,6 +554,7 @@ tasks:
       - task: site:design:test
       - task: install:test
       - task: install:probe:test
+      - task: release:health:test
       - task: corpus:test
       - task: coverage:check
       - task: chaos
