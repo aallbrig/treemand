@@ -135,6 +135,9 @@ task loop:stop      # disable it; the cycle in flight ends, then the pane closes
 task loop:resume    # start the loop only if it is enabled (the loops window runs this when the session starts)
 task loop:status    # enabled?, supervisor, last work check, daily caps, failure streak
 task visual:check   # TUI + site screenshots into .loop/shots/
+task autostart:install    # optional: start the session at login (launchd or systemd --user)
+task autostart:status     # installed? loaded?
+task autostart:uninstall  # remove it and every file it wrote
 ```
 
 The session's windows are `bootstrap` (readiness report, then opens the local and
@@ -155,6 +158,18 @@ cycle (`state.py end-cycle` writes `.loop/cycle-done`) it types `/clear` and
 it types `/exit` (stands down) and keeps polling every `LOOP_POLL_SECONDS`. On
 start it recovers from a crash: a claimed issue with a clean worktree is resumed,
 anything else goes back to `loop:ready`.
+
+Autostart is optional. `task autostart:install` writes a LaunchAgent
+(`~/Library/LaunchAgents/dev.treemand.session.plist`, log in
+`~/Library/Logs/treemand-session.log`) on macOS, or a `systemd --user` unit
+(`~/.config/systemd/user/treemand-session.service`) on Linux; a copy of the
+generated file is kept in `.loop/autostart/`. At login it runs
+`scripts/dev_session.sh start` from the checkout you installed from. That only
+creates the detached tmux session (a no-op if it is already running), so it does
+not need the network or the login keychain. The loops window then runs
+`task loop:resume`, so the loop comes back only if `loop:stop` was not the last
+command. The file holds the repo path and a PATH, never credentials. Install
+copies `TREEMAND_SESSION` and `TREEMAND_NO_BROWSER` into it when they are set.
 
 The loop is the `treemand-loop` skill (`.claude/skills/treemand-loop/`). One cycle
 ships one issue as one release. File issues labelled `loop:ready` to feed it, or

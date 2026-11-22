@@ -248,22 +248,22 @@ tasks:
   dev:
     desc: Start the treemand_dev tmuxinator session, or attach if it is already running
     cmds:
-      - bash scripts/dev_session.sh up
+      - sh scripts/dev_session.sh up
 
   dev:attach:
     desc: Re-attach to the running dev session without restarting it
     cmds:
-      - bash scripts/dev_session.sh attach
+      - sh scripts/dev_session.sh attach
 
   dev:recycle:
     desc: Kill and restart the dev session (works from outside tmux)
     cmds:
-      - bash scripts/dev_session.sh recycle
+      - sh scripts/dev_session.sh recycle
 
   dev:stop:
     desc: Stop the dev session and everything running in it
     cmds:
-      - bash scripts/dev_session.sh stop
+      - sh scripts/dev_session.sh stop
 
   dev:check:
     desc: Validate the tmuxinator config without starting anything
@@ -276,11 +276,27 @@ tasks:
       - sh scripts/dev/bootstrap.sh
 
   dev:test:
-    desc: Behaviour tests for the dev-host scripts (bootstrap report, setup with stubbed installers, git hook chain)
+    desc: Behaviour tests for the dev-host scripts (bootstrap report, setup with stubbed installers, git hook chain, autostart units)
     cmds:
       - sh scripts/dev/bootstrap_test.sh
       - sh scripts/dev/setup_test.sh
       - sh scripts/dev/hooks_test.sh
+      - sh scripts/dev/autostart_test.sh
+
+  autostart:install:
+    desc: Start the dev session at login (launchd LaunchAgent on macOS, systemd --user unit on Linux); the loop resumes only if enabled
+    cmds:
+      - sh scripts/dev/autostart.sh install
+
+  autostart:uninstall:
+    desc: Stop starting the dev session at login and remove every file autostart:install wrote
+    cmds:
+      - sh scripts/dev/autostart.sh uninstall
+
+  autostart:status:
+    desc: Show whether login autostart is installed and loaded
+    cmds:
+      - sh scripts/dev/autostart.sh status
 
   # ── dev loop ─────────────────────────────────────────────────────────────
 
