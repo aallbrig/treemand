@@ -90,20 +90,11 @@ func (h *HelpDiscoverer) discoverWithHelp(ctx context.Context, cliName string, a
 	atRoot := depth == 0 && len(args) == 0
 	helpText, err := knownHelp, error(nil)
 	if helpText == "" {
-		helpText, err = h.runHelp(ctx, cliName, args)
+		helpText, err = h.fetchHelp(ctx, cliName, args, atRoot)
 	}
-	if atRoot && errors.Is(err, ErrHelpTimedOut) && ctx.Err() == nil {
-		// A loaded host can push the root past one command's budget (kubectl
-		// on a CI runner, #229): ask once more with a longer one.
-		helpText, err = h.runHelp(withRootRetryBudget(ctx), cliName, args)
-	}
-	if atRoot && err != nil && (errors.Is(err, ErrHelpTimedOut) || ctx.Err() != nil) {
-		// Without the root's help there is no tree: a bare root would pass
-		// for a CLI with no commands.
-		if errors.Is(err, context.DeadlineExceeded) {
-			err = ErrHelpTimedOut
-		}
-		return nil, fmt.Errorf("help for %s %w", cliName, err)
+	var noTree *noRootHelpError
+	if errors.As(err, &noTree) {
+		return nil, err
 	}
 	if err != nil || helpText == "" {
 		node.DiscoveryErr = fmt.Sprintf("could not get help: %v", err)
@@ -144,6 +135,35 @@ func (h *HelpDiscoverer) discoverWithHelp(ctx context.Context, cliName string, a
 	walk := childWalk{cliName: cliName, args: args, fullPath: fullPath, depth: depth, parentHelp: helpText}
 	node.Children = h.discoverChildren(ctx, walk, parsed)
 	return node, nil
+}
+
+// noRootHelpError reports that the root never answered with help in time.
+// Without the root's help there is no tree: a bare root would pass for a CLI
+// with no commands (#229).
+type noRootHelpError struct{ err error }
+
+func (e *noRootHelpError) Error() string { return e.err.Error() }
+func (e *noRootHelpError) Unwrap() error { return e.err }
+
+// fetchHelp runs the help for one node. A root whose help timed out is asked
+// once more with a longer budget, since a loaded host can push it past one
+// command's (kubectl on a CI runner); if it still does not answer, the error
+// is a *noRootHelpError.
+func (h *HelpDiscoverer) fetchHelp(ctx context.Context, cliName string, args []string, atRoot bool) (string, error) {
+	text, err := h.runHelp(ctx, cliName, args)
+	if !atRoot {
+		return text, err
+	}
+	if errors.Is(err, ErrHelpTimedOut) && ctx.Err() == nil {
+		text, err = h.runHelp(withRootRetryBudget(ctx), cliName, args)
+	}
+	if err == nil || (!errors.Is(err, ErrHelpTimedOut) && ctx.Err() == nil) {
+		return text, err
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		err = ErrHelpTimedOut
+	}
+	return "", &noRootHelpError{fmt.Errorf("help for %s %w", cliName, err)}
 }
 
 // cleoListFallback handles cleo apps (poetry, #166): their --help is the help
