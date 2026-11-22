@@ -231,8 +231,7 @@ tasks:
   release:snapshot:
     desc: Dry-run the release with GoReleaser (no signing, nothing published) and check the asset contract; needs goreleaser and syft on PATH
     cmds:
-      - cd cli/treemand && goreleaser release --snapshot --clean --skip=sign
-      - sh scripts/release/snapshot_test.sh cli/treemand/dist
+      - sh scripts/release/snapshot.sh
 
   gates:test:
     desc: Prove the account-identifier and Project-tag gates fire on fixtures

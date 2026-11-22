@@ -5,7 +5,7 @@
 #
 #   sh scripts/release/snapshot_test.sh [dist-dir]   (default: cli/treemand/dist)
 #
-# task release:snapshot builds the dist and runs this.
+# task release:snapshot (scripts/release/snapshot.sh) builds the dist and runs this.
 set -eu
 dist="${1:-cli/treemand/dist}"
 fails=0
