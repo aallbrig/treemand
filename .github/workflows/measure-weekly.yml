@@ -27,6 +27,12 @@ jobs:
           cache-dependency-path: cli/treemand/go.sum
       - name: zoo (sweep + smoke)
         run: python3 -I scripts/metrics/measure.py zoo --findings | tee zoo.json
+      - name: dependency-health
+        # setup-go above installs go.mod's toolchain, so govulncheck judges the
+        # standard library treemand is built with.
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          PATH="$(go env GOPATH)/bin:$PATH" python3 -I scripts/metrics/measure.py dependency-health --findings >dependency-health.json
       - name: complexity, parser, tui, tui-layout, tui-keymap
         run: |
           for p in complexity parser tui tui-layout tui-keymap; do

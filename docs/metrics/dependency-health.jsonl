@@ -1,0 +1,1 @@
+{"date": "2026-11-22T07:19:23Z", "host": "macos-arm64", "load": 0.93, "metrics": {"go_modules_behind": 4, "go_modules_stale": 2, "go_toolchain_behind": 1, "tools_behind": 3, "vulns_imported_unreachable": 0, "vulns_reachable": 0}, "sha": "71ce54f", "version": "v0.9.0-10-g71ce54f"}

@@ -81,6 +81,7 @@ Add a new hostile case to `chaos.sh` for every failure mode you can imagine that
 
 ## 13. Security and supply chain
 Measured: `task measure -- infra-security`, live with `PROBE_LIVE=1` (treemand-infra-security).
+Measured: `task measure -- dependency-health` (treemand-dependency-health): vulns, outdated and stale modules, toolchain, pinned tools.
 Probe: `task vuln`, gitleaks, workflow permissions, pinned action versions, provenance/SBOM,
 dependency freshness.
 3 = least-privilege workflows, pinned actions, signed and attested releases, zero known vulns.

@@ -58,6 +58,14 @@
     "live_cf_tls_below_policy":            {"budget": {"max": 0}, "ratchet": "lower"},
     "live_cf_without_headers_policy":      {"budget": {"max": 0}, "ratchet": "lower"}
   },
+  "dependency-health": {
+    "vulns_reachable":            {"budget": {"max": 0}, "ratchet": "lower"},
+    "vulns_imported_unreachable": {"ratchet": "lower"},
+    "go_modules_behind":          {"ratchet": "lower"},
+    "go_modules_stale":           {"ratchet": "lower"},
+    "go_toolchain_behind":        {"budget": {"max": 0}, "ratchet": "lower"},
+    "tools_behind":               {"ratchet": "lower"}
+  },
   "parser": {
     "truth_pass_pct":    {"budget": {"min": 100}, "ratchet": "higher"},
     "unexpected_misses": {"budget": {"max": 0},   "ratchet": "lower"},
