@@ -502,9 +502,10 @@ tasks:
         if [ -n "$files" ]; then echo "needs gofmt (run: task fmt, then re-stage):"; echo "$files"; exit 1; fi
 
   docs:check:
-    desc: Every `task X` named in docs, scripts, CI or the loop skill must exist in this Taskfile
+    desc: Every `task X` named in docs, scripts, CI or the loop skill must exist in this Taskfile; community-health files present and consistent
     cmds:
       - bash scripts/check_task_refs.sh
+      - bash scripts/community_check.sh
 
   site:audit:
     desc: Build and serve the site, then check every page at desktop and mobile sizes (SEO tags, accessibility, contrast, layout shift, console errors); needs hugo, node and Chrome

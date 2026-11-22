@@ -1,0 +1,17 @@
+# Categories for the notes GitHub generates on each release
+# (release.yml workflow: generate_release_notes). Merged PRs are sorted by
+# the release label the Auto Release workflow reads.
+changelog:
+  categories:
+    - title: New features
+      labels:
+        - release:minor
+    - title: Fixes and polish
+      labels:
+        - release:patch
+    - title: Dependencies
+      labels:
+        - dependencies
+    - title: Other changes
+      labels:
+        - "*"
