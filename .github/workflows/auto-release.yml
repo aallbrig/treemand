@@ -17,19 +17,21 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write # push the tag and the changelog entry, edit the release notes
-  actions: write # start the Release workflow
+  contents: read
 
 jobs:
   release:
     name: Tag, release and verify
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the tag and the changelog entry, edit the release notes
+      actions: write # start the Release workflow
     timeout-minutes: 60
     env:
       GH_TOKEN: ${{ github.token }}
       REPO: ${{ github.repository }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: main
           fetch-depth: 0

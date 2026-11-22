@@ -40,6 +40,25 @@ sudo apk add --allow-untrusted ./treemand_linux_amd64.apk
 
 On arm64, replace `amd64` with `arm64`. Each archive also has a software bill of materials (SPDX JSON) next to it on the release page, named after the archive with `.sbom.json` added.
 
+## Verify a download by hand
+
+Releases after v0.10.1 carry a [build provenance attestation](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations) for every archive and package: a signed statement that this repository's release workflow built that exact file. With the [GitHub CLI](https://cli.github.com/), check any file you downloaded from the release page:
+
+```bash
+gh attestation verify treemand_linux_amd64.tar.gz --repo aallbrig/treemand
+```
+
+To check the signed checksum list itself, as the install script does, use [cosign](https://docs.sigstore.dev/cosign/system_config/installation/) (replace `vX.Y.Z` with the release):
+
+```bash
+cosign verify-blob \
+  --bundle checksums.txt.sigstore.json \
+  --certificate-identity "https://github.com/aallbrig/treemand/.github/workflows/release.yml@refs/tags/vX.Y.Z" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  checksums.txt
+sha256sum --check --ignore-missing checksums.txt
+```
+
 ## Build from source
 
 Requires Go 1.26+. (`go install …@latest` doesn't work yet: the Go module lives in `cli/treemand/`, so there is no remote install path. Build from a checkout instead.)
