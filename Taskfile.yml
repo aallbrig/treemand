@@ -534,9 +534,10 @@ tasks:
       - sh scripts/check_shell.sh
 
   shell:test:
-    desc: Tests for the shell tooling under dash (shell-portability probe, coverage floor check, ship.sh)
+    desc: Tests for the shell tooling under dash (shell-portability and cli-ux probes, coverage floor check, ship.sh)
     cmds:
       - dash scripts/shell_portability_test.sh
+      - dash scripts/metrics/cli_ux_test.sh
       - dash scripts/check_coverage_test.sh
       - dash scripts/ship_test.sh
 
