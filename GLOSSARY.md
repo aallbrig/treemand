@@ -31,11 +31,12 @@ host lacks, so treemand can run them without touching a developer's machine.
 
 ## Hosts and the loop
 
-**Dev host**: a machine a developer works on treemand from (the MacBook, the
-ThinkPad). Each has its own installed target CLIs and its own host-bound
-measurements.
+**Dev host**: any machine a developer works on treemand from, on macOS, Linux
+or Windows. No dev host is primary. Each has its own installed target CLIs and
+its own host-bound measurements.
 
-**Loop host**: the one dev host running the dev loop at a given time.
+**Loop host**: whichever dev host is running the dev loop at a given time; only
+one at a time.
 
 **Loop home**: the git worktree the loop runs from, beside the main checkout
 (`treemand.loop`), detached at `origin/main`. It holds the loop's state
