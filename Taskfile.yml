@@ -111,6 +111,17 @@ tasks:
       - shellcheck --shell=sh scripts/metrics/dependency_health_test.sh scripts/metrics/probes/dependency-health.sh
       - sh scripts/metrics/dependency_health_test.sh
 
+  test:effectiveness:
+    desc: "Test effectiveness through the measurement engine: mutation score of the core packages, coverage per package, flaky tests; about ten minutes (skill treemand-test-effectiveness)"
+    cmds:
+      - python3 -I scripts/metrics/measure.py test-effectiveness {{.CLI_ARGS}}
+
+  test:effectiveness:test:
+    desc: Test the test-effectiveness probe on a fixture Go module with a fake gremlins
+    cmds:
+      - shellcheck --shell=sh scripts/metrics/test_effectiveness_test.sh scripts/metrics/probes/test-effectiveness.sh
+      - sh scripts/metrics/test_effectiveness_test.sh
+
   infra:bootstrap:
     desc: Deploy the bootstrap stack (admin credentials) and wire the GitHub production environment
     cmds:
@@ -545,6 +556,7 @@ tasks:
       - task: infra:security:test
       - task: infra:security
       - task: deps:health:test
+      - task: test:effectiveness:test
       - task: py:lint
       - task: py:types
       - task: gates:test

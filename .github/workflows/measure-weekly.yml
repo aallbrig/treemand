@@ -17,7 +17,7 @@ jobs:
   measure:
     name: Heavy probes
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,6 +34,14 @@ jobs:
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
           PATH="$(go env GOPATH)/bin:$PATH" python3 -I scripts/metrics/measure.py dependency-health --findings >dependency-health.json
+      - name: test-effectiveness
+        # Mutation testing is too slow for every PR (about ten minutes). The
+        # discovery tests mostly wait on fake CLIs, so four workers fit four CPUs.
+        env:
+          TEST_EFFECTIVENESS_WORKERS: "4"
+        run: |
+          go install github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0
+          PATH="$(go env GOPATH)/bin:$PATH" python3 -I scripts/metrics/measure.py test-effectiveness --findings >test-effectiveness.json
       - name: complexity, parser, tui, tui-layout, tui-keymap, tui-contrast
         run: |
           for p in complexity parser tui tui-layout tui-keymap tui-contrast; do
