@@ -409,56 +409,72 @@ func (t *TreeModel) Left() {
 	switch row.kind {
 	case rowKindSection:
 		t.collapseSection(row)
-		return
 	case rowKindFlag, rowKindPositional:
-		for i, r := range t.rows {
-			if r.kind == rowKindCommand && r.node == row.owner && r.depth == row.ownerDepth {
-				t.cursor = i
-				t.scrollIntoView()
-				return
-			}
-		}
+		t.moveToCommandRow(row.owner, row.ownerDepth)
 	case rowKindCommand:
 		key := nodeKey(row.node, row.depth)
 		if t.nodeExpanded[key] {
 			// Collapse and stay on this node.
 			delete(t.nodeExpanded, key)
 			t.rebuild()
-			for i, r := range t.rows {
-				if r.kind == rowKindCommand && r.node == row.node && r.depth == row.depth {
-					t.cursor = i
-					break
-				}
-			}
-			t.scrollIntoView()
-		} else {
-			// Already collapsed: go to parent.
-			// Try FullPath-based lookup first (exact), then fall back to
-			// scanning backward for the nearest shallower command row.
-			if row.depth == 0 {
-				return // at root, nowhere to go
-			}
-			if len(row.node.FullPath) > 1 {
-				parentPath := row.node.FullPath[:len(row.node.FullPath)-1]
-				for i, r := range t.rows {
-					if r.kind == rowKindCommand && pathsEqual(r.node.FullPath, parentPath) {
-						t.cursor = i
-						t.scrollIntoView()
-						return
-					}
-				}
-			}
-			// Depth-based fallback: nearest command row above cursor at shallower depth.
-			for i := t.cursor - 1; i >= 0; i-- {
-				r := t.rows[i]
-				if r.kind == rowKindCommand && r.depth < row.depth {
-					t.cursor = i
-					t.scrollIntoView()
-					return
-				}
-			}
+			t.moveToCommandRow(row.node, row.depth)
+		} else if row.depth > 0 {
+			t.moveToParentRow(row)
 		}
 	}
+}
+
+// moveToCommandRow puts the cursor on node's command row at depth, if shown.
+func (t *TreeModel) moveToCommandRow(node *models.Node, depth int) {
+	for i, r := range t.rows {
+		if r.kind == rowKindCommand && r.node == node && r.depth == depth {
+			t.cursor = i
+			t.scrollIntoView()
+			return
+		}
+	}
+}
+
+// moveToParentRow puts the cursor on the parent command of a collapsed
+// command row: by FullPath first (exact), then the nearest shallower command
+// row above the cursor.
+func (t *TreeModel) moveToParentRow(row treeRow) {
+	if pos := t.commandRowByPath(parentPath(row.node)); pos >= 0 {
+		t.cursor = pos
+		t.scrollIntoView()
+		return
+	}
+	for i := t.cursor - 1; i >= 0; i-- {
+		r := t.rows[i]
+		if r.kind == rowKindCommand && r.depth < row.depth {
+			t.cursor = i
+			t.scrollIntoView()
+			return
+		}
+	}
+}
+
+// parentPath is node's FullPath without its last element, or nil when the
+// node has no parent in its path.
+func parentPath(node *models.Node) []string {
+	if len(node.FullPath) < 2 {
+		return nil
+	}
+	return node.FullPath[:len(node.FullPath)-1]
+}
+
+// commandRowByPath returns the index of the first command row whose node has
+// the given FullPath, or -1 (always -1 for a nil path).
+func (t *TreeModel) commandRowByPath(path []string) int {
+	if path == nil {
+		return -1
+	}
+	for i, r := range t.rows {
+		if r.kind == rowKindCommand && pathsEqual(r.node.FullPath, path) {
+			return i
+		}
+	}
+	return -1
 }
 
 // Expand is kept as an alias for Right for backward compatibility.
