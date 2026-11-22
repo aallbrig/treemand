@@ -42,10 +42,19 @@ windows:
         - hugo:
             - task site:dev
 
+  # Read-only production status, each pane refreshing every PROD_REFRESH_SECONDS
+  # (default 300). AWS uses AWS_PROFILE; without access it shows a hint.
   - prod:
+      layout: tiled
       panes:
-        - prod:
-            - 'echo "prod panes arrive with #253"'
+        - site:
+            - sh scripts/prod/site.sh
+        - pipelines:
+            - sh scripts/prod/pipelines.sh
+        - aws:
+            - sh scripts/prod/aws.sh
+        - downloads:
+            - sh scripts/prod/downloads.sh
 
   - loops:
       panes:

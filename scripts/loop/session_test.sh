@@ -25,6 +25,7 @@ agent_panes() { tmux list-panes -s -t "=$S" -F '#{@treemand_role}' | grep -c '^a
 sh "$root/scripts/dev_session.sh" start >/dev/null 2>&1
 check "session exists" 'tmux has-session -t "=$S"'
 check "windows bootstrap,dev,watch,site,prod,loops" '[ "$(tmux list-windows -t "=$S" -F "#{window_name}" | tr "\n" ,)" = "bootstrap,dev,watch,site,prod,loops," ]'
+check "prod window has the site, pipelines, aws and downloads panes" '[ "$(tmux list-panes -t "=$S:prod" -F "#{pane_title}" | tr "\n" ,)" = "site,pipelines,aws,downloads," ]'
 sleep 3 # let the loops shell run `task loop:resume`
 check "loops window holds only the dev shell while the loop is disabled" '[ "$(loop_panes)" = 1 ] && [ "$(agent_panes)" = 0 ]'
 check "status says disabled and not running" 'out="$(sh "$root/scripts/loop/loopctl.sh" status)"; case "$out" in *"enabled: no"*"supervisor: not running"*) true ;; *) false ;; esac'
