@@ -100,7 +100,7 @@ check "downloads total" 'grep -Eq "^total +37$" "$tmp/out"'
 # ── no AWS credentials ──────────────────────────────────────────────────────
 run aws.sh FAKE_MODE=nocreds
 check "no creds exits 0" '[ "$(rc)" = 0 ]'
-check "no creds shows the hint" 'grep -q "set AWS_PROFILE to a read-only profile" "$tmp/out" && grep -q "#254" "$tmp/out"'
+check "no creds shows the hint" 'grep -q "set AWS_PROFILE to a read-only profile" "$tmp/out" && grep -q "docs/agents/prod-readonly.md" "$tmp/out"'
 check "no creds skips the AWS calls" '! grep -q CloudFront "$tmp/out"'
 
 # ── network down: an error line, no crash ───────────────────────────────────

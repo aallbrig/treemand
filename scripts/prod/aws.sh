@@ -6,7 +6,8 @@
 # The account ID is used as an argument only and redacted from every line.
 # Permissions a read-only profile needs: sts:GetCallerIdentity,
 # cloudformation:DescribeStacks, cloudformation:DescribeStackResource,
-# cloudfront:GetDistribution, cloudfront:ListDistributions, budgets:ViewBudget.
+# cloudfront:GetDistribution, cloudfront:ListDistributions, budgets:ViewBudget;
+# infra/bootstrap.yaml grants exactly these to the treemand-prod-readonly role.
 # See scripts/prod/lib.sh for the modes.
 # shellcheck source=scripts/prod/lib.sh
 . "$(dirname "$0")/lib.sh"
@@ -64,7 +65,7 @@ budget() { # budget <account id>
 
 report() {
   if ! acct="$(aws sts get-caller-identity --query Account --output text 2>"$PROD_TMP")"; then
-    printf 'hint: no AWS access (%s); set AWS_PROFILE to a read-only profile, see #254\n' "$(prod_err "$PROD_TMP")"
+    printf 'hint: no AWS access (%s); set AWS_PROFILE to a read-only profile, see docs/agents/prod-readonly.md\n' "$(prod_err "$PROD_TMP")"
     return 0
   fi
   echo "ok   AWS access (profile ${AWS_PROFILE:-default})"
