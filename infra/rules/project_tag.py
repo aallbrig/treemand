@@ -5,16 +5,17 @@ cfn-lint (its "tagging" block), so new resource types are covered without
 maintaining an allowlist here.
 """
 
-from typing import Any
+from typing import ClassVar
 
 from cfnlint.rules import CloudFormationLintRule, RuleMatch
 from cfnlint.schema import PROVIDER_SCHEMA_MANAGER
+from cfnlint.template import Template
 
 PROJECT_KEY = "Project"
 PROJECT_VALUE = "treemand"
 
 
-def _tag_value(tags: Any) -> Any:
+def _tag_value(tags: object) -> object:
     """Return the Project tag's value from a list-of-Key/Value or map tag shape."""
     if isinstance(tags, dict):
         return tags.get(PROJECT_KEY)
@@ -25,17 +26,16 @@ def _tag_value(tags: Any) -> Any:
     return None
 
 
-class ProjectTag(CloudFormationLintRule):
+class ProjectTag(CloudFormationLintRule):  # type: ignore[misc]  # cfn-lint ships no types, so its base is Any
     id = "E9001"
     shortdesc = "Taggable resources must carry Project=treemand"
     description = (
-        "Cost Explorer attributes spend by the Project tag; a taggable "
-        "resource without it is invisible there."
+        "Cost Explorer attributes spend by the Project tag; a taggable resource without it is invisible there."
     )
     source_url = "https://github.com/aallbrig/treemand/issues/115"
-    tags = ["resources", "tags", "cost"]
+    tags: ClassVar[list[str]] = ["resources", "tags", "cost"]
 
-    def match(self, cfn: Any) -> list[RuleMatch]:
+    def match(self, cfn: Template) -> list[RuleMatch]:
         matches: list[RuleMatch] = []
         region = cfn.regions[0] if cfn.regions else "us-east-1"
         for name, resource in cfn.template.get("Resources", {}).items():
@@ -44,7 +44,7 @@ class ProjectTag(CloudFormationLintRule):
                 continue
             try:
                 schema = PROVIDER_SCHEMA_MANAGER.get_resource_schema(region, rtype).schema
-            except Exception:  # noqa: BLE001 - unknown types are E3006's job
+            except Exception:  # noqa: BLE001, S112 - unknown types are E3006's job
                 continue
             tagging = schema.get("tagging", {})
             if not tagging.get("taggable"):

@@ -118,6 +118,8 @@ jobs:
             | sudo tar -xz -C /usr/local/bin gitleaks
           pipx install cfn-lint==1.59.0
           pipx install checkov==3.2.529
+          pipx install ruff==0.17.6
+          pipx install mypy==2.4.1
 
       - uses: peaceiris/actions-hugo@v3
         with:

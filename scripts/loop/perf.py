@@ -22,16 +22,20 @@ import subprocess
 import sys
 import tempfile
 import time
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 HISTORY = ROOT / "docs/perf/history.tsv"
 TIMED = ROOT / "scripts/metrics/timed.py"
 COLS = ["date", "version", "host", "cli", "cold_s", "warm_s", "rss_mb", "nodes", "no_desc", "no_flags", "rc"]
+# timed.py's cost line: "<wall_s> <user_s> <sys_s> <maxrss_kb>".
+RSS_FIELD = 3
 CORPUS = ["git", "docker", "kubectl", "gh", "npm", "pip", "go", "helm", "apt", "systemctl", "tar", "aws"]
 
 
-def run(bin_path: str, cli: str, env: dict[str, str], cache: bool) -> tuple[int, float, float, str]:
+def run(bin_path: str, cli: str, env: dict[str, str], *, cache: bool) -> tuple[int, float, float, str]:
     cmd = [bin_path, "--output=json", "--timeout=60"]
     if not cache:
         cmd.append("--no-cache")
@@ -42,14 +46,14 @@ def run(bin_path: str, cli: str, env: dict[str, str], cache: bool) -> tuple[int,
     with tempfile.TemporaryDirectory(prefix="tm-perf-cwd-") as cwd:
         cost = Path(cwd) / ".cost"
         args = [sys.executable, "-I", str(TIMED), str(cost), cwd, "--", *cmd]
-        p = subprocess.run(args, capture_output=True, text=True, env=env, timeout=180, cwd=cwd)
+        p = subprocess.run(args, check=False, capture_output=True, text=True, env=env, timeout=180, cwd=cwd)
         fields = cost.read_text(encoding="utf-8").split() if cost.exists() else []
     secs = float(fields[0]) if fields else 0.0
-    rss_kb = float(fields[3]) if len(fields) > 3 else 0.0
+    rss_kb = float(fields[RSS_FIELD]) if len(fields) > RSS_FIELD else 0.0
     return p.returncode, secs, rss_kb / 1024, p.stdout
 
 
-def count(tree: dict) -> tuple[int, int, int]:
+def count(tree: dict[str, Any]) -> tuple[int, int, int]:
     nodes = no_desc = no_flags = 0
     stack = [tree]
     while stack:
@@ -83,9 +87,17 @@ def measure_one(bin_path: str, cli: str, version: str) -> dict[str, str]:
     finally:
         shutil.rmtree(cache_dir, ignore_errors=True)
     return {
-        "date": time.strftime("%Y-%m-%d", time.gmtime()), "version": version, "host": platform.node(), "cli": cli,
-        "cold_s": f"{cold:.2f}", "warm_s": f"{warm:.2f}", "rss_mb": f"{rss:.0f}",
-        "nodes": str(nodes), "no_desc": str(no_desc), "no_flags": str(no_flags), "rc": str(rc),
+        "date": time.strftime("%Y-%m-%d", time.gmtime()),
+        "version": version,
+        "host": platform.node(),
+        "cli": cli,
+        "cold_s": f"{cold:.2f}",
+        "warm_s": f"{warm:.2f}",
+        "rss_mb": f"{rss:.0f}",
+        "nodes": str(nodes),
+        "no_desc": str(no_desc),
+        "no_flags": str(no_flags),
+        "rc": str(rc),
     }
 
 
@@ -110,11 +122,50 @@ def load_history() -> list[dict[str, str]]:
     if not HISTORY.exists():
         return []
     lines = HISTORY.read_text().splitlines()
-    return [dict(zip(COLS, line.split("\t"))) for line in lines[1:] if line.strip()]
+    return [dict(zip(COLS, line.split("\t"), strict=False)) for line in lines[1:] if line.strip()]
 
 
 def vkey(v: str) -> tuple[int, ...]:
     return tuple(int(x) for x in re.findall(r"\d+", v)[:3]) or (0,)
+
+
+@dataclass(frozen=True)
+class Limit:
+    """A metric regresses when it is worse than the previous run by both ratio and delta."""
+
+    key: str
+    label: str
+    unit: str
+    ratio: float
+    min_delta: float
+    lower_is_worse: bool = False
+
+    def regressed(self, now: float, before: float) -> bool:
+        if self.lower_is_worse:
+            return bool(before) and now < before * self.ratio and before - now > self.min_delta
+        return now > before * self.ratio and now - before > self.min_delta
+
+
+# Quality metrics (nodes and below) are deterministic (a fixed CLI gives the same tree
+# every run), so they get tight thresholds; timing and memory depend on machine state.
+LIMITS = (
+    Limit("cold_s", "cold", "s", 1.3, 1.0),
+    Limit("warm_s", "warm", "s", 1.5, 0.1),
+    Limit("rss_mb", "memory", "MB", 1.3, 20),
+    Limit("nodes", "nodes", "", 0.95, 3, lower_is_worse=True),
+    Limit("no_desc", "no_desc", "", 1.10, 3),
+    Limit("no_flags", "no_flags", "", 1.10, 3),
+)
+
+
+def regressions(r: dict[str, str], p: dict[str, str], prev_ver: str) -> list[str]:
+    if r["rc"] != "0" and p["rc"] == "0":
+        return [f"{r['cli']}: now fails rc={r['rc']} (was ok in {prev_ver})"]
+    return [
+        f"{r['cli']}: {lim.label} {p[lim.key]}{lim.unit} -> {r[lim.key]}{lim.unit} vs {prev_ver}"
+        for lim in LIMITS
+        if lim.regressed(float(r[lim.key]), float(p[lim.key]))
+    ]
 
 
 def compare(rows: list[dict[str, str]]) -> list[str]:
@@ -123,28 +174,11 @@ def compare(rows: list[dict[str, str]]) -> list[str]:
         return []
     prev_ver = max((h["version"] for h in hist), key=vkey)
     prev = {h["cli"]: h for h in hist if h["version"] == prev_ver}
-    bad = []
+    bad: list[str] = []
     for r in rows:
         p = prev.get(r["cli"])
-        if not p:
-            continue
-        f = lambda d, k: float(d[k])  # noqa: E731
-        if r["rc"] != "0" and p["rc"] == "0":
-            bad.append(f"{r['cli']}: now fails rc={r['rc']} (was ok in {prev_ver})")
-            continue
-        if f(r, "cold_s") > f(p, "cold_s") * 1.3 and f(r, "cold_s") - f(p, "cold_s") > 1.0:
-            bad.append(f"{r['cli']}: cold {p['cold_s']}s -> {r['cold_s']}s vs {prev_ver}")
-        if f(r, "warm_s") > f(p, "warm_s") * 1.5 and f(r, "warm_s") - f(p, "warm_s") > 0.1:
-            bad.append(f"{r['cli']}: warm {p['warm_s']}s -> {r['warm_s']}s vs {prev_ver}")
-        if f(r, "rss_mb") > f(p, "rss_mb") * 1.3 and f(r, "rss_mb") - f(p, "rss_mb") > 20:
-            bad.append(f"{r['cli']}: memory {p['rss_mb']}MB -> {r['rss_mb']}MB vs {prev_ver}")
-        # Quality metrics are deterministic (a fixed CLI gives the same tree every run),
-        # so they get tight thresholds; timing and memory above depend on machine state.
-        if f(p, "nodes") and f(r, "nodes") < f(p, "nodes") * 0.95 and f(p, "nodes") - f(r, "nodes") > 3:
-            bad.append(f"{r['cli']}: nodes {p['nodes']} -> {r['nodes']} vs {prev_ver}")
-        for k in ("no_desc", "no_flags"):
-            if f(r, k) > f(p, k) * 1.10 and f(r, k) - f(p, k) > 3:
-                bad.append(f"{r['cli']}: {k} {p[k]} -> {r[k]} vs {prev_ver}")
+        if p:
+            bad.extend(regressions(r, p, prev_ver))
     return bad
 
 
@@ -161,24 +195,58 @@ def default_bin() -> str:
 
 
 def default_version() -> str:
-    p = subprocess.run(["git", "describe", "--tags", "--abbrev=0", "--match", "v[0-9]*"], cwd=ROOT, capture_output=True, text=True)
-    sha = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    describe = ["git", "describe", "--tags", "--abbrev=0", "--match", "v[0-9]*"]
+    p = subprocess.run(describe, check=False, cwd=ROOT, capture_output=True, text=True)
+    head = ["git", "rev-parse", "--short", "HEAD"]
+    sha = subprocess.run(head, check=False, cwd=ROOT, capture_output=True, text=True).stdout.strip()
     return f"{p.stdout.strip() or 'v0.0.0'}+{sha}"
 
 
+def cmd_show() -> int:
+    hist = [h for h in load_history() if h["host"] == platform.node()]
+    for cli in sorted({h["cli"] for h in hist}):
+        print(f"== {cli}")
+        for h in sorted((x for x in hist if x["cli"] == cli), key=lambda x: vkey(x["version"])):
+            print(
+                f"  {h['version']:<16} cold {h['cold_s']:>6}s  warm {h['warm_s']:>5}s  {h['rss_mb']:>5}MB  "
+                f"nodes {h['nodes']:>4}  no_desc {h['no_desc']:>4}  no_flags {h['no_flags']:>4}  rc {h['rc']}"
+            )
+    return 0
+
+
+def cmd_record(rows: list[dict[str, str]]) -> int:
+    HISTORY.parent.mkdir(parents=True, exist_ok=True)
+    new = not HISTORY.exists()
+    with HISTORY.open("a") as fh:
+        if new:
+            fh.write("\t".join(COLS) + "\n")
+        for r in rows:
+            fh.write("\t".join(r[c] for c in COLS) + "\n")
+    emit(rows)
+    return 0
+
+
+def cmd_compare(rows: list[dict[str, str]], bin_path: str, version: str) -> int:
+    bad = compare(rows)
+    # A regression must reproduce: re-measure each flagged CLI once and keep the better run.
+    flagged = {b.split(":")[0] for b in bad}
+    if flagged:
+        rows = [best_of(r, measure_one(bin_path, r["cli"], version)) if r["cli"] in flagged else r for r in rows]
+        bad = compare(rows)
+    emit(rows)
+    for b in bad:
+        print("REGRESSION", b, file=sys.stderr)
+    return 1 if bad else 0
+
+
 def main(argv: list[str]) -> int:
-    if len(argv) < 2:
+    if not argv[1:]:
         print(__doc__)
         return 2
     cmd = argv[1]
-    opts = dict(zip(argv[2::2], argv[3::2]))
+    opts = dict(zip(argv[2::2], argv[3::2], strict=False))
     if cmd == "show":
-        hist = [h for h in load_history() if h["host"] == platform.node()]
-        for cli in sorted({h["cli"] for h in hist}):
-            print(f"== {cli}")
-            for h in sorted((x for x in hist if x["cli"] == cli), key=lambda x: vkey(x["version"])):
-                print(f"  {h['version']:<16} cold {h['cold_s']:>6}s  warm {h['warm_s']:>5}s  {h['rss_mb']:>5}MB  nodes {h['nodes']:>4}  no_desc {h['no_desc']:>4}  no_flags {h['no_flags']:>4}  rc {h['rc']}")
-        return 0
+        return cmd_show()
     bin_path = opts.get("--bin") or default_bin()
     version = opts.get("--version") or default_version()
     rows = measure(bin_path, version)
@@ -186,26 +254,9 @@ def main(argv: list[str]) -> int:
         emit(rows)
         return 0
     if cmd == "record":
-        HISTORY.parent.mkdir(parents=True, exist_ok=True)
-        new = not HISTORY.exists()
-        with HISTORY.open("a") as fh:
-            if new:
-                fh.write("\t".join(COLS) + "\n")
-            for r in rows:
-                fh.write("\t".join(r[c] for c in COLS) + "\n")
-        emit(rows)
-        return 0
+        return cmd_record(rows)
     if cmd == "compare":
-        bad = compare(rows)
-        # A regression must reproduce: re-measure each flagged CLI once and keep the better run.
-        flagged = {b.split(":")[0] for b in bad}
-        if flagged:
-            rows = [best_of(r, measure_one(bin_path, r["cli"], version)) if r["cli"] in flagged else r for r in rows]
-            bad = compare(rows)
-        emit(rows)
-        for b in bad:
-            print("REGRESSION", b, file=sys.stderr)
-        return 1 if bad else 0
+        return cmd_compare(rows, bin_path, version)
     print(__doc__)
     return 2
 

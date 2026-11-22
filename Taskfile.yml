@@ -73,6 +73,17 @@ tasks:
     cmds:
       - gitleaks git --config .gitleaks.toml --redact --no-banner --log-level warn .
 
+  py:lint:
+    desc: Lint and format-check the repo's Python (ruff, rules and file list in pyproject.toml)
+    cmds:
+      - ruff check
+      - ruff format --check
+
+  py:types:
+    desc: Type-check the repo's Python with mypy --strict (file list in pyproject.toml)
+    cmds:
+      - mypy --strict
+
   infra:lint:
     desc: cfn-lint (with the Project=treemand tag rule) and checkov over infra/*.yaml
     cmds:
@@ -402,7 +413,7 @@ tasks:
       - bash scripts/setup-hooks.sh
       - go install golang.org/x/vuln/cmd/govulncheck@latest
       - pre-commit install || true
-      - echo "also needed on PATH - golangci-lint, hugo (extended), tmux, tmuxinator, watchexec, gh, jq, shellcheck, gitleaks, cfn-lint, checkov"
+      - echo "also needed on PATH - golangci-lint, hugo (extended), tmux, tmuxinator, watchexec, gh, jq, shellcheck, gitleaks, cfn-lint, checkov, ruff, mypy"
 
   format:
     desc: Format everything
@@ -414,6 +425,8 @@ tasks:
     cmds:
       - task: secrets:history
       - task: infra:lint
+      - task: py:lint
+      - task: py:types
       - task: gates:test
       - task: release:test
       - task: measure:test

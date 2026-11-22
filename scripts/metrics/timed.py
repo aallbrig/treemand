@@ -11,11 +11,11 @@ macOS. The exit status is CMD's, so callers can ignore failures with `|| true`.
 
 from __future__ import annotations
 
-import os
 import resource
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 USAGE = "usage: timed.py OUT CWD -- CMD [ARG...]"
 # ru_maxrss is kilobytes on Linux but bytes on macOS.
@@ -30,14 +30,13 @@ def main(argv: list[str]) -> int:
     out, cwd, cmd = argv[0], argv[1], argv[3:]
     before = resource.getrusage(resource.RUSAGE_CHILDREN)
     start = time.monotonic()
-    code = subprocess.call(cmd, cwd=cwd)  # noqa: S603 - running CMD is the point
+    code = subprocess.call(cmd, cwd=cwd)
     wall = time.monotonic() - start
     after = resource.getrusage(resource.RUSAGE_CHILDREN)
     user = after.ru_utime - before.ru_utime
     system = after.ru_stime - before.ru_stime
     rss_kb = after.ru_maxrss // RSS_DIVISOR
-    with open(out, "w", encoding="utf-8") as fh:  # noqa: PTH123 - stdlib only
-        fh.write(f"{wall:.2f} {user:.2f} {system:.2f} {rss_kb}\n")
+    Path(out).write_text(f"{wall:.2f} {user:.2f} {system:.2f} {rss_kb}\n", encoding="utf-8")
     return code
 
 

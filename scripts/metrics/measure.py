@@ -30,66 +30,80 @@ scripts/metrics/rules.json, keyed by probe and then by a metric glob:
 - Host:      host_bound metrics compare against the same host; MEASURE_HOST
              names it when the hostname is not stable (CI runners).
 """
-import datetime
+
+import datetime as dt
 import fnmatch
 import json
 import os
 import platform
 import subprocess
 import sys
+from pathlib import Path
+from typing import Any, cast
 
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+# A probe result, a rule, a finding or a history record: parsed JSON objects.
+type Obj = dict[str, Any]
+# Metric name -> (value, the history record it came from).
+type Latest = dict[str, tuple[float, Obj]]
+
+ROOT = Path(__file__).resolve().parents[2]
 # Overridable so the engine can be tested in isolation (measure_test.sh).
-PROBES = os.environ.get("MEASURE_PROBES", os.path.join(ROOT, "scripts", "metrics", "probes"))
-RULES = os.environ.get("MEASURE_RULES", os.path.join(ROOT, "scripts", "metrics", "rules.json"))
-HISTORY = os.environ.get("MEASURE_HISTORY", os.path.join(ROOT, "docs", "metrics"))
+PROBES = Path(os.environ.get("MEASURE_PROBES", ROOT / "scripts" / "metrics" / "probes"))
+RULES = Path(os.environ.get("MEASURE_RULES", ROOT / "scripts" / "metrics" / "rules.json"))
+HISTORY = Path(os.environ.get("MEASURE_HISTORY", ROOT / "docs" / "metrics"))
 
 # Above this 1-minute load average per CPU, timing is measuring the machine,
 # not treemand: host-bound metrics are reported as unreliable instead of judged,
 # and records taken that busy are never used as a ratchet's baseline.
 MAX_LOAD_PER_CPU = 1.0
+# --gate's exit status when there is a regression.
+EXIT_REGRESSION = 3
 
 
-def host_name():
+def host_name() -> str:
     # MEASURE_HOST names a stable host for history recorded elsewhere (CI
     # runners get a new hostname every run).
     return os.environ.get("MEASURE_HOST") or platform.node()
 
 
-def load_per_cpu():
+def load_per_cpu() -> float:
     if "MEASURE_LOAD" in os.environ:  # tests
         return float(os.environ["MEASURE_LOAD"])
     return round(os.getloadavg()[0] / (os.cpu_count() or 1), 2)
 
 
-def git(*args):
-    p = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True)
+def git(*args: str) -> str:
+    p = subprocess.run(["git", *args], check=False, cwd=ROOT, capture_output=True, text=True)
     return p.stdout.strip()
 
 
-def run_probe(probe, input_file):
+def history_file(probe: str) -> Path:
+    return HISTORY / (probe + ".jsonl")
+
+
+def run_probe(probe: str, input_file: str | None) -> Obj:
     if input_file:
-        with open(input_file) as f:
-            return json.load(f)
-    path = os.path.join(PROBES, probe + ".sh")
-    if not os.path.exists(path):
+        with Path(input_file).open() as f:
+            return cast("Obj", json.load(f))
+    path = PROBES / (probe + ".sh")
+    if not path.exists():
         sys.exit(f"measure: no probe {probe!r} (have: {', '.join(list_probes())})")
-    p = subprocess.run(["bash", path], cwd=ROOT, stdout=subprocess.PIPE, text=True)
+    p = subprocess.run(["bash", str(path)], check=False, cwd=ROOT, stdout=subprocess.PIPE, text=True)
     if p.returncode != 0:
         sys.exit(f"measure: probe {probe} failed (exit {p.returncode})")
-    return json.loads(p.stdout)
+    return cast("Obj", json.loads(p.stdout))
 
 
-def list_probes():
-    return sorted(f[:-3] for f in os.listdir(PROBES) if f.endswith(".sh"))
+def list_probes() -> list[str]:
+    return sorted(f.name[:-3] for f in PROBES.iterdir() if f.name.endswith(".sh"))
 
 
-def load_rules(probe):
-    with open(RULES) as f:
-        return json.load(f).get(probe, {})
+def load_rules(probe: str) -> dict[str, Obj]:
+    with RULES.open() as f:
+        return cast("dict[str, Obj]", json.load(f).get(probe, {}))
 
 
-def rule_for(rules, metric):
+def rule_for(rules: dict[str, Obj], metric: str) -> Obj | None:
     # The most specific glob wins: longest pattern without wildcards counts most.
     matches = [p for p in rules if fnmatch.fnmatchcase(metric, p)]
     if not matches:
@@ -97,12 +111,14 @@ def rule_for(rules, metric):
     return rules[max(matches, key=lambda p: (len(p.replace("*", "")), len(p)))]
 
 
-def last_record(probe, host_bound_host):
-    path = os.path.join(HISTORY, probe + ".jsonl")
-    if not os.path.exists(path):
+def last_record(probe: str, host_bound_host: str) -> tuple[Latest, Latest, Latest]:
+    path = history_file(probe)
+    if not path.exists():
         return {}, {}, {}
-    any_host, same_host, same_host_calm = {}, {}, {}
-    with open(path) as f:
+    any_host: Latest = {}
+    same_host: Latest = {}
+    same_host_calm: Latest = {}
+    with path.open() as f:
         for line in f:
             if not line.strip():
                 continue
@@ -117,13 +133,40 @@ def last_record(probe, host_bound_host):
     return any_host, same_host, same_host_calm
 
 
-def evaluate(probe, result):
+def budget_findings(metric: str, value: float, budget: Obj) -> list[Obj]:
+    findings: list[Obj] = []
+    if "max" in budget and value > budget["max"]:
+        findings.append({"kind": "budget", "metric": metric, "value": value, "limit": f"<= {budget['max']}"})
+    if "min" in budget and value < budget["min"]:
+        findings.append({"kind": "budget", "metric": metric, "value": value, "limit": f">= {budget['min']}"})
+    return findings
+
+
+def ratchet_finding(metric: str, value: float, rule: Obj, prev: tuple[float, Obj]) -> Obj | None:
+    before, rec = prev
+    delta = value - before
+    lower = rule["ratchet"] == "lower"
+    worse = delta > 0 if lower else delta < 0
+    better = delta < 0 if lower else delta > 0
+    tol = rule.get("tolerance", 0.0) * abs(before)
+    min_delta = rule.get("min_delta", 0.0)
+    if not (abs(delta) > tol and abs(delta) > min_delta):
+        return None
+    since = f"{rec.get('version', '?')} ({rec.get('date', '?')})"
+    if worse:
+        return {"kind": "regression", "metric": metric, "value": value, "previous": before, "since": since}
+    if better:
+        return {"kind": "improved", "metric": metric, "value": value, "previous": before, "since": since}
+    return None
+
+
+def evaluate(probe: str, result: Obj) -> list[Obj]:
     rules = load_rules(probe)
     any_host, same_host, same_host_calm = last_record(probe, host_name())
     load = load_per_cpu()
     busy = load > MAX_LOAD_PER_CPU
-    findings = []
-    unreliable = []
+    findings: list[Obj] = []
+    unreliable: list[str] = []
     for metric, value in sorted(result.get("metrics", {}).items()):
         rule = rule_for(rules, metric)
         if rule is None or not isinstance(value, (int, float)):
@@ -134,13 +177,8 @@ def evaluate(probe, result):
         if busy and timing:
             unreliable.append(metric)
             continue
-        budget = rule.get("budget", {})
-        if "max" in budget and value > budget["max"]:
-            findings.append({"kind": "budget", "metric": metric, "value": value, "limit": f"<= {budget['max']}"})
-        if "min" in budget and value < budget["min"]:
-            findings.append({"kind": "budget", "metric": metric, "value": value, "limit": f">= {budget['min']}"})
-        direction = rule.get("ratchet")
-        if not direction:
+        findings.extend(budget_findings(metric, value, rule.get("budget", {})))
+        if not rule.get("ratchet"):
             continue
         if timing:
             prev = same_host_calm.get(metric)
@@ -150,38 +188,53 @@ def evaluate(probe, result):
             prev = any_host.get(metric)
         if prev is None:
             continue
-        before, rec = prev
-        delta = value - before
-        worse = delta > 0 if direction == "lower" else delta < 0
-        better = delta < 0 if direction == "lower" else delta > 0
-        tol = rule.get("tolerance", 0.0) * abs(before)
-        min_delta = rule.get("min_delta", 0.0)
-        since = f"{rec.get('version', '?')} ({rec.get('date', '?')})"
-        if worse and abs(delta) > tol and abs(delta) > min_delta:
-            findings.append({"kind": "regression", "metric": metric, "value": value, "previous": before, "since": since})
-        elif better and abs(delta) > tol and abs(delta) > min_delta:
-            findings.append({"kind": "improved", "metric": metric, "value": value, "previous": before, "since": since})
+        finding = ratchet_finding(metric, value, rule, prev)
+        if finding:
+            findings.append(finding)
     if unreliable:
-        findings.append({"kind": "unreliable", "metric": ",".join(unreliable), "value": load,
-                         "limit": f"load per CPU <= {MAX_LOAD_PER_CPU}"})
+        findings.append(
+            {
+                "kind": "unreliable",
+                "metric": ",".join(unreliable),
+                "value": load,
+                "limit": f"load per CPU <= {MAX_LOAD_PER_CPU}",
+            }
+        )
     return findings
 
 
-def record(probe, result):
-    os.makedirs(HISTORY, exist_ok=True)
+def record(probe: str, result: Obj) -> None:
+    HISTORY.mkdir(parents=True, exist_ok=True)
     rec = {
-        "date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "date": dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "version": git("describe", "--tags", "--always") or "unknown",
         "sha": git("rev-parse", "--short", "HEAD"),
         "host": host_name(),
         "load": load_per_cpu(),
         "metrics": result.get("metrics", {}),
     }
-    with open(os.path.join(HISTORY, probe + ".jsonl"), "a") as f:
+    with history_file(probe).open("a") as f:
         f.write(json.dumps(rec, sort_keys=True) + "\n")
 
 
-def main(argv):
+def report(result: Obj, findings: list[Obj]) -> None:
+    width = max((len(m) for m in result.get("metrics", {})), default=10)
+    for m, v in sorted(result.get("metrics", {}).items()):
+        print(f"  {m:<{width}}  {v}")
+    for f in findings:
+        if f["kind"] == "unreliable":
+            print(
+                f"UNRELIABLE host-bound metrics skipped: load per CPU {f['value']} > {MAX_LOAD_PER_CPU} "
+                f"({len(f['metric'].split(','))} metrics); re-run when the machine is quieter"
+            )
+            continue
+        extra = f"limit {f['limit']}" if f["kind"] == "budget" else f"was {f['previous']} at {f['since']}"
+        print(f"{f['kind'].upper():<10} {f['metric']} = {f['value']} ({extra})")
+    if not findings:
+        print("no findings")
+
+
+def main(argv: list[str]) -> int:
     if "--list" in argv:
         print("\n".join(list_probes()))
         return 0
@@ -194,26 +247,24 @@ def main(argv):
     result = run_probe(probe, input_file)
     findings = evaluate(probe, result)
     if "--findings" in argv:
-        print(json.dumps({"probe": probe, "metrics": result.get("metrics", {}),
-                          "details": result.get("details", []), "findings": findings}, indent=2))
+        print(
+            json.dumps(
+                {
+                    "probe": probe,
+                    "metrics": result.get("metrics", {}),
+                    "details": result.get("details", []),
+                    "findings": findings,
+                },
+                indent=2,
+            )
+        )
     else:
-        width = max((len(m) for m in result.get("metrics", {})), default=10)
-        for m, v in sorted(result.get("metrics", {}).items()):
-            print(f"  {m:<{width}}  {v}")
-        for f in findings:
-            if f["kind"] == "unreliable":
-                print(f"UNRELIABLE host-bound metrics skipped: load per CPU {f['value']} > {MAX_LOAD_PER_CPU} "
-                      f"({len(f['metric'].split(','))} metrics); re-run when the machine is quieter")
-                continue
-            extra = f"limit {f['limit']}" if f["kind"] == "budget" else f"was {f['previous']} at {f['since']}"
-            print(f"{f['kind'].upper():<10} {f['metric']} = {f['value']} ({extra})")
-        if not findings:
-            print("no findings")
+        report(result, findings)
     if "--record" in argv:
         record(probe, result)
-        print(f"recorded to {os.path.join(HISTORY, probe + '.jsonl')}", file=sys.stderr)
+        print(f"recorded to {history_file(probe)}", file=sys.stderr)
     if "--gate" in argv and any(f["kind"] == "regression" for f in findings):
-        return 3
+        return EXIT_REGRESSION
     return 0
 
 
