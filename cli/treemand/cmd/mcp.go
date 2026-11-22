@@ -3,8 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -43,8 +41,8 @@ Register it with an MCP client by giving the command 'treemand mcp'.`,
 func runMCP(cmd *cobra.Command, _ []string) error {
 	setupLogging()
 	configureDiscovery()
-	ctx, stop := signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
+	// No signal handler: SIGINT and SIGTERM end the process at once, even
+	// while it waits on stdin.
 	s := &mcp.Server{
 		Name:     "treemand",
 		Version:  Version,
@@ -52,7 +50,7 @@ func runMCP(cmd *cobra.Command, _ []string) error {
 		Expand:   mcpExpand,
 		Timeout:  time.Duration(cfgTimeout) * time.Second,
 	}
-	return s.Serve(ctx, cmd.InOrStdin(), cmd.OutOrStdout())
+	return s.Serve(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout())
 }
 
 // mcpDiscover discovers cli to depth through the same cache as a CLI run.
