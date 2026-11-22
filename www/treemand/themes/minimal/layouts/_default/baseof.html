@@ -33,6 +33,9 @@
   <meta name="twitter:title" content="{{ $title }}">
   <meta name="twitter:description" content="{{ $desc }}">
   <meta name="twitter:image" content="{{ $image }}">
+  {{- with .OutputFormats.Get "rss" }}
+  <link rel="alternate" type="application/rss+xml" href="{{ .RelPermalink }}" title="{{ $.Site.Title }}{{ if not $.IsHome }} {{ $.Title }}{{ end }}">
+  {{- end }}
   <link rel="stylesheet" href="{{ "css/main.css" | relURL }}">
   <link rel="stylesheet" href="{{ "css/chroma.css" | relURL }}">
 </head>
@@ -90,7 +93,7 @@
     <div class="search-head"><div id="search" data-base="{{ "pagefind/" | relURL }}"></div><button type="button" class="search-close" id="search-close">Esc</button></div>
   </dialog>
   <main id="main">{{ block "main" . }}{{ end }}</main>
-  <footer><p>MIT License · <a href="https://github.com/aallbrig/treemand">GitHub</a></p></footer>
+  <footer><p>MIT License · <a href="https://github.com/aallbrig/treemand">GitHub</a> · <a href="{{ "changelog/" | relURL }}">Changelog</a></p></footer>
   <script defer src="{{ "site.js" | relURL }}"></script>
 </body>
 </html>
