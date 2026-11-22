@@ -41,14 +41,45 @@ node_present() {
   [ "$major" -ge "$want" ]
 }
 
+# dlv reads binaries from Go toolchains up to its own minor version, so it
+# must be at least the toolchain's (go1.26.x needs dlv 1.26 or newer).
+dlv_present() {
+  command -v dlv >/dev/null 2>&1 || return 1
+  gv="$(cd "$repo_root" 2>/dev/null && go env GOVERSION 2>/dev/null)"
+  dv="$(dlv version 2>/dev/null)"
+  dv="${dv#*Version: }"
+  gv="${gv#go1.}"
+  gv="${gv%%.*}"
+  dv="${dv#1.}"
+  dv="${dv%%.*}"
+  # Unknown versions: trust the binary.
+  case "$gv" in "" | *[!0-9]*) return 0 ;; esac
+  case "$dv" in "" | *[!0-9]*) return 0 ;; esac
+  [ "$dv" -ge "$gv" ]
+}
+
+# The Claude Code Go LSP plugin, installed and enabled for this user.
+plugin_present() {
+  command -v claude >/dev/null 2>&1 || return 1
+  case "$(claude plugin list 2>/dev/null)" in *"$1@"*) return 0 ;; *) return 1 ;; esac
+}
+
 tool_present() {
   case "$1" in
+    dlv) dlv_present ;;
+    gopls-lsp) plugin_present gopls-lsp ;;
     node) node_present ;;
     chrome) [ -n "$(chrome_path)" ] ;;
     # Extended edition: "+extended", or "+withdeploy" in newer releases (it includes extended).
     hugo) case "$(hugo version 2>/dev/null)" in *extended* | *withdeploy*) return 0 ;; *) return 1 ;; esac ;;
     *) command -v "$1" >/dev/null 2>&1 ;;
   esac
+}
+
+# On PATH but failing its check (an old dlv, a non-extended hugo).
+tool_unsuitable() {
+  case "$1" in node | chrome | gopls-lsp) return 1 ;; esac
+  command -v "$1" >/dev/null 2>&1
 }
 
 # The package for manager $1 (brew|apt|dnf|none) from a row's columns, or -.
@@ -62,6 +93,7 @@ fallback_cmd() {
     go:*) echo "go install ${1#go:}" ;;
     pipx:*) echo "pipx install ${1#pipx:}" ;;
     gem:*) echo "gem install ${1#gem:}" ;;
+    claude-plugin:*) echo "claude plugin install ${1#claude-plugin:} --scope user" ;;
     nvm) echo "install nvm, then nvm install (version from .nvmrc)" ;;
     url:*) echo "see ${1#url:}" ;;
     *) echo "$1" ;;

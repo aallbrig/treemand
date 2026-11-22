@@ -2,12 +2,13 @@
 # (installs) and scripts/dev/bootstrap.sh (reports) both read.
 #
 # name|need|brew|apt|dnf|fallback
-#   name      command looked up on PATH (node, chrome and hugo have special checks in tools.sh)
+#   name      command looked up on PATH (node, chrome, hugo, dlv and gopls-lsp have special checks in tools.sh)
 #   need      required: task ci needs it; setup.sh exits non-zero while one is missing
 #             optional: the dev session or agent tooling uses it; reported only
 #   brew/apt/dnf  package for that manager (cask:<name> for a brew cask), or - for none
 #   fallback  used when the manager column is -:
 #             go:<module@version>  pipx:<package>  gem:<package>  nvm (installs .nvmrc's node)
+#             claude-plugin:<plugin@marketplace>  (Claude Code plugin, user scope)
 #             url:<page>  (no automatic install; the page says how)
 #
 # Order matters: system packages install first, so go and pipx exist for the fallbacks.
@@ -38,3 +39,7 @@ tmux|required|tmux|tmux|tmux|url:https://github.com/tmux/tmux/wiki/Installing
 tmuxinator|required|tmuxinator|tmuxinator|-|gem:tmuxinator
 watchexec|optional|watchexec|-|-|url:https://github.com/watchexec/watchexec#install
 yq|optional|yq|-|-|go:github.com/mikefarah/yq/v4@latest
+# Agent dev tooling (docs/agents/dev-tooling.md): LSP navigation and real breakpoints.
+gopls|optional|-|-|-|go:golang.org/x/tools/gopls@latest
+dlv|optional|-|-|-|go:github.com/go-delve/delve/cmd/dlv@latest
+gopls-lsp|optional|-|-|-|claude-plugin:gopls-lsp@claude-plugins-official

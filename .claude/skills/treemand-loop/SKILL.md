@@ -53,6 +53,7 @@ say so and stop.
    multi-file work to subagents so this context stays small. Commit as you go: a
    worktree with uncommitted changes is reset, not resumed, after a crash. Skip
    issues labelled `human:wip`.
+   Navigate Go with the LSP tool and debug with `dlv`: [docs/agents/dev-tooling.md](../../../docs/agents/dev-tooling.md).
 5. **Verify**: `task ci` must pass in the worktree (it includes `task chaos`). When the
    change touches `cli/treemand`, also run `task perf:compare`: a REGRESSION line blocks
    the merge unless the issue is about that trade-off, and then the PR says so. An

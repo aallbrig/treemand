@@ -33,7 +33,7 @@ fresh() {
   # go: `go env` answers GOPATH/GOBIN; `go install mod/cmd/name@v` creates name.
   stub go "echo \"go \$*\" >>\"$calls\"
 case \$1 in
-  env) [ \"\$2\" = GOPATH ] && echo \"$tmp/gopath\"; exit 0 ;;
+  env) [ \"\$2\" = GOPATH ] && echo \"$tmp/gopath\"; [ \"\$2\" = GOVERSION ] && echo go1.26.10; exit 0 ;;
   version) echo 'go version go1.26.10 test/arch' ;;
   install) n=\"\${2##*/}\"; n=\"\${n%%@*}\"; [ \"\$n\" = v4 ] && n=yq; [ \"\$n\" = v8 ] && n=gitleaks
            printf '#!/bin/sh\nexit 0\n' >\"$tmp/gopath/bin/\$n\"; $chmod_bin +x \"$tmp/gopath/bin/\$n\" ;;
@@ -77,6 +77,12 @@ check "names the package manager" 'grep -qi "package manager: brew" "$tmp/out"'
 
 # --- macOS, --install: installs what is missing, then the hooks.
 stub node 'echo v24.11.0'
+stub claude "echo \"claude \$*\" >>\"$calls\"
+case \"\$2\" in
+  list) [ -e \"$tmp/plugin\" ] && echo '  gopls-lsp@claude-plugins-official' ;;
+  install) : >\"$tmp/plugin\" ;;
+esac
+exit 0"
 stub chrome-stub 'exit 0'
 args='--install'
 run CHROME="$bin/chrome-stub"
@@ -88,6 +94,18 @@ check "already present stays ok" 'row ok git'
 check "installs hooks" 'grep -q "^hooks install" "$calls"'
 check "installs nothing already present" '! grep -qx "brew install git" "$calls"'
 check "summary" 'grep -Eq "0 required tools missing" "$tmp/out"'
+check "installs gopls and dlv" 'row installed gopls && row installed dlv'
+check "installs the Go LSP plugin at user scope" 'grep -q "^claude plugin install gopls-lsp@claude-plugins-official --scope user" "$calls" && row installed gopls-lsp'
+
+# --- dlv older than the Go toolchain is unsuitable; --install upgrades it.
+stub dlv 'echo "Version: 1.20.2"'
+args=''
+run CHROME="$bin/chrome-stub"
+check "old dlv is unsuitable" 'row unsuitable dlv'
+check "old dlv hint" 'grep -q "go install github.com/go-delve/delve/cmd/dlv@latest" "$tmp/out"'
+stub dlv 'echo "Version: 1.26.0"'
+run CHROME="$bin/chrome-stub"
+check "dlv at the toolchain version is ok" 'row ok dlv'
 
 # --- Only an optional tool missing: still exits 0, still reported.
 rm -f "$bin/watchexec"
@@ -100,7 +118,7 @@ check "optional missing reported" 'row missing watchexec'
 # --- hugo without the extended edition counts as missing.
 stub hugo 'echo hugo v0.157.0'
 run CHROME="$bin/chrome-stub"
-check "non-extended hugo is missing" 'row missing hugo'
+check "non-extended hugo is unsuitable" 'row unsuitable hugo'
 check "non-extended hugo fails" '[ "$(rc)" = 1 ]'
 
 # --- Linux with apt, dry run, not root: sudo apt-get hints and go fallbacks.
