@@ -34,5 +34,5 @@ if [ "$conclusion" != success ]; then
   exit 5
 fi
 git fetch --quiet --tags origin
-tag="$(git tag --points-at "$sha" --list 'v[0-9]*' | head -n 1)"
+tag="$(tag_for "$sha")"
 echo "${tag:-none}"

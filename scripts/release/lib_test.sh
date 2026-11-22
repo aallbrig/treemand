@@ -18,3 +18,17 @@ if [ "$got" = success ]; then echo "  ok   run_conclusion survives API errors an
   echo "  FAIL run_conclusion: want success, got '$got'"
   exit 1
 fi
+
+# tag_for finds the tag on the merge itself or on the changelog commit above it.
+repo="$work/repo"
+git init -q -b main "$repo"
+g() { git -C "$repo" -c user.email=t@e -c user.name=t "$@"; }
+g commit -q --allow-empty -m one && one="$(g rev-parse HEAD)" && g tag -a v0.1.0 -m v0.1.0
+g commit -q --allow-empty -m two && two="$(g rev-parse HEAD)"
+g commit -q --allow-empty -m "Add the v0.1.1 changelog entry" && g tag -a v0.1.1 -m v0.1.1
+g commit -q --allow-empty -m three && three="$(g rev-parse HEAD)"
+got="$(cd "$repo" && tag_for "$one") $(cd "$repo" && tag_for "$two") $(cd "$repo" && tag_for "$three")"
+if [ "$got" = "v0.1.0 v0.1.1 " ]; then echo "  ok   tag_for: the merge's own tag, the entry commit's tag, or none"; else
+  echo "  FAIL tag_for: want 'v0.1.0 v0.1.1 ', got '$got'"
+  exit 1
+fi
