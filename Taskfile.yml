@@ -123,8 +123,13 @@ tasks:
   zoo:capture:
     desc: Refresh the corpus fixtures of the cli-zoo CLIs from the container (review the diff)
     deps: [zoo:build]
+    vars:
+      UID:
+        sh: id -u
+      GID:
+        sh: id -g
     cmds:
-      - docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD/cli/treemand/discovery/testdata/corpus:/out/corpus" treemand-cli-zoo capture
+      - docker run --rm --user "{{.UID}}:{{.GID}}" -e HOME=/tmp -v "{{.ROOT_DIR}}/cli/treemand/discovery/testdata/corpus:/out/corpus" treemand-cli-zoo capture
 
   ab:
     desc: "Full discovery of real CLIs, origin/main vs this tree, with a side-effect audit: task ab -- [--base REF] <cli>..."
@@ -350,6 +355,7 @@ tasks:
     desc: Static checks for the loop machinery (shellcheck, state script, guard and session hooks, skill present)
     cmds:
       - shellcheck -x -S warning scripts/loop/*.sh scripts/loop/hooks/*.sh scripts/dev_session.sh scripts/dev/*.sh scripts/pr_merge.sh scripts/check_*.sh scripts/install_test.sh scripts/site_audit.sh scripts/site_search_index.sh scripts/make_site_assets.sh www/treemand/static/install.sh scripts/infra/*.sh scripts/gates_test.sh scripts/infra_lint.sh scripts/real_cli_ab.sh scripts/corpus_diff.sh scripts/ship.sh scripts/metrics/*.sh scripts/channels_check*.sh
+      - shellcheck --shell=sh -S warning scripts/check_taskfile_cmds.sh scripts/check_taskfile_cmds_test.sh scripts/check_gofmt.sh scripts/doctor.sh
       - python3 -I scripts/loop/state.py summary >/dev/null
       - bash scripts/loop/guard_test.sh
       - sh scripts/loop/hooks/hooks_test.sh
@@ -447,10 +453,7 @@ tasks:
   doctor:
     desc: Show what else is running on this machine before touching real infrastructure
     cmds:
-      - tmux ls 2>/dev/null || echo "no tmux sessions"
-      - (lsof -nP -iTCP -sTCP:LISTEN 2>/dev/null || ss -ltnp 2>/dev/null) | grep -E ':(1313|18080)\b' || echo "dev ports free"
-      - git worktree list
-      - sh scripts/loop/loopctl.sh status
+      - sh scripts/doctor.sh
 
   # ── composite gates ──────────────────────────────────────────────────────
 
@@ -486,6 +489,7 @@ tasks:
       - task: prod:test
       - task: loop:check
       - task: docs:check
+      - task: taskfile:check
       - task: site:check
       - task: site:audit
       - task: install:test
@@ -497,9 +501,12 @@ tasks:
   fmt:check:
     desc: Fail if any Go file needs formatting
     cmds:
-      - |
-        files="$(gofmt -l ./cli/treemand)"
-        if [ -n "$files" ]; then echo "needs gofmt (run: task fmt, then re-stage):"; echo "$files"; exit 1; fi
+      - sh scripts/check_gofmt.sh
+
+  taskfile:check:
+    desc: Every Taskfile cmds entry is one simple command (no pipes, chains, control flow or multi-line scripts)
+    cmds:
+      - sh scripts/check_taskfile_cmds_test.sh
 
   docs:check:
     desc: Every `task X` named in docs, scripts, CI or the loop skill must exist in this Taskfile; community-health files present and consistent
