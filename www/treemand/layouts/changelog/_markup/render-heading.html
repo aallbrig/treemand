@@ -1,0 +1,3 @@
+{{- /* Every entry has Added / Changed / Fixed: prefix an entry's anchors with its version so ids stay unique on /changelog/. */ -}}
+{{- $id := .Anchor }}{{ if eq .Page.Kind "page" }}{{ $id = printf "%s-%s" (.Page.File.ContentBaseName | replaceRE `\.` "-") $id }}{{ end -}}
+<h{{ .Level }} id="{{ $id }}">{{ .Text | safeHTML }}{{ if ge .Level 2 }} <a class="anchor" data-pagefind-ignore href="#{{ $id }}" aria-label="Link to this section: {{ .PlainText }}">#</a>{{ end }}</h{{ .Level }}>

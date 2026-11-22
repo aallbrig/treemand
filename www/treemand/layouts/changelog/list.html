@@ -1,0 +1,13 @@
+{{ define "main" }}
+<article class="changelog">
+  {{ .Content }}
+  {{- range .Pages.ByDate.Reverse }}
+  {{- $id := .File.ContentBaseName | replaceRE `\.` "-" }}
+  <section class="changelog-entry" aria-labelledby="{{ $id }}">
+    <h2 id="{{ $id }}">{{ .Title }}</h2>
+    <p class="changelog-meta"><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "January 2, 2006" }}</time>{{ with .Params.versions }} · {{ . }}{{ end }}</p>
+    {{ .Content }}
+  </section>
+  {{- end }}
+</article>
+{{ end }}
