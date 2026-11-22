@@ -55,6 +55,11 @@
     "paths_ok":     {"ratchet": "higher", "host_bound": true},
     "ok.*":         {"ratchet": "higher", "host_bound": true}
   },
+  "cli-ux": {
+    "check.*":                 {"ratchet": "higher"},
+    "failing_checks":          {"budget": {"max": 0}, "ratchet": "lower"},
+    "undescribed_subcommands": {"budget": {"max": 0}, "ratchet": "lower"}
+  },
   "zoo": {
     "sweep_panics":    {"budget": {"max": 0}, "ratchet": "lower"},
     "sweep_timeouts":  {"budget": {"max": 0}, "ratchet": "lower"},
