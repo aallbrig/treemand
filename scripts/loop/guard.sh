@@ -37,7 +37,7 @@ case "$tool" in
       "$root"/.env* | */.env | */id_rsa* | */credentials* | *.pem | *.key) deny "secret-like file: $abs" ;;
     esac
     case "$abs" in
-      "$root"/.claude/loop-settings.json | "$root"/scripts/loop/guard.sh) deny "the loop may not edit its own permissions or guard" ;;
+      "$root"/.claude/loop-settings.json | "$root"/scripts/loop/guard.sh | "$root"/scripts/loop/hooks/*) deny "the loop may not edit its own permissions, guard or hooks" ;;
     esac
     ;;
 esac

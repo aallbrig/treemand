@@ -7,6 +7,7 @@ Commands (all print to stdout; exit codes are documented per command):
   breaker                  exit 0 if closed, 11 if open (reason on stdout)
   begin-cycle              start a cycle (increments counters), prints the cycle number
   end-cycle OUTCOME        released | idle | parked | failed | stopped; writes .loop/cycle-done
+  cycle-open               exit 0 and describe the cycle if one has begun but not ended, else exit 1
   pick-area                print the least-recently-touched focus area
   touch-area AREA          record that AREA was worked this cycle
   escalation               exit 0 and print reason if a phone escalation is due, else exit 1
@@ -148,6 +149,7 @@ def cmd_begin(state: State) -> int:
     state["cycle"] += 1
     day(state)["cycles"] += 1
     state["cycle_started"] = now()
+    state["cycle_open"] = True
     save(state)
     print(state["cycle"])
     return 0
@@ -158,6 +160,8 @@ def cmd_end(state: State, outcome: str) -> int:
         print("outcome must be released|idle|parked|failed|stopped", file=sys.stderr)
         return 2
     state["last_outcome"] = outcome
+    state["cycle_open"] = False
+    state["cycle_ended"] = now()
     if outcome == "failed":
         state["failure_streak"] += 1
     elif outcome == "released":
@@ -170,6 +174,14 @@ def cmd_end(state: State, outcome: str) -> int:
     save(state)
     CYCLE_DONE.write_text(f"{outcome} {now()}\n")
     return 0
+
+
+def cmd_cycle_open(state: State) -> int:
+    # The Stop hook (scripts/loop/hooks/stop_check.sh) blocks ending a turn while this holds.
+    if state.get("cycle_open"):
+        print(f"cycle {state['cycle']} begun at {state.get('cycle_started', '?')}")
+        return 0
+    return 1
 
 
 def cmd_pick(state: State) -> int:
@@ -224,6 +236,7 @@ def main(argv: list[str]) -> int:
         "budget": cmd_budget,
         "breaker": cmd_breaker,
         "begin-cycle": cmd_begin,
+        "cycle-open": cmd_cycle_open,
         "pick-area": cmd_pick,
         "escalation": cmd_escalation,
         "mark-escalated": cmd_mark_escalated,

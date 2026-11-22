@@ -336,11 +336,12 @@ tasks:
       - bash scripts/loop/bootstrap-labels.sh
 
   loop:check:
-    desc: Static checks for the loop machinery (shellcheck, state script, guard hook, skill present)
+    desc: Static checks for the loop machinery (shellcheck, state script, guard and session hooks, skill present)
     cmds:
-      - shellcheck -x -S warning scripts/loop/*.sh scripts/dev_session.sh scripts/dev/*.sh scripts/pr_merge.sh scripts/check_*.sh scripts/install_test.sh scripts/site_audit.sh scripts/site_search_index.sh scripts/make_site_assets.sh www/treemand/static/install.sh scripts/infra/*.sh scripts/gates_test.sh scripts/infra_lint.sh scripts/real_cli_ab.sh scripts/corpus_diff.sh scripts/ship.sh scripts/metrics/*.sh scripts/channels_check*.sh
+      - shellcheck -x -S warning scripts/loop/*.sh scripts/loop/hooks/*.sh scripts/dev_session.sh scripts/dev/*.sh scripts/pr_merge.sh scripts/check_*.sh scripts/install_test.sh scripts/site_audit.sh scripts/site_search_index.sh scripts/make_site_assets.sh www/treemand/static/install.sh scripts/infra/*.sh scripts/gates_test.sh scripts/infra_lint.sh scripts/real_cli_ab.sh scripts/corpus_diff.sh scripts/ship.sh scripts/metrics/*.sh scripts/channels_check*.sh
       - python3 -I scripts/loop/state.py summary >/dev/null
       - bash scripts/loop/guard_test.sh
+      - sh scripts/loop/hooks/hooks_test.sh
       - test -f .claude/skills/treemand-loop/SKILL.md
       - test -f .claude/skills/treemand-product-audit/SKILL.md
 
