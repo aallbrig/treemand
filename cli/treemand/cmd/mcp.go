@@ -27,8 +27,8 @@ Tools:
 
 The server never runs a discovered command. The only processes it starts are
 the same --help probes 'treemand <cli>' makes, for commands on PATH named by
-bare name. Each tool call is limited by --timeout (0 for no limit), and trees are cached like
-any other run (--no-cache turns that off). Logs go to stderr.
+bare name. Each tool call is limited by --timeout (0 for no limit), and trees
+are cached like any other run (--no-cache turns that off). Logs go to stderr.
 
 Register it with an MCP client by giving the command 'treemand mcp'.`,
 	Example: `  claude mcp add treemand -- treemand mcp
