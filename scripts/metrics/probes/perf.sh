@@ -7,6 +7,8 @@
 #   the tree) for the TUI_CLIS subset, and help_calls (processes of the CLI
 #   that the cold run started, counted by a logging PATH shim: the cost that
 #   load cannot distort at all).
+# A CLI this host lacks is reported as skipped ("not installed"), never as a
+# regression; baselines are per host (host_bound rules).
 # Runs from an empty scratch directory, per treemand-safe-real-cli-run, and
 # fails if discovery changed git branches or the Docker context.
 set -euo pipefail
@@ -33,8 +35,12 @@ state() { git -C "$repo" branch --list; docker context show 2>/dev/null || true;
 state >"$work/before"
 
 rows=""
+skipped=""
 for cli in $clis; do
-  command -v "$cli" >/dev/null 2>&1 || continue
+  if ! command -v "$cli" >/dev/null 2>&1; then
+    skipped+="$cli "
+    continue
+  fi
   cache="$work/cache-$cli"
   mkdir -p "$work/shim-$cli"
   printf '#!/bin/sh\necho >>"%s"\nexec "%s" "$@"\n' "$work/calls-$cli" "$(command -v "$cli")" >"$work/shim-$cli/$cli"
@@ -70,9 +76,10 @@ if ! diff -q "$work/before" "$work/after" >/dev/null || [ -n "$(ls -A "$work/cwd
   exit 1
 fi
 
-python3 -I - "$rows" <<'PY'
+python3 -I - "$rows" "$skipped" <<'PY'
 import json, os, sys
 metrics, details = {}, []
+skipped = {cli: "not installed" for cli in sys.argv[2].split()}
 for line in sys.argv[1].splitlines():
     if not line.strip():
         continue
@@ -88,6 +95,6 @@ for line in sys.argv[1].splitlines():
     details.append({"cli": cli, "cold_s": float(cold), "cpu_s": round(float(cpu), 2),
                     "cpu_per_wall": round(float(cpu) / max(float(cold), 0.01), 1),
                     "cold_runs": [float(x) for x in spread.strip(",").split(",") if x]})
-print(json.dumps({"probe": "perf", "metrics": metrics,
+print(json.dumps({"probe": "perf", "metrics": metrics, "skipped": skipped,
                   "details": [{"loadavg": " ".join(f"{x:.2f}" for x in os.getloadavg())}, {"per_cli": details}]}))
 PY

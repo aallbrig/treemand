@@ -29,6 +29,10 @@ scripts/metrics/rules.json, keyed by probe and then by a metric glob:
              at any load. Each record stores the load it was taken at.
 - Host:      host_bound metrics compare against the same host; MEASURE_HOST
              names it when the hostname is not stable (CI runners).
+- Skipped:   a probe may name subjects it could not measure on this host,
+             {"skipped": {"apt": "not installed"}}. They, and any subject whose
+             metrics have a baseline but are absent this run, are reported as
+             "skipped", never as a regression; --record keeps the skipped map.
 """
 
 import datetime as dt
@@ -38,6 +42,7 @@ import os
 import platform
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
 
@@ -160,6 +165,47 @@ def ratchet_finding(metric: str, value: float, rule: Obj, prev: tuple[float, Obj
     return None
 
 
+def baseline(
+    rule: Obj, metric: str, any_host: Latest, same_host: Latest, same_host_calm: Latest
+) -> tuple[float, Obj] | None:
+    # Timing compares with a calm record of this host, host-bound metrics with
+    # this host, anything else with the latest record of any host.
+    if rule.get("timing", False):
+        return same_host_calm.get(metric)
+    if rule.get("host_bound"):
+        return same_host.get(metric)
+    return any_host.get(metric)
+
+
+def subject(metric: str) -> str:
+    # "cold_s.docker" measures docker; a metric without a dot is its own subject.
+    return metric.split(".", 1)[1] if "." in metric else metric
+
+
+def skipped(
+    result: Obj,
+    rules: dict[str, Obj],
+    history: Latest,
+    prev_for: Callable[[Obj, str], tuple[float, Obj] | None],
+) -> list[Obj]:
+    """Report subjects not measured this run; never judge them.
+
+    A subject is skipped when the probe names it, or when one of its metrics
+    has a baseline (prev_for) in history and the run has no metric for it.
+    """
+    out: dict[str, str] = dict(result.get("skipped") or {})
+    metrics = result.get("metrics", {})
+    measured = {subject(m) for m in metrics}
+    for metric in sorted(history):
+        rule = rule_for(rules, metric)
+        s = subject(metric)
+        if metric in metrics or s in measured or s in out or rule is None or not rule.get("ratchet"):
+            continue
+        if prev_for(rule, metric) is not None:
+            out[s] = "absent this run"
+    return [{"kind": "skipped", "metric": s, "value": why} for s, why in sorted(out.items())]
+
+
 def evaluate(probe: str, result: Obj) -> list[Obj]:
     rules = load_rules(probe)
     any_host, same_host, same_host_calm = last_record(probe, host_name())
@@ -167,6 +213,10 @@ def evaluate(probe: str, result: Obj) -> list[Obj]:
     busy = load > MAX_LOAD_PER_CPU
     findings: list[Obj] = []
     unreliable: list[str] = []
+
+    def prev_for(rule: Obj, metric: str) -> tuple[float, Obj] | None:
+        return baseline(rule, metric, any_host, same_host, same_host_calm)
+
     for metric, value in sorted(result.get("metrics", {}).items()):
         rule = rule_for(rules, metric)
         if rule is None or not isinstance(value, (int, float)):
@@ -180,17 +230,13 @@ def evaluate(probe: str, result: Obj) -> list[Obj]:
         findings.extend(budget_findings(metric, value, rule.get("budget", {})))
         if not rule.get("ratchet"):
             continue
-        if timing:
-            prev = same_host_calm.get(metric)
-        elif rule.get("host_bound"):
-            prev = same_host.get(metric)
-        else:
-            prev = any_host.get(metric)
+        prev = prev_for(rule, metric)
         if prev is None:
             continue
         finding = ratchet_finding(metric, value, rule, prev)
         if finding:
             findings.append(finding)
+    findings.extend(skipped(result, rules, any_host, prev_for))
     if unreliable:
         findings.append(
             {
@@ -213,6 +259,8 @@ def record(probe: str, result: Obj) -> None:
         "load": load_per_cpu(),
         "metrics": result.get("metrics", {}),
     }
+    if result.get("skipped"):
+        rec["skipped"] = result["skipped"]
     with history_file(probe).open("a") as f:
         f.write(json.dumps(rec, sort_keys=True) + "\n")
 
@@ -228,9 +276,12 @@ def report(result: Obj, findings: list[Obj]) -> None:
                 f"({len(f['metric'].split(','))} metrics); re-run when the machine is quieter"
             )
             continue
+        if f["kind"] == "skipped":
+            print(f"{'SKIPPED':<10} {f['metric']}: {f['value']}")
+            continue
         extra = f"limit {f['limit']}" if f["kind"] == "budget" else f"was {f['previous']} at {f['since']}"
         print(f"{f['kind'].upper():<10} {f['metric']} = {f['value']} ({extra})")
-    if not findings:
+    if all(f["kind"] == "skipped" for f in findings):
         print("no findings")
 
 

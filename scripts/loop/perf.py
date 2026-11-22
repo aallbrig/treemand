@@ -102,6 +102,10 @@ def measure_one(bin_path: str, cli: str, version: str) -> dict[str, str]:
 
 
 def measure(bin_path: str, version: str) -> list[dict[str, str]]:
+    # A CLI this host lacks is skipped, never a failure; history is per host.
+    for cli in CORPUS:
+        if not shutil.which(cli):
+            print(f"skip {cli} (not installed)", file=sys.stderr)
     return [measure_one(bin_path, cli, version) for cli in CORPUS if shutil.which(cli)]
 
 

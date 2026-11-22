@@ -74,4 +74,21 @@ MEASURE_HOST=ci-runner m demo --record >/dev/null 2>&1
 probe 9 95
 out="$(MEASURE_HOST=ci-runner m demo)"
 if [[ "$out" == *"REGRESSION cold_s.big"* ]]; then ok "MEASURE_HOST: history from the named host is the baseline"; else bad "MEASURE_HOST: $out"; fi
+# A subject this host lacks (a CLI that is not installed) is skipped, never a
+# regression: the probe names it, or its metrics are simply absent this run.
+rm -f "$MEASURE_HISTORY/demo.jsonl"
+probe 4 95
+m demo --record >/dev/null 2>&1
+printf 'echo '"'"'{"probe":"demo","metrics":{"cold_s.small":0.1,"score":95,"calls":3},"skipped":{"big":"not installed"}}'"'"'\n' >"$MEASURE_PROBES/demo.sh"
+out="$(m demo)"
+if [[ "$out" == *"SKIPPED    big: not installed"* && "$out" != *"REGRESSION"* ]]; then ok "a skipped subject is reported as skipped, not a regression"; else bad "skipped: $out"; fi
+m demo --gate >/dev/null; [ $? = 0 ] && ok "--gate passes when a subject is skipped" || bad "--gate with a skipped subject"
+m demo --record >/dev/null 2>&1
+tail -1 "$MEASURE_HISTORY/demo.jsonl" | python3 -I -c 'import json,sys; assert json.load(sys.stdin)["skipped"] == {"big": "not installed"}' \
+  && ok "--record keeps what was skipped" || bad "--record skipped"
+printf 'echo '"'"'{"probe":"demo","metrics":{"score":95,"calls":3}}'"'"'\n' >"$MEASURE_PROBES/demo.sh"
+out="$(m demo)"
+if [[ "$out" == *"SKIPPED    small: absent this run"* && "$out" == *"SKIPPED    big: absent this run"* && "$out" != *"REGRESSION"* ]]; then ok "a subject in the baseline but absent this run is reported as skipped"; else bad "absent: $out"; fi
+m demo --findings | python3 -I -c 'import json,sys; d=json.load(sys.stdin); assert [f for f in d["findings"] if f["kind"] == "skipped"]' \
+  && ok "--findings lists skipped subjects" || bad "--findings skipped"
 exit "$fail"

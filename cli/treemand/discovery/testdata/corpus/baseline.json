@@ -29,6 +29,12 @@
     "has_description": true,
     "description_is_synopsis": false
   },
+  "brew": {
+    "subcommands": 0,
+    "flags": 0,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
   "bundle": {
     "subcommands": 23,
     "flags": 3,
@@ -87,6 +93,12 @@
     "subcommands": 0,
     "flags": 2,
     "has_description": true,
+    "description_is_synopsis": false
+  },
+  "find@bsd": {
+    "subcommands": 0,
+    "flags": 0,
+    "has_description": false,
     "description_is_synopsis": false
   },
   "flask": {
@@ -215,6 +227,12 @@
     "has_description": true,
     "description_is_synopsis": false
   },
+  "ls@bsd": {
+    "subcommands": 0,
+    "flags": 0,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
   "make": {
     "subcommands": 0,
     "flags": 31,
@@ -224,6 +242,12 @@
   "mvn": {
     "subcommands": 0,
     "flags": 39,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
+  "networksetup": {
+    "subcommands": 0,
+    "flags": 0,
     "has_description": true,
     "description_is_synopsis": false
   },
@@ -311,6 +335,12 @@
     "has_description": true,
     "description_is_synopsis": false
   },
+  "sed@bsd": {
+    "subcommands": 0,
+    "flags": 0,
+    "has_description": false,
+    "description_is_synopsis": false
+  },
   "ssh": {
     "subcommands": 0,
     "flags": 0,
@@ -326,6 +356,12 @@
   "tar": {
     "subcommands": 0,
     "flags": 153,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
+  "tar@bsd": {
+    "subcommands": 0,
+    "flags": 12,
     "has_description": true,
     "description_is_synopsis": false
   },
@@ -362,6 +398,12 @@
   "wget": {
     "subcommands": 0,
     "flags": 152,
+    "has_description": true,
+    "description_is_synopsis": false
+  },
+  "xcrun": {
+    "subcommands": 0,
+    "flags": 15,
     "has_description": true,
     "description_is_synopsis": false
   },
