@@ -264,6 +264,28 @@ func TestTimeoutBoundsADiscoveryThatNeverAnswers(t *testing.T) {
 	mustContain(t, "stderr", r.stderr, "help for fakehang")
 }
 
+// --timeout=0 means no overall limit (#85): the tree is discovered in full,
+// not cut down to a bare root.
+func TestTimeoutZeroMeansNoLimit(t *testing.T) {
+	r := run(t, limit, nil, "--no-cache", "--output=json", "--timeout=0", "fakecobra")
+	if r.exit != 0 {
+		t.Fatalf("exit %d, stderr: %s", r.exit, r.stderr)
+	}
+	root := parseJSON(t, r.stdout)
+	if len(root.Children) == 0 {
+		t.Errorf("--timeout=0 gave a childless root; want the full tree")
+	}
+}
+
+// A negative --timeout is a usage error, reported before any probing (#85).
+func TestNegativeTimeoutIsAUsageError(t *testing.T) {
+	r := run(t, limit, nil, "--no-cache", "--timeout=-1", "fakecobra")
+	if r.exit != 2 || strings.TrimSpace(r.stdout) != "" {
+		t.Errorf("exit %d, stdout %q; want exit 2 and no tree", r.exit, r.stdout)
+	}
+	mustContain(t, "stderr", r.stderr, "--timeout")
+}
+
 // A root whose help times out once (kubectl on a loaded CI runner, #229) is
 // asked again with a longer budget, and its children are found.
 func TestARootThatTimesOutOnceIsRetried(t *testing.T) {

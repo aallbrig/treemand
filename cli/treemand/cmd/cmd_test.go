@@ -647,6 +647,7 @@ func TestExitCodes(t *testing.T) {
 		{"unknown flag", []string{"--no-such-flag", "git"}, cmd.ExitUsage, []string{"unknown flag", "--help"}},
 		{"bad flag value", []string{"--depth=abc", "git"}, cmd.ExitUsage, []string{"--depth"}},
 		{"unknown output format", []string{"--output=xml", "git"}, cmd.ExitUsage, []string{"unknown output format", "text, json or yaml"}},
+		{"negative timeout", []string{"--timeout=-5", "git"}, cmd.ExitUsage, []string{"--timeout", "0 for no limit"}},
 		{"completion without shell", []string{"completion"}, cmd.ExitUsage, []string{"missing shell", "bash", "zsh", "fish", "powershell"}},
 		{"completion with unknown shell", []string{"completion", "tcsh"}, cmd.ExitUsage, []string{"unknown shell", "tcsh", "powershell"}},
 		{"CLI that does not exist", []string{"--no-cache", "definitely-not-installed-xyz"}, cmd.ExitFailure, []string{"not found", "PATH"}},

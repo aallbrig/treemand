@@ -211,6 +211,22 @@ func TestDiscover_timesOut(t *testing.T) {
 	}
 }
 
+// A negative Timeout (--timeout=0) puts no deadline on a tool call.
+func TestDiscover_negativeTimeoutMeansNoLimit(t *testing.T) {
+	s := newTestServer()
+	s.Timeout = -1
+	s.Discover = func(ctx context.Context, _ string, _ int) (*models.Node, error) {
+		if _, ok := ctx.Deadline(); ok {
+			return nil, errors.New("call has a deadline")
+		}
+		return fakeTree(), nil
+	}
+	res := exchange(t, s, call(1, "discover", map[string]any{"cli": "tool"}))
+	if text, isErr := toolText(t, res[0]); isErr {
+		t.Errorf("want a tree, got error %q", text)
+	}
+}
+
 func TestSearch_findsCommandsAndFlags(t *testing.T) {
 	res := exchange(t, newTestServer(),
 		call(1, "search", map[string]any{"cli": "tool", "query": "remote add"}),

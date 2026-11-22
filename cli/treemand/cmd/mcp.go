@@ -27,8 +27,8 @@ Tools:
 
 The server never runs a discovered command. The only processes it starts are
 the same --help probes 'treemand <cli>' makes, for commands on PATH named by
-bare name. Each tool call is limited by --timeout, and trees are cached like
-any other run (--no-cache turns that off). Logs go to stderr.
+bare name. Each tool call is limited by --timeout (0 for no limit), and trees
+are cached like any other run (--no-cache turns that off). Logs go to stderr.
 
 Register it with an MCP client by giving the command 'treemand mcp'.`,
 	Example: `  claude mcp add treemand -- treemand mcp
@@ -40,7 +40,14 @@ Register it with an MCP client by giving the command 'treemand mcp'.`,
 
 func runMCP(cmd *cobra.Command, _ []string) error {
 	setupLogging()
+	if err := checkTimeout(cfgTimeout); err != nil {
+		return err
+	}
 	configureDiscovery()
+	timeout := time.Duration(cfgTimeout) * time.Second
+	if cfgTimeout == 0 {
+		timeout = -1 // the server reads a negative timeout as no limit
+	}
 	// No signal handler: SIGINT and SIGTERM end the process at once, even
 	// while it waits on stdin.
 	s := &mcp.Server{
@@ -48,7 +55,7 @@ func runMCP(cmd *cobra.Command, _ []string) error {
 		Version:  Version,
 		Discover: mcpDiscover,
 		Expand:   mcpExpand,
-		Timeout:  time.Duration(cfgTimeout) * time.Second,
+		Timeout:  timeout,
 	}
 	return s.Serve(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout())
 }

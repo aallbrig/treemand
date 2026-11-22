@@ -83,7 +83,7 @@ func buildDocRoot() *cobra.Command {
 	root.PersistentFlags().String("output", "text", "Output format: text, json")
 	root.PersistentFlags().Bool("no-color", false, "Disable color output")
 	root.PersistentFlags().Bool("no-cache", false, "Disable caching")
-	root.PersistentFlags().Int("timeout", 30, "Discovery timeout in seconds")
+	root.PersistentFlags().Int("timeout", 30, "Discovery timeout in seconds (0 = no limit; each help command still has its own limit)")
 	root.PersistentFlags().Bool("debug", false, "Enable debug logging")
 
 	root.AddCommand(&cobra.Command{

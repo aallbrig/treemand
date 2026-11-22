@@ -34,7 +34,7 @@ treemand cache [clear|list]
 | `--no-color` | | false | Disable color output |
 | `--no-cache` | | false | Skip cache lookup and write |
 | `--refresh` | | false | Re-discover even if cached, and update the cache entry |
-| `--timeout` | | `30` | Discovery timeout in seconds |
+| `--timeout` | | `30` | Discovery timeout in seconds (0 = no limit) |
 | `--debug` | | false | Enable debug logging to stderr |
 
 ## Subcommands
