@@ -133,34 +133,90 @@ func initConfig() {
 }
 
 func runRoot(cmd *cobra.Command, args []string) error {
-	logLevel := zerolog.WarnLevel
-	if cfgDebug {
-		logLevel = zerolog.DebugLevel
-	}
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr}).Level(logLevel)
+	setupLogging()
 
 	cliName := args[0]
 	// A mistake in how treemand was invoked is reported before any probing.
 	if err := checkOutputFormat(cfgOutput); err != nil {
 		return err
 	}
-	discovery.SetMaxConcurrentHelp(cfgJobs)
-	discovery.OnOutputTruncated = func(name string, a []string, limit int) {
-		log.Debug().Str("command", name).Strs("args", a).Int("limit_bytes", limit).Msg("help output truncated at the read cap")
-	}
+	configureDiscovery()
 
 	// Fail early with a clear message if the binary cannot be found.
 	if err := discovery.CheckAvailable(cliName); err != nil {
 		return fmt.Errorf("%w\nHint: check spelling and ensure the command is on your PATH", err)
 	}
 
+	cfg := configFromFlags()
+	strategies := config.ParseStrategies(cfgStrategy)
+	preset, hasPreset := presets.Lookup(cliName)
+	if !hasPreset {
+		preset = nil
+	}
+	applyPresetDepth(cmd, cfg, preset)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfgTimeout)*time.Second)
+	defer cancel()
+
+	rc := openRunCache(cfg, cliName, strategies, cacheKeyExtra(cfg, preset))
+	if rc != nil {
+		defer rc.c.Close()
+	}
+	if node := rc.cached(cfg); node != nil {
+		save := rc.saver()
+		if !cfgInteractive {
+			finishPartialTree(ctx, node, cliName, cfg, save)
+		}
+		return output(cmd, node, cfg, save)
+	}
+
+	// The version string is only shown by `cache list`. Read it while discovery
+	// runs so a slow --version (aws, pip) adds nothing to a cold run.
+	versionCh := rc.readVersion()
+
+	node, err := discover(ctx, cliName, cfg, strategies)
+	if err != nil {
+		return err
+	}
+	if preset != nil && preset.Seed != nil {
+		seedFromPreset(ctx, node, cliName, preset)
+	}
+	if cfgExpandStubs > 0 {
+		withSpinner("expanding stubs…", func() {
+			discovery.ExpandStubs(ctx, node, cliName, cfgExpandStubs, 16, 30*time.Second, nil)
+		})
+	}
+
+	rc.put(node, versionCh)
+	return output(cmd, node, cfg, rc.saver())
+}
+
+// setupLogging sends logs to stderr at warn level, or debug with --debug.
+func setupLogging() {
+	logLevel := zerolog.WarnLevel
+	if cfgDebug {
+		logLevel = zerolog.DebugLevel
+	}
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr}).Level(logLevel)
+}
+
+// configureDiscovery applies the process-wide discovery settings: the help
+// concurrency limit and a debug note when help output hits the read cap.
+func configureDiscovery() {
+	discovery.SetMaxConcurrentHelp(cfgJobs)
+	discovery.OnOutputTruncated = func(name string, a []string, limit int) {
+		log.Debug().Str("command", name).Strs("args", a).Int("limit_bytes", limit).Msg("help output truncated at the read cap")
+	}
+}
+
+// configFromFlags builds the run's config: defaults, then the config file
+// (flags > env > file > defaults), then flags that were explicitly set.
+func configFromFlags() *config.Config {
 	cfg := config.DefaultConfig()
 	cfg.NoColor = cfgNoColor || cfg.NoColor
 	cfg.Depth = cfgDepth
 	cfg.NoCache = cfgNoCache
-	// Apply viper-loaded config file values (flags > env > file > defaults).
 	config.ApplyViper(cfg)
-	// CLI flags override config file values when explicitly set.
 	if cfgIcons != "" {
 		cfg.IconPreset = cfgIcons
 		cfg.Icons = config.IconSetForPreset(cfgIcons)
@@ -177,80 +233,125 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	if cfgTreeStyle != "" && cfgTreeStyle != "default" {
 		cfg.TreeStyle = config.ParseTreeStyle(cfgTreeStyle)
 	}
-	strategies := config.ParseStrategies(cfgStrategy)
+	return cfg
+}
 
-	// Presets tune well-known CLIs (aws, stripe, ...). An explicit --depth wins.
-	preset, hasPreset := presets.Lookup(cliName)
-	if hasPreset && preset.Depth != 0 && !cmd.Flags().Changed("depth") {
+// applyPresetDepth lets a preset tune a well-known CLI's depth (aws,
+// stripe, ...). An explicit --depth wins. preset is nil without one.
+func applyPresetDepth(cmd *cobra.Command, cfg *config.Config, preset *presets.Preset) {
+	if preset != nil && preset.Depth != 0 && !cmd.Flags().Changed("depth") {
 		cfg.Depth = preset.Depth
 		cfgDepth = preset.Depth
 	}
-	cacheExtra := fmt.Sprintf("d=%d,t=%d", cfg.Depth, cfg.StubThreshold)
-	if hasPreset {
-		cacheExtra += ",p=" + preset.Name
-	}
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfgTimeout)*time.Second)
-	defer cancel()
-
-	// Attempt cache lookup
-	var (
-		cacheInst *cache.Cache
-		cacheKey  string
-	)
-	if !cfg.NoCache {
-		var err error
-		cacheInst, err = cache.Open(cfg.CacheDir)
-		if err != nil {
-			log.Warn().Err(err).Msg("could not open cache, running without")
-		} else {
-			defer cacheInst.Close()
-			// Key on the binary on disk, not on its --version output: starting
-			// aws or pip just to read a version costs seconds on every cache
-			// hit, and a CLI with no --version would never be invalidated.
-			ver := cache.BinaryFingerprint(discovery.ResolveBinary(cliName))
-			if ver == "" {
-				ver = cache.CLIVersion(cliName)
-			}
-			cacheKey = cache.KeyWith(cliName, ver, strategies, cacheExtra)
-			if cfgRefresh {
-				log.Debug().Str("cli", cliName).Msg("cache bypassed by --refresh")
-			} else if node, err := cacheInst.Get(cacheKey, cfg.CacheTTL); err == nil && node != nil {
-				log.Debug().Str("cli", cliName).Msg("cache hit")
-				save := saveExpansions(cacheInst, cacheKey, cliName, cfgStrategy)
-				if !cfgInteractive {
-					// A TUI session that ended mid-crawl saved a partial tree;
-					// finish it so non-interactive output is never partial.
-					if pending := discovery.PendingStubs(node, crawlDepth(cfg), cfg.StubThreshold); len(pending) > 0 {
-						spin := NewSpinner(os.Stderr)
-						spin.Start("discovering " + cliName + "…")
-						discovery.CompletePending(ctx, node, cliName, crawlDepth(cfg), cfg.StubThreshold, discovery.DefaultMaxConcurrentHelp())
-						models.MarkInheritedFlags(node)
-						spin.Stop()
-						if serr := save(node); serr != nil {
-							log.Warn().Err(serr).Msg("cache write failed")
-						}
-					}
-				}
-				return output(cmd, node, cfg, save)
-			}
-		}
+// cacheKeyExtra is the part of the cache key that depends on how the tree
+// was discovered: depth, stub threshold and preset (nil without one).
+func cacheKeyExtra(cfg *config.Config, preset *presets.Preset) string {
+	extra := fmt.Sprintf("d=%d,t=%d", cfg.Depth, cfg.StubThreshold)
+	if preset != nil {
+		extra += ",p=" + preset.Name
 	}
+	return extra
+}
 
-	// The version string is only shown by `cache list`. Read it while discovery
-	// runs so a slow --version (aws, pip) adds nothing to a cold run.
-	var versionCh chan string
-	if cacheInst != nil && cacheKey != "" {
-		versionCh = make(chan string, 1)
-		go func() { versionCh <- cache.CLIVersion(cliName) }()
-	}
+// runCache is the cache entry one run reads and writes. A nil *runCache
+// means the run has no cache (--no-cache, or the cache failed to open), and
+// every method is then a no-op.
+type runCache struct {
+	c        *cache.Cache
+	key      string
+	cliName  string
+	strategy string
+}
 
-	// Discover tree
-	maxDepth := cfg.Depth
-	if maxDepth < 0 {
-		maxDepth = 99 // -1 means unlimited; cap at 99 to prevent infinite loops
+// openRunCache opens the cache and computes this run's key, or returns nil
+// when caching is off or the cache cannot be opened.
+func openRunCache(cfg *config.Config, cliName string, strategies []string, extra string) *runCache {
+	if cfg.NoCache {
+		return nil
 	}
-	discoverers := discovery.BuildDiscoverersWithThreshold(strategies, maxDepth, cfg.StubThreshold)
+	c, err := cache.Open(cfg.CacheDir)
+	if err != nil {
+		log.Warn().Err(err).Msg("could not open cache, running without")
+		return nil
+	}
+	// Key on the binary on disk, not on its --version output: starting
+	// aws or pip just to read a version costs seconds on every cache
+	// hit, and a CLI with no --version would never be invalidated.
+	ver := cache.BinaryFingerprint(discovery.ResolveBinary(cliName))
+	if ver == "" {
+		ver = cache.CLIVersion(cliName)
+	}
+	return &runCache{c: c, key: cache.KeyWith(cliName, ver, strategies, extra), cliName: cliName, strategy: cfgStrategy}
+}
+
+// cached returns the cached tree, or nil on a miss or with --refresh.
+func (rc *runCache) cached(cfg *config.Config) *models.Node {
+	if rc == nil {
+		return nil
+	}
+	if cfgRefresh {
+		log.Debug().Str("cli", rc.cliName).Msg("cache bypassed by --refresh")
+		return nil
+	}
+	node, err := rc.c.Get(rc.key, cfg.CacheTTL)
+	if err != nil || node == nil {
+		return nil
+	}
+	log.Debug().Str("cli", rc.cliName).Msg("cache hit")
+	return node
+}
+
+// saver returns the hook that writes a grown tree back to the cache, or nil
+// without a cache.
+func (rc *runCache) saver() func(*models.Node) error {
+	if rc == nil {
+		return nil
+	}
+	return saveExpansions(rc.c, rc.key, rc.cliName, rc.strategy)
+}
+
+// readVersion starts reading the CLI's --version in the background, or
+// returns nil without a cache.
+func (rc *runCache) readVersion() chan string {
+	if rc == nil {
+		return nil
+	}
+	ch := make(chan string, 1)
+	go func() { ch <- cache.CLIVersion(rc.cliName) }()
+	return ch
+}
+
+// put stores a freshly discovered tree with the version readVersion read.
+func (rc *runCache) put(node *models.Node, versionCh chan string) {
+	if rc == nil {
+		return
+	}
+	if err := rc.c.Put(rc.key, rc.cliName, <-versionCh, rc.strategy, node); err != nil {
+		log.Warn().Err(err).Msg("cache write failed")
+	}
+}
+
+// finishPartialTree completes a cached tree that a TUI session saved
+// mid-crawl, so non-interactive output is never partial.
+func finishPartialTree(ctx context.Context, node *models.Node, cliName string, cfg *config.Config, save func(*models.Node) error) {
+	if len(discovery.PendingStubs(node, crawlDepth(cfg), cfg.StubThreshold)) == 0 {
+		return
+	}
+	withSpinner("discovering "+cliName+"…", func() {
+		discovery.CompletePending(ctx, node, cliName, crawlDepth(cfg), cfg.StubThreshold, discovery.DefaultMaxConcurrentHelp())
+		models.MarkInheritedFlags(node)
+	})
+	if err := save(node); err != nil {
+		log.Warn().Err(err).Msg("cache write failed")
+	}
+}
+
+// discover runs the configured strategies on cliName. An interactive help
+// run asks only the root; the TUI discovers the rest in the background.
+func discover(ctx context.Context, cliName string, cfg *config.Config, strategies []string) (*models.Node, error) {
+	var discoverers []discovery.Discoverer
 	if streamsDiscovery(strategies) {
 		// The TUI opens as soon as the root is read and discovers the rest
 		// in the background (EnableCrawl), so only the root is asked here.
@@ -258,49 +359,44 @@ func runRoot(cmd *cobra.Command, args []string) error {
 		d.ChildrenAsStubs = true
 		d.StubThreshold = cfg.StubThreshold
 		discoverers = []discovery.Discoverer{d}
+	} else {
+		// -1 means unlimited; crawlDepth caps it at 99 to prevent infinite loops.
+		discoverers = discovery.BuildDiscoverersWithThreshold(strategies, crawlDepth(cfg), cfg.StubThreshold)
 	}
-	spin := NewSpinner(os.Stderr)
-	spin.Start("discovering " + cliName + "…")
-	node, err := discovery.Run(ctx, discoverers, cliName)
-	spin.Stop()
+	var (
+		node *models.Node
+		err  error
+	)
+	withSpinner("discovering "+cliName+"…", func() {
+		node, err = discovery.Run(ctx, discoverers, cliName)
+	})
 	if err != nil {
-		return fmt.Errorf("discovery failed: %w", err)
+		return nil, fmt.Errorf("discovery failed: %w", err)
 	}
 	if node == nil {
-		return fmt.Errorf("no results from discovery for %q", cliName)
+		return nil, fmt.Errorf("no results from discovery for %q", cliName)
 	}
+	return node, nil
+}
 
-	if hasPreset && preset.Seed != nil {
-		spin := NewSpinner(os.Stderr)
-		spin.Start("mapping " + cliName + "…")
-		if seed, serr := preset.Seed(ctx, cliName); serr != nil {
-			log.Warn().Err(serr).Str("preset", preset.Name).Msg("preset seed failed")
-		} else {
-			presets.Graft(node, seed)
+// seedFromPreset grafts the preset's own map of the CLI onto the tree.
+func seedFromPreset(ctx context.Context, node *models.Node, cliName string, preset *presets.Preset) {
+	withSpinner("mapping "+cliName+"…", func() {
+		seed, err := preset.Seed(ctx, cliName)
+		if err != nil {
+			log.Warn().Err(err).Str("preset", preset.Name).Msg("preset seed failed")
+			return
 		}
-		spin.Stop()
-	}
+		presets.Graft(node, seed)
+	})
+}
 
-	if cfgExpandStubs > 0 {
-		spin := NewSpinner(os.Stderr)
-		spin.Start("expanding stubs…")
-		discovery.ExpandStubs(ctx, node, cliName, cfgExpandStubs, 16, 30*time.Second, nil)
-		spin.Stop()
-	}
-
-	// Persist to cache
-	if cacheInst != nil && cacheKey != "" {
-		ver := <-versionCh
-		if putErr := cacheInst.Put(cacheKey, cliName, ver, cfgStrategy, node); putErr != nil {
-			log.Warn().Err(putErr).Msg("cache write failed")
-		}
-	}
-
-	var save func(*models.Node) error
-	if cacheInst != nil && cacheKey != "" {
-		save = saveExpansions(cacheInst, cacheKey, cliName, cfgStrategy)
-	}
-	return output(cmd, node, cfg, save)
+// withSpinner shows msg on stderr while fn runs.
+func withSpinner(msg string, fn func()) {
+	spin := NewSpinner(os.Stderr)
+	spin.Start(msg)
+	fn()
+	spin.Stop()
 }
 
 // streamsDiscovery reports whether this run opens the TUI on the root alone
