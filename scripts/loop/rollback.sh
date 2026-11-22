@@ -6,7 +6,8 @@ set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 cd "$LOOP_ROOT"
 git fetch origin main --quiet
-merge="$(git rev-list --merges -n1 origin/main)"
+# Skip the merge tag.sh makes when a changelog entry lands after a newer PR.
+merge="$(git rev-list --merges -n1 --invert-grep --grep='changelog entry$' origin/main)"
 [ -n "$merge" ] || { echo "no merge commit to revert" >&2; exit 1; }
 wt="$LOOP_DIR/worktrees/revert-${merge:0:8}"
 rm -rf "$wt"

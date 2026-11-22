@@ -1,5 +1,7 @@
-# Categories for the notes GitHub generates on each release
-# (release.yml workflow: generate_release_notes). Merged PRs are sorted by
+# Categories for the notes GitHub generates on each release (release.yml
+# workflow: generate_release_notes). Auto Release then replaces them with the
+# body scripts/release/notes.py builds from each PR's "## Release note"; these
+# remain for a release whose tag was pushed by hand. Merged PRs are sorted by
 # the release label the Auto Release workflow reads.
 changelog:
   categories:

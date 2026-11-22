@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write # push the tag
+  contents: write # push the tag and the changelog entry, edit the release notes
   actions: write # start the Release workflow
 
 jobs:
@@ -45,15 +45,17 @@ jobs:
             echo "tag=${plan#* }" >>"$GITHUB_OUTPUT"
           fi
 
-      - name: Tag main
+      # The changelog entry is committed before tagging, so the tag (and the
+      # site its Release deploys) carries it; tag.sh then puts that commit on
+      # main without force (a merge if a PR landed meanwhile).
+      - name: Tag main with its changelog entry
         if: steps.plan.outputs.tag != ''
         env:
           TAG: ${{ steps.plan.outputs.tag }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$TAG" -m "$TAG" HEAD
-          git push origin "$TAG"
+          sh scripts/release/tag.sh "$TAG" "$RUNNER_TEMP/release-notes.md"
 
       # A tag pushed with GITHUB_TOKEN starts no workflows, so start Release
       # explicitly on the tag. GITHUB_REF is then refs/tags/<tag>, the signing
@@ -63,6 +65,14 @@ jobs:
         env:
           TAG: ${{ steps.plan.outputs.tag }}
         run: sh scripts/release/dispatch.sh "$TAG"
+
+      # Release writes GitHub's generated notes; replace them with the body
+      # built from the PRs' release-note sections.
+      - name: Set the release notes
+        if: steps.plan.outputs.tag != ''
+        env:
+          TAG: ${{ steps.plan.outputs.tag }}
+        run: gh release edit "$TAG" --repo "$REPO" --notes-file "$RUNNER_TEMP/release-notes.md"
 
       - name: Smoke-test production
         if: steps.plan.outputs.tag != ''
