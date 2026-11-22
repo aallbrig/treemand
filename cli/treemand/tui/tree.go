@@ -1178,38 +1178,12 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int, graphPrefix string
 	if node.Virtual {
 		return
 	}
-
-	key := t.keyOf(node, depth, keyNode)
-	expanded := t.nodeExpanded[key]
-
-	// Collect visible (non-virtual) children up front — needed by filter logic.
-	var visChildren []*models.Node
-	for _, c := range node.Children {
-		if !c.Virtual {
-			visChildren = append(visChildren, c)
-		}
-	}
-
-	filtering := t.filter != ""
-
-	// When filtering: show this node if it directly matches OR any descendant
-	// matches (so ancestors act as context breadcrumbs). Always recurse into
-	// children regardless of expanded state so the full tree is searched.
-	if filtering {
-		if matchesFilter(node, t.filter) || nodeOrDescendantMatchesFilter(node, t.filter) {
-			t.rows = append(t.rows, treeRow{
-				kind:  rowKindCommand,
-				depth: depth,
-				node:  node,
-			})
-		}
-		for _, c := range visChildren {
-			t.flattenNode(c, depth+1, "", true)
-		}
+	visChildren := visibleChildren(node)
+	if t.filter != "" {
+		t.flattenFiltered(node, depth, visChildren)
 		return
 	}
 
-	// Normal (non-filtered) path: add row then stop if not expanded.
 	t.rows = append(t.rows, treeRow{
 		kind:        rowKindCommand,
 		depth:       depth,
@@ -1217,135 +1191,136 @@ func (t *TreeModel) flattenNode(node *models.Node, depth int, graphPrefix string
 		graphPrefix: graphPrefix,
 		isLast:      isLast,
 	})
-
-	if !expanded {
+	if !t.nodeExpanded[t.keyOf(node, depth, keyNode)] {
 		return
 	}
 
-	// Partition flags into own (local) and inherited (global).
-	var ownFlags, inheritedFlags []int // indices into node.Flags
-	for i := range node.Flags {
-		if node.Flags[i].Inherited {
-			inheritedFlags = append(inheritedFlags, i)
+	// Sections in display order: inherited (global) flags, own flags,
+	// subcommands, positionals.
+	ownFlags, inheritedFlags := partitionFlags(node.Flags)
+	t.appendFlagSection(node, depth, keyInherited, "Inherited flags", inheritedFlags, false)
+	t.appendFlagSection(node, depth, keyFlags, "Flags", ownFlags, len(ownFlags) <= 5)
+	t.appendSubcommands(node, depth, graphPrefix, isLast, visChildren)
+	t.appendPositionals(node, depth)
+}
+
+// flattenFiltered shows node if it matches the filter or any descendant does
+// (so ancestors act as context breadcrumbs), and always recurses so the whole
+// tree is searched regardless of expanded state.
+func (t *TreeModel) flattenFiltered(node *models.Node, depth int, visChildren []*models.Node) {
+	if matchesFilter(node, t.filter) || nodeOrDescendantMatchesFilter(node, t.filter) {
+		t.rows = append(t.rows, treeRow{kind: rowKindCommand, depth: depth, node: node})
+	}
+	for _, c := range visChildren {
+		t.flattenNode(c, depth+1, "", true)
+	}
+}
+
+// visibleChildren returns node's non-virtual children.
+func visibleChildren(node *models.Node) []*models.Node {
+	var vis []*models.Node
+	for _, c := range node.Children {
+		if !c.Virtual {
+			vis = append(vis, c)
+		}
+	}
+	return vis
+}
+
+// partitionFlags splits flags into indices of own (local) and inherited
+// (global) flags.
+func partitionFlags(flags []models.Flag) (own, inherited []int) {
+	for i := range flags {
+		if flags[i].Inherited {
+			inherited = append(inherited, i)
 		} else {
-			ownFlags = append(ownFlags, i)
+			own = append(own, i)
 		}
 	}
+	return own, inherited
+}
 
-	// Inherited (global) flags section — shown first.
-	if len(inheritedFlags) > 0 {
-		sKey := t.keyOf(node, depth, keyInherited)
-		inhExpanded := t.hideSections || t.isSectionExpanded(sKey, false)
-		if !t.hideSections {
-			t.rows = append(t.rows, treeRow{
-				kind:           rowKindSection,
-				depth:          depth + 1,
-				sectionKey:     sKey,
-				sectionName:    "Inherited flags",
-				sectionCount:   len(inheritedFlags),
-				sectionDefault: false,
-			})
-		}
-		if inhExpanded {
-			for _, i := range inheritedFlags {
-				t.rows = append(t.rows, treeRow{
-					kind:       rowKindFlag,
-					depth:      depth + 2,
-					flag:       &node.Flags[i],
-					owner:      node,
-					ownerDepth: depth,
-					sectionRef: sKey,
-				})
-			}
-		}
+// appendSection adds a section header row (unless sections are hidden) and
+// reports the section's key and whether its items should be shown.
+func (t *TreeModel) appendSection(node *models.Node, depth int, section keySection, name string, count int, def bool) (string, bool) {
+	sKey := t.keyOf(node, depth, section)
+	if t.hideSections {
+		return sKey, true
 	}
+	t.rows = append(t.rows, treeRow{
+		kind:           rowKindSection,
+		depth:          depth + 1,
+		sectionKey:     sKey,
+		sectionName:    name,
+		sectionCount:   count,
+		sectionDefault: def,
+	})
+	return sKey, t.isSectionExpanded(sKey, def)
+}
 
-	// Own (local) flags section.
-	if len(ownFlags) > 0 {
-		sKey := t.keyOf(node, depth, keyFlags)
-		flagDefault := len(ownFlags) <= 5
-		flagExpanded := t.hideSections || t.isSectionExpanded(sKey, flagDefault)
-		if !t.hideSections {
-			t.rows = append(t.rows, treeRow{
-				kind:           rowKindSection,
-				depth:          depth + 1,
-				sectionKey:     sKey,
-				sectionName:    "Flags",
-				sectionCount:   len(ownFlags),
-				sectionDefault: flagDefault,
-			})
-		}
-		if flagExpanded {
-			for _, i := range ownFlags {
-				t.rows = append(t.rows, treeRow{
-					kind:       rowKindFlag,
-					depth:      depth + 2,
-					flag:       &node.Flags[i],
-					owner:      node,
-					ownerDepth: depth,
-					sectionRef: sKey,
-				})
-			}
-		}
+func (t *TreeModel) appendFlagSection(node *models.Node, depth int, section keySection, name string, idx []int, def bool) {
+	if len(idx) == 0 {
+		return
 	}
-
-	// Subcommands section.
-	if len(visChildren) > 0 {
-		sKey := t.keyOf(node, depth, keySubcommands)
-		subDefault := len(visChildren) <= 6
-		subExpanded := t.hideSections || t.isSectionExpanded(sKey, subDefault)
-		if !t.hideSections {
-			t.rows = append(t.rows, treeRow{
-				kind:           rowKindSection,
-				depth:          depth + 1,
-				sectionKey:     sKey,
-				sectionName:    "Subcommands",
-				sectionCount:   len(visChildren),
-				sectionDefault: subDefault,
-			})
-		}
-		if subExpanded {
-			var childGraphPrefix string
-			if depth == 0 {
-				childGraphPrefix = ""
-			} else if isLast {
-				childGraphPrefix = graphPrefix + "    "
-			} else {
-				childGraphPrefix = graphPrefix + "│   "
-			}
-			for i, c := range visChildren {
-				t.flattenNode(c, depth+1, childGraphPrefix, i == len(visChildren)-1)
-			}
-		}
+	sKey, expanded := t.appendSection(node, depth, section, name, len(idx), def)
+	if !expanded {
+		return
 	}
+	for _, i := range idx {
+		t.rows = append(t.rows, treeRow{
+			kind:       rowKindFlag,
+			depth:      depth + 2,
+			flag:       &node.Flags[i],
+			owner:      node,
+			ownerDepth: depth,
+			sectionRef: sKey,
+		})
+	}
+}
 
-	// Positional arguments section.
-	if len(node.Positionals) > 0 {
-		sKey := t.keyOf(node, depth, keyPositionals)
-		posDefault := len(node.Positionals) <= 5
-		posExpanded := t.hideSections || t.isSectionExpanded(sKey, posDefault)
-		if !t.hideSections {
-			t.rows = append(t.rows, treeRow{
-				kind:           rowKindSection,
-				depth:          depth + 1,
-				sectionKey:     sKey,
-				sectionName:    "Positional arguments",
-				sectionCount:   len(node.Positionals),
-				sectionDefault: posDefault,
-			})
-		}
-		if posExpanded {
-			for i := range node.Positionals {
-				t.rows = append(t.rows, treeRow{
-					kind:       rowKindPositional,
-					depth:      depth + 2,
-					positional: &node.Positionals[i],
-					owner:      node,
-					ownerDepth: depth,
-					sectionRef: sKey,
-				})
-			}
-		}
+func (t *TreeModel) appendSubcommands(node *models.Node, depth int, graphPrefix string, isLast bool, visChildren []*models.Node) {
+	if len(visChildren) == 0 {
+		return
+	}
+	if _, expanded := t.appendSection(node, depth, keySubcommands, "Subcommands", len(visChildren), len(visChildren) <= 6); !expanded {
+		return
+	}
+	childGraphPrefix := childPrefix(depth, graphPrefix, isLast)
+	for i, c := range visChildren {
+		t.flattenNode(c, depth+1, childGraphPrefix, i == len(visChildren)-1)
+	}
+}
+
+// childPrefix is the graph-style continuation prefix for a node's children.
+func childPrefix(depth int, graphPrefix string, isLast bool) string {
+	switch {
+	case depth == 0:
+		return ""
+	case isLast:
+		return graphPrefix + "    "
+	default:
+		return graphPrefix + "│   "
+	}
+}
+
+func (t *TreeModel) appendPositionals(node *models.Node, depth int) {
+	n := len(node.Positionals)
+	if n == 0 {
+		return
+	}
+	sKey, expanded := t.appendSection(node, depth, keyPositionals, "Positional arguments", n, n <= 5)
+	if !expanded {
+		return
+	}
+	for i := range node.Positionals {
+		t.rows = append(t.rows, treeRow{
+			kind:       rowKindPositional,
+			depth:      depth + 2,
+			positional: &node.Positionals[i],
+			owner:      node,
+			ownerDepth: depth,
+			sectionRef: sKey,
+		})
 	}
 }
 
