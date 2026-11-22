@@ -465,10 +465,29 @@ tasks:
       - sh scripts/check_coverage.sh --update
 
   fuzz:
-    desc: "Fuzz a help parser for a while: task fuzz -- FuzzParseHelpOutput 60s"
+    desc: "Fuzz one discovery target for a while: task fuzz -- FuzzParseFlag 60s (every target: task fuzz:campaign)"
     dir: cli/treemand
     cmds:
       - go test -run '^$' -fuzz={{index (splitList " " .CLI_ARGS) 0 | default "FuzzParseHelpOutput"}} -fuzztime={{index (splitList " " .CLI_ARGS) 1 | default "30s"}} ./discovery
+
+  fuzz:campaign:
+    desc: "Fuzz every Fuzz* target for FUZZ_SECONDS each (default 60) through the measurement engine: task fuzz:campaign -- [--record] (skill treemand-fuzz-campaign)"
+    cmds:
+      - python3 -I scripts/metrics/measure.py fuzz {{.CLI_ARGS}}
+
+  fuzz:smoke:
+    desc: Fuzz every Fuzz* target for 5s; fails on a crasher the last recorded campaign did not have
+    env:
+      FUZZ_SECONDS: "5"
+      FUZZ_KEEP_CRASHERS: "0"
+    cmds:
+      - python3 -I scripts/metrics/measure.py fuzz --gate
+
+  fuzz:test:
+    desc: Test the fuzz probe on a fixture module with a fake go
+    cmds:
+      - shellcheck --shell=sh scripts/metrics/fuzz_campaign_test.sh scripts/metrics/probes/fuzz.sh
+      - sh scripts/metrics/fuzz_campaign_test.sh
 
   chaos:
     desc: Reliability suite - hostile fake CLIs must not hang, panic or exhaust memory
@@ -531,12 +550,14 @@ tasks:
       - task: gates:test
       - task: release:test
       - task: measure:test
+      - task: fuzz:test
       - task: channels:test
       - task: fmt:check
       - task: vet
       - task: lint
       - task: vuln
       - task: test-race
+      - task: fuzz:smoke
       - task: build
       - task: dev:check
       - task: dev:test
