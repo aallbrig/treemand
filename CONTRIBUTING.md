@@ -150,6 +150,14 @@ TUI), `watch` (fmt, test and lint on change), `site` (`task site:dev`), `prod` a
 `loops` (a dev shell that runs `task loop:resume` and `task loop:status`). The
 loop's agent pane exists only while the loop runs.
 
+The `prod` window shows read-only production status in four panes, each
+refreshing every `PROD_REFRESH_SECONDS` (default 300): site health (key pages,
+TLS expiry, served release vs latest release), pipelines (latest workflow runs,
+open PRs, `loop:in-progress` issues), AWS (CloudFront status and the monthly
+budget, through free APIs only) and release downloads. The AWS pane uses
+`AWS_PROFILE`; without access it shows a hint instead of failing. `task
+prod:status` prints all four once.
+
 The loop runs from its own worktree beside your checkout (`../treemand.loop`,
 detached at `origin/main` and fast-forwarded every cycle), so it never touches
 your checkout; its state is in that worktree's `.loop/`. `loop:start` writes

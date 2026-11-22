@@ -298,6 +298,17 @@ tasks:
     cmds:
       - sh scripts/dev/autostart.sh status
 
+  prod:status:
+    desc: Production status once (site health, pipelines, AWS via AWS_PROFILE, downloads); the prod window refreshes the same panes
+    cmds:
+      - sh scripts/prod/status.sh
+
+  prod:test:
+    desc: Behaviour tests for the prod window panes (fake curl, gh, aws and openssl) and their shellcheck
+    cmds:
+      - shellcheck --shell=sh -x scripts/prod/*.sh
+      - sh scripts/prod/prod_test.sh
+
   # ── dev loop ─────────────────────────────────────────────────────────────
 
   loop:start:
@@ -472,6 +483,7 @@ tasks:
       - task: build
       - task: dev:check
       - task: dev:test
+      - task: prod:test
       - task: loop:check
       - task: docs:check
       - task: site:check
