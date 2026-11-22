@@ -107,6 +107,9 @@ func (h *HelpDiscoverer) discoverWithHelp(ctx context.Context, cliName string, a
 	node.Description = parsed.Description
 	node.Flags = parsed.Flags
 	node.Positionals = parsed.Positionals
+	if atRoot {
+		node.Flags = rootFlagsOrMan(ctx, cliName, node.Flags)
+	}
 
 	if atRoot && len(parsed.Subcommands) == 0 {
 		helpText, parsed = h.cleoListFallback(ctx, cliName, node, helpText, parsed)
@@ -133,7 +136,8 @@ func (h *HelpDiscoverer) discoverWithHelp(ctx context.Context, cliName string, a
 		node.Children = stubChildren(fullPath, parsed)
 		return node, nil
 	}
-	walk := childWalk{cliName: cliName, args: args, fullPath: fullPath, depth: depth, parentHelp: helpText}
+	walk := childWalk{cliName: cliName, args: args, fullPath: fullPath, depth: depth, parentHelp: helpText,
+		globalFlags: optionsForAnyCommand(helpText, node.Flags)}
 	node.Children = h.discoverChildren(ctx, walk, parsed)
 	return node, nil
 }
@@ -224,6 +228,10 @@ type childWalk struct {
 	fullPath   []string
 	depth      int
 	parentHelp string
+	// globalFlags are the parent's options that its usage accepts with any
+	// command ("apt command [options]"); a child with no help of its own
+	// takes them, marked inherited.
+	globalFlags []models.Flag
 }
 
 // discoverChildren discovers every subcommand concurrently (at most eight
@@ -258,7 +266,22 @@ func (h *HelpDiscoverer) discoverChildren(ctx context.Context, walk childWalk, p
 }
 
 // discoverChild runs the help of one subcommand and discovers it.
+//
+// A child that ends with no flags of its own takes the options its parent's
+// usage accepts with any command, marked inherited: apt prints no help for
+// its commands (they echo the general help of apt, apt-get or apt-cache, or
+// fail when the Linux Mint wrapper needs sudo), yet "apt install -o ..." and
+// "apt install -t <release>" are valid.
 func (h *HelpDiscoverer) discoverChild(ctx context.Context, walk childWalk, sub string) *models.Node {
+	child := h.discoverChildNode(ctx, walk, sub)
+	if len(child.Flags) == 0 {
+		child.Flags = inheritedCopy(walk.globalFlags)
+	}
+	return child
+}
+
+// discoverChildNode runs the help of one subcommand and discovers it.
+func (h *HelpDiscoverer) discoverChildNode(ctx context.Context, walk childWalk, sub string) *models.Node {
 	subArgs := append(append([]string{}, walk.args...), sub)
 	subFull := append(append([]string{}, walk.fullPath...), sub)
 	childHelp, err := h.runHelp(ctx, walk.cliName, subArgs)
@@ -1900,4 +1923,39 @@ func nextLineIndented(lines []string, i int) bool {
 		return l[0] == ' ' || l[0] == '\t'
 	}
 	return false
+}
+
+// rootFlagsOrMan returns flags, or when the root's help lists none, the flags
+// its man page documents: apt's help never lists an option (#65).
+func rootFlagsOrMan(ctx context.Context, cliName string, flags []models.Flag) []models.Flag {
+	if len(flags) > 0 {
+		return flags
+	}
+	return manFlagsFor(ctx, cliName)
+}
+
+// optionsWithCommandRe matches a usage line that takes options with any
+// command: "Usage: apt command [options]", "Usage: apt [options] command".
+var optionsWithCommandRe = regexp.MustCompile(`(?im)^\s*usage:.*(?:\[options?\].*\bcommand\b|\bcommand\b.*\[options?\])`)
+
+// optionsForAnyCommand returns the flags a command's usage accepts with any
+// of its subcommands, or nil when the usage does not say so.
+func optionsForAnyCommand(helpText string, flags []models.Flag) []models.Flag {
+	if !optionsWithCommandRe.MatchString(helpText) {
+		return nil
+	}
+	return flags
+}
+
+// inheritedCopy returns a copy of flags, each marked inherited.
+func inheritedCopy(flags []models.Flag) []models.Flag {
+	if len(flags) == 0 {
+		return nil
+	}
+	out := make([]models.Flag, len(flags))
+	for i, f := range flags {
+		f.Inherited = true
+		out[i] = f
+	}
+	return out
 }

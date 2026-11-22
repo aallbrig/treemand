@@ -107,3 +107,49 @@ func (m *ManDiscoverer) fetchManPage(ctx context.Context, cliName string) (strin
 
 	return colOut.String(), nil
 }
+
+// ManFlags returns the flags a man page documents: its OPTIONS section when
+// it has one, else the flags its SYNOPSIS shows. apt(8) has only the latter:
+// "apt [-h] [-o=config_string] [-c=config_file] ...".
+func ManFlags(plain string) []models.Flag {
+	parsed := ParseHelpOutput(plain)
+	flags := parsed.Flags
+	if len(flags) == 0 {
+		for _, sec := range parsed.Sections {
+			flags = append(flags, sec.Flags...)
+		}
+	}
+	if len(flags) > 0 {
+		return flags
+	}
+	return SynopsisFlags(manSection(plain, "SYNOPSIS"))
+}
+
+// manSection returns the body of the man page section headed name: the lines
+// after the unindented heading up to the next unindented line.
+func manSection(plain, name string) string {
+	var body []string
+	in := false
+	for _, line := range strings.Split(plain, "\n") {
+		indented := strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t")
+		switch {
+		case !indented && strings.TrimSpace(line) == name:
+			in = true
+		case in && !indented && strings.TrimSpace(line) != "":
+			return strings.Join(body, "\n")
+		case in:
+			body = append(body, line)
+		}
+	}
+	return strings.Join(body, "\n")
+}
+
+// manFlagsFor fetches cliName's man page and returns ManFlags of it, or nil
+// when there is no man page.
+func manFlagsFor(ctx context.Context, cliName string) []models.Flag {
+	plain, err := NewManDiscoverer().fetchManPage(ctx, cliName)
+	if err != nil || plain == "" {
+		return nil
+	}
+	return ManFlags(plain)
+}
