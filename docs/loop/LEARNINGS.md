@@ -102,3 +102,6 @@ A versioned JSON Schema (`treemand schema`, served at treemand.dev/schema/tree.v
 
 ### Cycle 33 - 2026-11-22 - released - #214 (open) v0.9.1
 `flattenNode` went from cognitive 57 to under 15 with no row changes: one helper per section, sharing `appendSection`. `functions_over_30` dropped from 8 to 7 and TUI allocations stayed flat. A characterization test that dumps every row field as one line per row, committed before the refactor, made the change safe and quick to review. Pin its golden from the real output, not from a guess: section keys look like `path@depth/flags`, and with sections hidden the flat rows keep their depth+2. Selection is not the work file: `.loop/work` named #51, but select.md puts measure:finding issues first. Budget issues like #214 ship one function per release, say "Part of", and go back to ready.
+
+### Cycle 34 - 2026-11-22 - released - #214 (open) v0.9.2
+`runRoot` went from cognitive 58 to 11 with one helper per stage; `functions_over_30` 7 to 6. Host load blocked the pre-commit hook on discovery wall-clock tests: confirm a timing failure on main once, then retry in a quiet minute.
