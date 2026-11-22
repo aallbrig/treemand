@@ -108,3 +108,6 @@ A versioned JSON Schema (`treemand schema`, served at treemand.dev/schema/tree.v
 
 ### Cycle 35 - 2026-11-22 - released - #214 (open) v0.9.3
 `discoverWithHelp` went from cognitive 56 to under 15; `functions_over_30` 6 to 5. Pin the uncovered branches with a characterization test before refactoring (here a child whose help fails and a child that echoes its parent's help). `fuzz:smoke` can trip on the known #338 crasher by chance, so re-run before you suspect the change.
+
+### Cycle 36 - 2026-11-22 - released - #214 (open) v0.9.4
+`Left` went from cognitive 43 to under 10; `functions_over_30` 5 to 4. `ExpandAll` marks leaves expanded too, so Left on a leaf collapses in place there; a characterization test needs a layout with collapsed leaves to reach the parent-jump path. `task pr:merge` can outlast a 10-minute foreground call (`task ci` takes about 10 minutes), so run it in the background.

@@ -315,86 +315,85 @@ func (t *TreeModel) rowMatchesSearch(idx int, lowerSearch string) bool {
 }
 
 // Right implements VS Code-style tree navigation:
+//   - section header → expand it
 //   - collapsed command node → expand it and stay on the node
-//   - expanded command node → jump to the first command child (skip flags/positionals)
+//   - expanded command node → jump to its first child (see enterChildren)
 //   - flag / positional row → no-op
 func (t *TreeModel) Right() {
 	if t.cursor >= len(t.rows) {
 		return
 	}
 	row := t.rows[t.cursor]
-	if row.kind == rowKindSection {
+	switch row.kind {
+	case rowKindSection:
 		t.expandSection(row)
-		return
-	}
-	if row.kind != rowKindCommand {
-		return
-	}
-	key := nodeKey(row.node, row.depth)
-	if !t.nodeExpanded[key] {
-		// Step 1: expand and stay on this node.
-		t.nodeExpanded[key] = true
-		t.rebuild()
-		for i, r := range t.rows {
-			if r.kind == rowKindCommand && r.node == row.node && r.depth == row.depth {
-				t.cursor = i
-				break
-			}
-		}
-		t.scrollIntoView()
-		return
-	}
-	// Step 2: already expanded — jump to first child row.
-	// Priority: command child > flag/positional > expand first collapsed section.
-	firstChild := -1
-	firstSection := -1
-	for pos := t.cursor + 1; pos < len(t.rows); pos++ {
-		r := t.rows[pos]
-		if r.depth <= row.depth {
-			break // walked past children
-		}
-		if r.kind == rowKindCommand {
-			t.cursor = pos
-			t.scrollIntoView()
+	case rowKindCommand:
+		key := nodeKey(row.node, row.depth)
+		if t.nodeExpanded[key] {
+			t.enterChildren(row)
 			return
 		}
-		if firstChild == -1 && r.kind != rowKindSection {
+		t.nodeExpanded[key] = true
+		t.rebuild()
+		t.moveToCommandRow(row.node, row.depth)
+	}
+}
+
+// enterChildren moves the cursor from an expanded command row into its
+// children. Priority: the first command child, then the first flag or
+// positional, then expanding the first collapsed section header.
+func (t *TreeModel) enterChildren(row treeRow) {
+	firstCommand, firstChild, firstSection := t.scanChildren(row)
+	switch {
+	case firstCommand >= 0:
+		t.moveCursor(firstCommand)
+	case firstChild >= 0:
+		t.moveCursor(firstChild)
+	case firstSection >= 0:
+		t.openFirstSection(row, firstSection)
+	}
+}
+
+// scanChildren walks the rows below the cursor that belong to row and
+// returns the position of the first command, the first flag or positional,
+// and the first section header (-1 where there is none). The walk stops at
+// the first command, since a command child wins over everything else.
+func (t *TreeModel) scanChildren(row treeRow) (firstCommand, firstChild, firstSection int) {
+	firstChild, firstSection = -1, -1
+	for pos := t.cursor + 1; pos < len(t.rows) && t.rows[pos].depth > row.depth; pos++ {
+		switch r := t.rows[pos]; {
+		case r.kind == rowKindCommand:
+			return pos, firstChild, firstSection
+		case r.kind == rowKindSection:
+			if firstSection == -1 {
+				firstSection = pos
+			}
+		case firstChild == -1:
 			firstChild = pos
 		}
-		if firstSection == -1 && r.kind == rowKindSection {
-			firstSection = pos
+	}
+	return -1, firstChild, firstSection
+}
+
+// openFirstSection expands the section header at firstSection, the only
+// children of row on screen, and lands on the first non-section row deeper
+// than row, or on the header itself when there is none.
+func (t *TreeModel) openFirstSection(row treeRow, firstSection int) {
+	t.sectionExpanded[t.rows[firstSection].sectionKey] = true
+	t.rebuild()
+	for pos, r := range t.rows {
+		if r.kind != rowKindSection && r.depth > row.depth {
+			t.moveCursor(pos)
+			return
 		}
 	}
-	if firstChild >= 0 {
-		t.cursor = firstChild
-		t.scrollIntoView()
-		return
-	}
-	// Only section headers visible (all collapsed). Expand the first section
-	// so the user can reach the flags/positionals inside.
-	if firstSection >= 0 {
-		secRow := t.rows[firstSection]
-		t.sectionExpanded[secRow.sectionKey] = true
-		t.rebuild()
-		// Land on the first non-section row after where the section was.
-		for pos := 0; pos < len(t.rows); pos++ {
-			r := t.rows[pos]
-			if r.kind != rowKindSection && r.kind != rowKindCommand && r.depth > row.depth {
-				t.cursor = pos
-				t.scrollIntoView()
-				return
-			}
-			// Also accept command children that appeared after section expand.
-			if r.kind == rowKindCommand && r.depth > row.depth {
-				t.cursor = pos
-				t.scrollIntoView()
-				return
-			}
-		}
-		// Fallback: just move past the section header itself.
-		t.cursor = firstSection
-		t.scrollIntoView()
-	}
+	t.moveCursor(firstSection)
+}
+
+// moveCursor puts the cursor on pos and scrolls it into view.
+func (t *TreeModel) moveCursor(pos int) {
+	t.cursor = pos
+	t.scrollIntoView()
 }
 
 // Left implements VS Code-style tree navigation:
