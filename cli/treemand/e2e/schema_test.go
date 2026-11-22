@@ -98,9 +98,14 @@ func TestSchema_outputValidatesForCorpusAndFakes(t *testing.T) {
 		targets = append(targets, target{"fake/" + name, name, fakeDir})
 	}
 
+	// A few runs at a time: unbounded, these 150 runs starve the timing
+	// tests of packages that go test runs alongside.
+	slots := make(chan struct{}, 4)
 	for _, tg := range targets {
 		t.Run(tg.label, func(t *testing.T) {
 			t.Parallel()
+			slots <- struct{}{}
+			defer func() { <-slots }()
 			path := "PATH=" + tg.dir + string(os.PathListSeparator) + fakeDir + string(os.PathListSeparator) + os.Getenv("PATH")
 			outputs := map[string]string{}
 			defer func() {
