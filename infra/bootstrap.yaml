@@ -3,8 +3,9 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: >-
   treemand.dev bootstrap. Deployed by hand with admin credentials (task infra:bootstrap):
   the GitHub OIDC deploy role, the CloudFormation service role that owns site resources,
-  the boundary capping both, the TLS certificate and the cost budget. Account-specific values
-  arrive as parameters or pseudo-parameters at deploy time and never through git.
+  the boundary capping both, the read-only monitoring role, the TLS certificate and the cost
+  budget. Account-specific values arrive as parameters or pseudo-parameters at deploy time and
+  never through git.
 
 Parameters:
   DomainName:
@@ -333,6 +334,57 @@ Resources:
                   StringEquals:
                     aws:ResourceTag/Project: treemand
 
+  # Read-only monitoring for the prod window (scripts/prod/aws.sh): exactly the
+  # calls it makes, nothing that writes. sts:GetCallerIdentity needs no grant.
+  # Trust is the account itself, so only principals here whose own policies
+  # allow sts:AssumeRole on this role can use it. No MFA condition: the prod
+  # pane refreshes unattended, and an MFA prompt on every credential expiry
+  # would stop it. No permissions boundary: the automation boundary leaves out
+  # Budgets, and this policy grants no write action to cap.
+  ReadOnlyRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: treemand-prod-readonly
+      Description: Read-only production monitoring for the treemand prod window; no write actions.
+      MaxSessionDuration: 3600
+      Tags:
+        - {Key: Project, Value: treemand}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: treemand-prod-readonly
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: SiteStackOutputs
+                Effect: Allow
+                Action: cloudformation:DescribeStacks
+                Resource: !Sub arn:${AWS::Partition}:cloudformation:us-east-1:${AWS::AccountId}:stack/treemand-site/*
+              - Sid: BudgetNameFromBootstrapStack
+                Effect: Allow
+                Action: cloudformation:DescribeStackResource
+                Resource: !Sub arn:${AWS::Partition}:cloudformation:us-east-1:${AWS::AccountId}:stack/${AWS::StackName}/*
+              - Sid: OwnDistributionStatus
+                Effect: Allow
+                Action: cloudfront:GetDistribution
+                Resource: !Sub arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/*
+                Condition:
+                  StringEquals:
+                    aws:ResourceTag/Project: treemand
+              - Sid: FindDistributionByAlias
+                Effect: Allow
+                Action: cloudfront:ListDistributions
+                Resource: '*'
+              - Sid: ViewOwnBudget
+                Effect: Allow
+                Action: budgets:ViewBudget
+                Resource: !Sub arn:${AWS::Partition}:budgets::${AWS::AccountId}:budget/${MonthlyBudget}
+
   Certificate:
     Type: AWS::CertificateManager::Certificate
     Properties:
@@ -382,6 +434,8 @@ Outputs:
     Value: !GetAtt DeployRole.Arn
   CfnExecRoleArn:
     Value: !GetAtt CfnExecRole.Arn
+  ReadOnlyRoleArn:
+    Value: !GetAtt ReadOnlyRole.Arn
   CertificateArn:
     Value: !Ref Certificate
     Export:
