@@ -1,0 +1,40 @@
+# Tools a treemand dev host needs: the one list that scripts/dev/setup.sh
+# (installs) and scripts/dev/bootstrap.sh (reports) both read.
+#
+# name|need|brew|apt|dnf|fallback
+#   name      command looked up on PATH (node, chrome and hugo have special checks in tools.sh)
+#   need      required: task ci needs it; setup.sh exits non-zero while one is missing
+#             optional: the dev session or agent tooling uses it; reported only
+#   brew/apt/dnf  package for that manager (cask:<name> for a brew cask), or - for none
+#   fallback  used when the manager column is -:
+#             go:<module@version>  pipx:<package>  gem:<package>  nvm (installs .nvmrc's node)
+#             url:<page>  (no automatic install; the page says how)
+#
+# Order matters: system packages install first, so go and pipx exist for the fallbacks.
+go|required|go|golang-go|golang|url:https://go.dev/doc/install
+git|required|git|git|git|url:https://git-scm.com/downloads
+curl|required|curl|curl|curl|url:https://curl.se/download.html
+python3|required|python@3.12|python3|python3|url:https://www.python.org/downloads/
+pipx|required|pipx|pipx|pipx|url:https://pipx.pypa.io/stable/installation/
+task|required|go-task|-|-|go:github.com/go-task/task/v3/cmd/task@latest
+golangci-lint|required|golangci-lint|-|-|go:github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+govulncheck|required|-|-|-|go:golang.org/x/vuln/cmd/govulncheck@latest
+gh|required|gh|gh|gh|url:https://cli.github.com/
+jq|required|jq|jq|jq|url:https://jqlang.org/download/
+shellcheck|required|shellcheck|shellcheck|ShellCheck|url:https://github.com/koalaman/shellcheck#installing
+dash|required|dash|dash|dash|url:https://git.kernel.org/pub/scm/utils/dash/dash.git
+timeout|required|coreutils|coreutils|coreutils|url:https://www.gnu.org/software/coreutils/
+gitleaks|required|gitleaks|-|-|go:github.com/zricethezav/gitleaks/v8@latest
+actionlint|required|actionlint|-|-|go:github.com/rhysd/actionlint/cmd/actionlint@latest
+cfn-lint|required|cfn-lint|-|-|pipx:cfn-lint
+checkov|required|checkov|-|-|pipx:checkov
+ruff|required|ruff|-|-|pipx:ruff
+mypy|required|mypy|-|-|pipx:mypy
+pre-commit|required|pre-commit|pre-commit|pre-commit|pipx:pre-commit
+hugo|required|hugo|hugo|hugo|url:https://gohugo.io/installation/ (extended edition)
+node|required|-|-|-|nvm
+chrome|required|cask:google-chrome|-|chromium|url:https://www.google.com/chrome/ (or set CHROME to a Chrome or Chromium binary)
+tmux|required|tmux|tmux|tmux|url:https://github.com/tmux/tmux/wiki/Installing
+tmuxinator|required|tmuxinator|tmuxinator|-|gem:tmuxinator
+watchexec|optional|watchexec|-|-|url:https://github.com/watchexec/watchexec#install
+yq|optional|yq|-|-|go:github.com/mikefarah/yq/v4@latest

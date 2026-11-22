@@ -276,9 +276,11 @@ tasks:
       - sh scripts/dev/bootstrap.sh
 
   dev:test:
-    desc: Behaviour tests for the dev-session scripts (bootstrap report and browser opening, all stubbed)
+    desc: Behaviour tests for the dev-host scripts (bootstrap report, setup with stubbed installers, git hook chain)
     cmds:
       - sh scripts/dev/bootstrap_test.sh
+      - sh scripts/dev/setup_test.sh
+      - sh scripts/dev/hooks_test.sh
 
   # ── dev loop ─────────────────────────────────────────────────────────────
 
@@ -425,12 +427,9 @@ tasks:
   # ── composite gates ──────────────────────────────────────────────────────
 
   setup:
-    desc: One-time install of tooling deps and git hooks
+    desc: "Dev host setup (macOS or Linux): report tools and git hooks, changing nothing; task setup -- --install installs what is missing"
     cmds:
-      - bash scripts/setup-hooks.sh
-      - go install golang.org/x/vuln/cmd/govulncheck@latest
-      - pre-commit install || true
-      - echo "also needed on PATH - golangci-lint, hugo (extended), tmux, tmuxinator, watchexec, gh, jq, shellcheck, gitleaks, cfn-lint, checkov, ruff, mypy"
+      - sh scripts/dev/setup.sh {{.CLI_ARGS}}
 
   format:
     desc: Format everything
@@ -496,9 +495,10 @@ tasks:
   # ── hooks ────────────────────────────────────────────────────────────────
 
   hooks:
-    desc: Install git hooks
+    desc: Install the git hooks (pre-commit framework chaining task precommit, and pre-push), then verify them
     cmds:
-      - bash scripts/setup-hooks.sh
+      - sh scripts/dev/hooks.sh install
+      - sh scripts/dev/hooks.sh verify
 
   # ── demo ─────────────────────────────────────────────────────────────────
 
