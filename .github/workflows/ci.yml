@@ -69,6 +69,26 @@ jobs:
       - name: Build
         run: go build -o treemand .
 
+  # Go tests on darwin. The full gate suite (task ci) stays on Linux; this
+  # job exists because platform-specific code (such as the config directory)
+  # otherwise never runs under test on macOS.
+  test-macos:
+    name: Go tests on macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/treemand/go.mod
+          cache-dependency-path: cli/treemand/go.sum
+
+      - name: go test -race (unit and e2e)
+        run: go test -race -count=1 ./cli/treemand/...
+
+      - name: Corpus (task corpus:test)
+        run: go test -count=1 -run TestCorpus ./cli/treemand/discovery
+
   gates:
     name: Task ci (all gates)
     runs-on: ubuntu-latest
