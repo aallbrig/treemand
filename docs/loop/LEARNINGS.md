@@ -114,3 +114,6 @@ A versioned JSON Schema (`treemand schema`, served at treemand.dev/schema/tree.v
 
 ### Cycle 37 - 2026-11-22 - released - #214 (open) v0.9.6
 `Right` went from cognitive 33 to under 15; `functions_over_30` 4 to 3. PR bodies now need a `## Release note` section (`none` for a refactor) or the PR Body check fails; run `scripts/release/check_note.sh` on the body before `pr:merge`. `wait.sh` can print `none` even when the release succeeds, because the tag lands on the changelog commit after the merge; confirm with `gh release list` and `git merge-base --is-ancestor`.
+
+### Cycle 38 - 2026-11-22 - released - #214 (open) v0.9.7
+`renderFlagModal` went from cognitive 54 to under 15; `functions_over_30` 3 to 2. A golden file that records each rendered line with %q under a forced TrueColor profile pins styling as well as layout, so a renderer refactor can be checked byte for byte. The loop guard blocks writes to the scratchpad, so put new code straight into a package file. The `fuzz:smoke` gate counted the #338 crasher twice on one run; a re-run counted it once and passed.
