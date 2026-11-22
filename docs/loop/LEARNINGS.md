@@ -9,13 +9,11 @@ into the `## Summary` section by the loop.
 
 - Cycle 1 (#6, v0.3.3): a release run that fails with no jobs and no logs is a GitHub startup failure. Rerun it before rolling back or escalating; `release.sh` does this now.
 - Cycles 2-13 (v0.3.4 to v0.4.0): a red CI run whose jobs are all green is a startup glitch, so rerun it. Site links go through relURL or the demo shortcode, never a hardcoded `/treemand/`. Release binaries are `CGO_ENABLED=0`, so the cache uses pure-Go sqlite. Child processes need `cmd.WaitDelay` or an orphan holding stdout hangs past `--timeout`. Check that labels exist before `gh issue create`. Run every parser fixture after each parser heuristic change (aws's justified man text broke a tightened row regex). Verify an issue premise against real output before planning (cycle 11, aws service descriptions). Re-scope an infeasible issue and ship rather than park it; under zsh, `2>&1 >/dev/null | wc` tees stdout, so redirect to files when checking stream separation. Never probe make-style target runners: running a target can execute build rules (cycle 13). Discovery speed-ups come mostly from cutting help runs per node (cycle 14, #34: gh 23s to 7s), and the apt rss gate is noisy because it measures child processes. Never `cd` out of a worktree between commands.
+- Cycle 15 (#35, v0.4.2): a global slot pool caps concurrent help processes (`--jobs`). Take the slot before the per-command timeout starts. Under heavy host load, compare A/B in the same minute and repeat three times.
 
 ## Recent cycles
 
 <!-- Retro appends below: ### Cycle N — YYYY-MM-DD — outcome — #issue vX.Y.Z -->
-
-### Cycle 15 - 2026-11-10 - released - #35 v0.4.2
-v0.4.1 had already met #35 cold-time bar (all corpus CLIs under 10s), so I re-scoped: a global slot pool caps concurrent help processes (--jobs, default 2 x CPUs within 4..16) and TUI streaming split to #68. Take the slot before the per-command timeout starts, or waiting counts against the command. Host load average was 48 from other sessions, so timings vary by 2x between runs: compare A/B in the same minute and repeat three times.
 
 ### Cycle 16 - 2026-11-10 - released - #36 v0.4.3
 Committed a 16-CLI help-fixture corpus with a baseline gate in task ci. The first CI run caught real nondeterminism: detectSection ranged over a map, so "Environment Commands:" (matches commands and environment) parsed as commands or free text at random (systemctl 49 or 53 subcommands). Fixed with a ranked, deterministic choice. A regression corpus pays for itself immediately: run any new parse path 25 times. release.sh smoke hit a transient api.github.com error after a good release; re-running smoke.sh alone is the right recovery, not a rollback. Untested here: cargo and terraform fixtures (not installed).
@@ -103,3 +101,6 @@ All third-party actions are now pinned by SHA, every workflow defaults to `conte
 
 ### Cycle 45 - 2026-11-22 - released - #65 v0.11.1
 apt prints no options in any help, so the issue's premise ("a layout the parser does not read") was wrong. Its options exist only in man pages, so a root whose help lists none now takes them from `man` and passes them, marked inherited, to commands that have no flags of their own. Review caught that the TUI's stub/crawl path skipped the eager-only rule: test new discovery rules through `ChildrenAsStubs` + `CompletePending` as well as `--output=json`. Check an issue's premise in a `debian:bookworm` container (`docker run`) when the CLI is not on this host. The guard blocks any command text containing sudo.
+
+### Cycle 46 - 2026-11-22 - released - #85 v0.11.2
+`--timeout=0` now means no overall limit, which is safe because each help command keeps its own limit; a negative value is a usage error (exit 2). The `mcp` server needed a separate sentinel (negative = no limit) because its zero already meant the 30s default. `task ci` fails `site:audit` on the host's default node 20: source nvm and run `nvm use` first. After a `cd` into `cli/treemand`, pass `gh --body-file` an absolute path.
