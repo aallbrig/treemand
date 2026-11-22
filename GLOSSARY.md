@@ -31,8 +31,8 @@ host lacks, so treemand can run them without touching a developer's machine.
 
 ## Hosts and the loop
 
-**Dev host**: any machine a developer works on treemand from, on macOS, Linux
-or Windows. No dev host is primary. Each has its own installed target CLIs and
+**Dev host**: any machine a developer works on treemand from, on macOS or
+Linux. No dev host is primary. Each has its own installed target CLIs and
 its own host-bound measurements.
 
 **Loop host**: whichever dev host is running the dev loop at a given time; only
