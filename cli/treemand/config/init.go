@@ -57,10 +57,10 @@ colors:
 `
 
 // DefaultConfigPath returns the preferred config file location.
-// It prefers XDG_CONFIG_HOME/treemand/config.yaml, falling back to
-// ~/.treemand/config.yaml.
+// It prefers $XDG_CONFIG_HOME/treemand/config.yaml (~/.config/treemand on
+// Unix and macOS when unset), falling back to ~/.treemand/config.yaml.
 func DefaultConfigPath() string {
-	if cfgDir, err := os.UserConfigDir(); err == nil {
+	if cfgDir, err := configHome(); err == nil {
 		return filepath.Join(cfgDir, "treemand", "config.yaml")
 	}
 	if home, err := os.UserHomeDir(); err == nil {

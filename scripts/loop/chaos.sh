@@ -44,12 +44,12 @@ for c in "$work"/chaos-*; do
   name="$(basename "$c")"
   budget=25
   err="$work/$name.err"
-  start=$(date +%s.%N)
-  PATH="$work:$PATH" /usr/bin/time -f '%M' -o "$work/$name.mem" \
+  # timed.py: wall seconds and max RSS (KB) on Linux and macOS alike.
+  PATH="$work:$PATH" python3 -I "$LOOP_ROOT/scripts/metrics/timed.py" "$work/$name.cost" "$PWD" -- \
     timeout --kill-after=2 "$budget" "$bin" --no-cache --output=json --timeout=5 "$name" >"$work/$name.out" 2>"$err"
   rc=$?
-  secs="$(awk -v s="$start" -v e="$(date +%s.%N)" 'BEGIN{printf "%.1f", e-s}')"
-  rss="$(awk 'END{printf "%.0f", $1/1024}' "$work/$name.mem" 2>/dev/null || echo 0)"
+  secs="$(awk '{printf "%.1f", $1}' "$work/$name.cost" 2>/dev/null || echo 0)"
+  rss="$(awk '{printf "%.0f", $4/1024}' "$work/$name.cost" 2>/dev/null || echo 0)"
   status=ok
   [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ] && status="HUNG(rc=$rc)"
   grep -qE 'panic:|goroutine [0-9]+ \[|fatal error' "$err" "$work/$name.out" 2>/dev/null && status="PANIC"

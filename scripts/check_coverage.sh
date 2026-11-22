@@ -48,5 +48,5 @@ while read -r pkg pct; do
   fi
 done <<<"$current"
 
-[ "$status" = 0 ] && echo "coverage floors held ($(printf '%s\n' "$current" | wc -l) packages)"
+[ "$status" = 0 ] && echo "coverage floors held ($(printf '%s\n' "$current" | wc -l | tr -d ' ') packages)"
 exit "$status"

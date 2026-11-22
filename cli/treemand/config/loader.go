@@ -13,7 +13,8 @@ import (
 // bindings. Call this once during CLI initialization, before reading any values.
 //
 // If cfgFile is non-empty it is used directly; otherwise viper searches:
-//  1. $XDG_CONFIG_HOME/treemand/config.yaml  (typically ~/.config/treemand/)
+//  1. $XDG_CONFIG_HOME/treemand/config.yaml  (~/.config/treemand/ when unset)
+//     then, on macOS only, ~/Library/Application Support/treemand/ (legacy, read-only)
 //  2. $HOME/.treemand/config.yaml
 func InitViper(cfgFile string) error {
 	viper.SetEnvPrefix("TREEMAND")
@@ -22,9 +23,13 @@ func InitViper(cfgFile string) error {
 	if cfgFile != "" {
 		viper.SetConfigFile(cfgFile)
 	} else {
-		// Prefer XDG / platform config directory.
-		if cfgDir, err := os.UserConfigDir(); err == nil {
+		// Prefer the XDG config directory (~/.config on Unix and macOS).
+		if cfgDir, err := configHome(); err == nil {
 			viper.AddConfigPath(filepath.Join(cfgDir, "treemand"))
+		}
+		// Then the pre-~/.config macOS location, so existing configs keep working.
+		if legacy := legacyConfigDir(); legacy != "" {
+			viper.AddConfigPath(legacy)
 		}
 		// Fallback: ~/.treemand/ (also where the cache lives).
 		if home, err := os.UserHomeDir(); err == nil {

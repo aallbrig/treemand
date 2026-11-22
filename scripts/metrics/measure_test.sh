@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 # Tests for the measurement engine: budgets, ratchets, recording, the gate.
+# The `check && ok || bad` idiom is safe here: ok only echoes, so it never fails
+# and bad never runs after a passing check (SC2015). Exit codes are read from $?
+# right after the command under test, by design (SC2181).
+# shellcheck disable=SC2015,SC2181
 set -uo pipefail
 cd "$(dirname "$0")/../.." || exit 1
 work="$(mktemp -d)"
@@ -22,7 +26,7 @@ export MEASURE_LOAD="${MEASURE_LOAD:-0.1}"
 
 probe 4 95
 out="$(m demo --record)"; [[ "$out" == *"no findings"* ]] && ok "first run: within budgets, nothing to compare" || bad "first run: $out"
-[ "$(wc -l <"$MEASURE_HISTORY/demo.jsonl")" = 1 ] && ok "--record appends history" || bad "--record appends history"
+[ "$(wc -l <"$MEASURE_HISTORY/demo.jsonl")" -eq 1 ] && ok "--record appends history" || bad "--record appends history"
 
 probe 6 95
 out="$(m demo)"; [[ "$out" == *"BUDGET     cold_s.big = 6"* ]] && ok "budget breach reported" || bad "budget breach: $out"

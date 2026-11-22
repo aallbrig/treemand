@@ -26,25 +26,26 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 HISTORY = ROOT / "docs/perf/history.tsv"
+TIMED = ROOT / "scripts/metrics/timed.py"
 COLS = ["date", "version", "host", "cli", "cold_s", "warm_s", "rss_mb", "nodes", "no_desc", "no_flags", "rc"]
 CORPUS = ["git", "docker", "kubectl", "gh", "npm", "pip", "go", "helm", "apt", "systemctl", "tar", "aws"]
 
 
 def run(bin_path: str, cli: str, env: dict[str, str], cache: bool) -> tuple[int, float, float, str]:
-    args = ["/usr/bin/time", "-f", "%M", bin_path, "--output=json", "--timeout=60"]
+    cmd = [bin_path, "--output=json", "--timeout=60"]
     if not cache:
-        args.append("--no-cache")
-    args.append(cli)
-    start = time.monotonic()
+        cmd.append("--no-cache")
+    cmd.append(cli)
     # Discovery runs the real CLI with arguments; run it from an empty
-    # directory so nothing it might write lands in the repository.
+    # directory so nothing it might write lands in the repository. timed.py
+    # measures max RSS the same way on Linux and macOS (GNU time is Linux-only).
     with tempfile.TemporaryDirectory(prefix="tm-perf-cwd-") as cwd:
+        cost = Path(cwd) / ".cost"
+        args = [sys.executable, "-I", str(TIMED), str(cost), cwd, "--", *cmd]
         p = subprocess.run(args, capture_output=True, text=True, env=env, timeout=180, cwd=cwd)
-    secs = time.monotonic() - start
-    rss_kb = 0.0
-    m = re.findall(r"^(\d+)\s*$", p.stderr, re.M)
-    if m:
-        rss_kb = float(m[-1])
+        fields = cost.read_text(encoding="utf-8").split() if cost.exists() else []
+    secs = float(fields[0]) if fields else 0.0
+    rss_kb = float(fields[3]) if len(fields) > 3 else 0.0
     return p.returncode, secs, rss_kb / 1024, p.stdout
 
 

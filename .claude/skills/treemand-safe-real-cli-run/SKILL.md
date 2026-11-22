@@ -16,7 +16,7 @@ Discovery executes the user's tools with arguments. A stray argument is an actio
 
 `task ab -- <cli>...` (`--base REF` to compare another ref) builds origin/main's treemand and the working tree's, runs full discovery of each CLI from an empty scratch directory, and compares the trees: nodes, flags and descriptions gained or lost. It also audits this machine before and after (git branches and status, Docker context, builders, volumes, networks, the scratch directory) and **fails on any side effect**. If it fails, restore what the run created before anything else (timestamps show what is yours).
 
-For speed, wall-clock numbers alone prove nothing: other projects load this host (`cat /proc/loadavg`). Alternate old and new binaries run by run, and prefer load-independent evidence: invocation counts from a logging fake CLI, CPU seconds (`/usr/bin/time -f "%e %U %S"`).
+For speed, wall-clock numbers alone prove nothing: other projects load this host (`uptime` shows the load average on Linux and macOS). Alternate old and new binaries run by run, and prefer load-independent evidence: invocation counts from a logging fake CLI, CPU seconds (`python3 -I scripts/metrics/timed.py OUT CWD -- CMD...` writes wall, user, sys and max RSS on both platforms; GNU `/usr/bin/time -f` does not exist on macOS).
 
 ## Changing what discovery sends to a CLI
 

@@ -27,6 +27,8 @@ work="$(mktemp -d)"
 mkdir -p "$work/cwd"
 trap 'rm -rf "$work"' EXIT
 (cd "$repo/cli/treemand" && go build -o "$work/treemand" .)
+# Wall, user+sys CPU (children included) and max RSS in KB, on Linux and macOS.
+timed() { out="$1"; shift; python3 -I "$repo/scripts/metrics/timed.py" "$out" "$work/cwd" -- "$@"; }
 state() { git -C "$repo" branch --list; docker context show 2>/dev/null || true; }
 state >"$work/before"
 
@@ -40,17 +42,17 @@ for cli in $clis; do
   : >"$work/runs-$cli"
   for _ in $(seq "$repeat"); do
     : >"$work/calls-$cli"
-    /usr/bin/time -o "$work/t" -f "%e %U %S %M" \
-      env -C "$work/cwd" PATH="$work/shim-$cli:$PATH" TREEMAND_CACHE_DIR="$cache" "$work/treemand" --no-cache --output=json --timeout=120 "$cli" >"$work/out.json" 2>/dev/null || true
+    PATH="$work/shim-$cli:$PATH" TREEMAND_CACHE_DIR="$cache" timed "$work/t" \
+      "$work/treemand" --no-cache --output=json --timeout=120 "$cli" >"$work/out.json" 2>/dev/null || true
     read -r c u s m <"$work/t"
     echo "$c $(awk -v u="$u" -v s="$s" 'BEGIN { print u + s }') $m $(wc -l <"$work/calls-$cli") $(count_nodes "$work/out.json")" >>"$work/runs-$cli"
   done
   col() { awk -v k="$1" '{ print $k }' "$work/runs-$cli" | med; }
   cold="$(col 1)" cpu="$(col 2)" rss="$(col 3)" calls="$(col 4)" nodes="$(col 5)"
   spread="$(awk '{ print $1 }' "$work/runs-$cli" | sort -g | tr '\n' ' ')"
-  env -C "$work/cwd" TREEMAND_CACHE_DIR="$cache" "$work/treemand" --output=json --timeout=120 "$cli" >/dev/null 2>&1 || true
-  /usr/bin/time -o "$work/t" -f "%e" env -C "$work/cwd" TREEMAND_CACHE_DIR="$cache" "$work/treemand" --output=json "$cli" >/dev/null 2>&1 || true
-  warm="$(cat "$work/t")"
+  (cd "$work/cwd" && TREEMAND_CACHE_DIR="$cache" "$work/treemand" --output=json --timeout=120 "$cli" >/dev/null 2>&1) || true
+  TREEMAND_CACHE_DIR="$cache" timed "$work/t" "$work/treemand" --output=json "$cli" >/dev/null 2>&1 || true
+  read -r warm _ <"$work/t"
   tti=""
   if [[ " $tui_clis " == *" $cli "* ]]; then
     tti="$(for r in $(seq "$repeat"); do
@@ -68,8 +70,8 @@ if ! diff -q "$work/before" "$work/after" >/dev/null || [ -n "$(ls -A "$work/cwd
   exit 1
 fi
 
-python3 -I - "$rows" "$(cat /proc/loadavg)" <<'PY'
-import json, sys
+python3 -I - "$rows" <<'PY'
+import json, os, sys
 metrics, details = {}, []
 for line in sys.argv[1].splitlines():
     if not line.strip():
@@ -87,5 +89,5 @@ for line in sys.argv[1].splitlines():
                     "cpu_per_wall": round(float(cpu) / max(float(cold), 0.01), 1),
                     "cold_runs": [float(x) for x in spread.strip(",").split(",") if x]})
 print(json.dumps({"probe": "perf", "metrics": metrics,
-                  "details": [{"loadavg": sys.argv[2]}, {"per_cli": details}]}))
+                  "details": [{"loadavg": " ".join(f"{x:.2f}" for x in os.getloadavg())}, {"per_cli": details}]}))
 PY

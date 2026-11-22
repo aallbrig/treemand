@@ -240,7 +240,7 @@ async function installPageScenarios() {
     macos: { ua: "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36", platform: "MacIntel", md: "macOS" },
     windows: { ua: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36", platform: "Win32", md: "Windows" },
     linux: { ua: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36", platform: "Linux x86_64", md: "Linux" },
-    other: { ua: "Mozilla/5.0 (Unknown) Gecko/1.0", platform: "", md: "" },
+    other: { ua: "Mozilla/5.0 (Unknown) Gecko/1.0", platform: "Unknown", md: "Unknown" }, // an empty override would leak the host's real platform
   };
   const state = (p) => p.send("Runtime.evaluate", { returnByValue: true, expression: `({
     visible: [...document.querySelectorAll(".os-panel")].filter((x) => !x.hidden).map((x) => x.dataset.os),
@@ -277,7 +277,9 @@ async function installPageScenarios() {
     p.close();
   }
   let p = await open("other");
-  expect("an unknown system falls back to Linux", (await state(p)).visible, ["linux"]);
+  const seen = await p.send("Runtime.evaluate", { returnByValue: true, expression:
+    "JSON.stringify({ua: navigator.userAgent, platform: navigator.platform, uad: navigator.userAgentData && navigator.userAgentData.platform})" }).then((r) => r.result.value);
+  expect(`an unknown system falls back to Linux (browser reports ${seen})`, (await state(p)).visible, ["linux"]);
   p.close();
 
   // Manual override wins, and is remembered across a reload.
