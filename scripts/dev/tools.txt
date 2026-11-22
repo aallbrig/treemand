@@ -38,7 +38,7 @@ chrome|required|cask:google-chrome|-|chromium|url:https://www.google.com/chrome/
 tmux|required|tmux|tmux|tmux|url:https://github.com/tmux/tmux/wiki/Installing
 tmuxinator|required|tmuxinator|tmuxinator|-|gem:tmuxinator
 watchexec|optional|watchexec|-|-|url:https://github.com/watchexec/watchexec#install
-yq|optional|yq|-|-|go:github.com/mikefarah/yq/v4@latest
+yq|required|yq|-|-|go:github.com/mikefarah/yq/v4@latest
 # Agent dev tooling (docs/agents/dev-tooling.md): LSP navigation and real breakpoints.
 gopls|optional|-|-|-|go:golang.org/x/tools/gopls@latest
 dlv|optional|-|-|-|go:github.com/go-delve/delve/cmd/dlv@latest
