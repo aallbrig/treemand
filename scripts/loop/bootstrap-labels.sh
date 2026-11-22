@@ -7,6 +7,8 @@ mk "loop:in-progress" fbca04 "The dev loop is working on this"
 mk "loop:blocked" b60205 "Parked by the dev loop after repeated failure"
 mk "loop:proposed" c5def5 "Idea hypothesized by the loop; promote with loop:ready"
 mk "human:wip" 5319e7 "A human is working on this; the loop must skip it"
+mk "release:patch" 0052cc "Merging this PR releases a patch version (Auto Release)"
+mk "release:minor" 0052cc "Merging this PR releases a minor version (Auto Release)"
 for a in tui cli ux site docs mcp discovery perf reliability quality packaging; do
   mk "area:$a" bfd4f2 "Focus area: $a"
 done

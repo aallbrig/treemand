@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Manual fallback only: the loop releases through the Auto Release workflow
+# (release:patch / release:minor PR labels), never from a host.
 # Tag origin/main with the next semver, push the tag, wait for the Release and
 # Pages workflows, then smoke-test production.   usage: release.sh <patch|minor>
 # Refuses major bumps and anything that would reach 1.0.0.

@@ -29,7 +29,9 @@ further wakeup) and say so.
    - `GO`: continue.
    Then `python3 -I scripts/loop/state.py begin-cycle`.
 2. **Select**: [references/select.md](references/select.md). Output: one issue number. The tracker is read through `scripts/loop/issues.sh` only.
-3. **Plan**: comment a short plan on the issue; label it `loop:in-progress`.
+3. **Plan**: claim the issue with `bash scripts/loop/issues.sh claim <n>` (it assigns
+   you, labels it `loop:in-progress` and re-reads it; exit 4 means another session
+   holds it: go back to Select). Then comment a short plan on the issue.
 4. **Implement**: in a worktree `.loop/worktrees/<n>` on branch `loop/<n>-<slug>`,
    test first (use the `tdd` skill if available). Delegate large exploration or
    multi-file work to subagents so this context stays small. Never touch the main
@@ -47,12 +49,18 @@ further wakeup) and say so.
    `task measure:pull` once the CI timing run finishes and quote that verdict on
    the issue. A cycle whose work has no metric says so in the PR.
 6. **Ship**: push the branch, open a PR (`## Summary` / `## Test plan`, closes the
-   issue), `task pr:merge -- <PR>`. Commit and PR text follow the repo's CLAUDE.md.
-7. **Release**: `bash scripts/loop/release.sh <patch|minor>`. patch = fix/polish,
-   minor = feature or breaking change (pre-1.0). It waits for the Release workflow
-   and smoke-tests the published binary and site. Never release `1.0.0`.
-   If it fails: `bash scripts/loop/rollback.sh && bash scripts/loop/release.sh patch`.
-   If that fails too, `state.py request-escalation "<what broke>"`.
+   issue) labelled `release:patch` (fix/polish) or `release:minor` (feature or
+   breaking change, pre-1.0), then `task pr:merge -- <PR>`. Commit and PR text
+   follow the repo's CLAUDE.md. A PR that should not ship a release (docs, loop
+   machinery) carries neither label.
+7. **Release**: hosts never tag. The merge starts the **Auto Release** workflow,
+   which tags main, runs Release and smoke-tests production. Wait for it with
+   `sh scripts/release/wait.sh <merge-sha>`: it prints the tag (or `none`).
+   Exit 6 means a newer merge superseded the run; wait on that merge instead.
+   If it fails: `bash scripts/loop/rollback.sh` (a revert PR labelled
+   `release:patch`), then wait for that release. If that fails too,
+   `state.py request-escalation "<what broke>"`. Never release `1.0.0`
+   (Auto Release refuses it).
 8. **Retro**: run `task perf:record -- --version <tag>` after a release and commit the new
    `docs/perf/history.tsv` rows with the retro. Then append `### Cycle N - date - outcome - #issue vX.Y.Z` plus one to
    three lines of *what you learned* to `docs/loop/LEARNINGS.md` (commit it on the

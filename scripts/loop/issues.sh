@@ -7,6 +7,8 @@
 #   proposed    open loop:proposed issues by trusted authors
 #   view N      one issue: title, body and trusted-author comments; exit 3 if the author is untrusted
 #   untrusted   count of open issues by other authors (numbers only, for the retro log)
+#   claim N     assign N to this gh user and label it loop:in-progress, then re-read it:
+#               exit 4 (and undo) if anyone else holds it, so two sessions never work one issue
 set -euo pipefail
 # shellcheck source=scripts/loop/lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -39,5 +41,17 @@ case "${1:-}" in
     gh issue list --state open --limit 100 --json number,author |
       jq -r --argjson t "$trusted_json" '[.[] | select(.author.login as $a | $t | index($a) | not) | .number] | join(" ")'
     ;;
-  *) echo "usage: $0 {ready|proposed|view N|untrusted}" >&2; exit 2 ;;
+  claim)
+    n="${2:?usage: issues.sh claim N}"
+    me="$(gh api user --jq .login)"
+    gh issue edit "$n" --add-assignee "$me" --add-label loop:in-progress >/dev/null
+    others="$(gh issue view "$n" --json assignees --jq '.assignees[].login' | grep -vx "$me" | paste -sd, - || true)"
+    if [ -n "$others" ]; then
+      gh issue edit "$n" --remove-assignee "$me" >/dev/null
+      echo "issue #$n is already claimed by $others: pick other work" >&2
+      exit 4
+    fi
+    echo "claimed #$n"
+    ;;
+  *) echo "usage: $0 {ready|proposed|view N|untrusted|claim N}" >&2; exit 2 ;;
 esac
