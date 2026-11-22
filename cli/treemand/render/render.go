@@ -100,17 +100,25 @@ func (r *Renderer) Render(w io.Writer, root *models.Node) error {
 	case "json":
 		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
-		return enc.Encode(root)
+		return enc.Encode(versioned(root))
 	case "yaml":
 		enc := yaml.NewEncoder(w)
 		enc.SetIndent(2)
-		return enc.Encode(root)
+		return enc.Encode(versioned(root))
 	case "text", "":
 		r.renderNode(w, root, "", true, 0)
 		return nil
 	default:
 		return fmt.Errorf("unknown output format: %s", r.opts.Output)
 	}
+}
+
+// versioned is a shallow copy of root stamped with the schema version, so
+// machine output says which schema it follows without touching the tree.
+func versioned(root *models.Node) *models.Node {
+	out := *root
+	out.SchemaVersion = models.SchemaVersion
+	return &out
 }
 
 const (
