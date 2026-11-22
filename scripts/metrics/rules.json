@@ -36,6 +36,15 @@
     "flags_total":       {"ratchet": "higher"},
     "described_pct":     {"ratchet": "higher"}
   },
+  "site-health": {
+    "pages.*":               {"ratchet": "higher"},
+    "http_errors.*":         {"budget": {"max": 0}, "ratchet": "lower"},
+    "console_errors.*":      {"budget": {"max": 0}, "ratchet": "lower"},
+    "js_exceptions.*":       {"budget": {"max": 0}, "ratchet": "lower"},
+    "broken_internal_links.*":{"budget": {"max": 0}, "ratchet": "lower"},
+    "broken_external_links.*":{"ratchet": "lower"},
+    "mixed_content.*":       {"budget": {"max": 0}, "ratchet": "lower"}
+  },
   "zoo": {
     "sweep_panics":    {"budget": {"max": 0}, "ratchet": "lower"},
     "sweep_timeouts":  {"budget": {"max": 0}, "ratchet": "lower"},
