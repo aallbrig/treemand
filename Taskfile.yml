@@ -370,6 +370,7 @@ tasks:
       - dash scripts/loop/hooks/hooks_test.sh
       - test -f .claude/skills/treemand-loop/SKILL.md
       - test -f .claude/skills/treemand-product-audit/SKILL.md
+      - test -f .claude/skills/treemand-site-product-design/SKILL.md
 
   visual:check:
     desc: Capture the TUI and the site (desktop + mobile) into .loop/shots/ for review
@@ -516,6 +517,7 @@ tasks:
       - task: site:check
       - task: site:audit
       - task: site:health:test
+      - task: site:design:test
       - task: install:test
       - task: install:probe:test
       - task: corpus:test
@@ -566,6 +568,16 @@ tasks:
     desc: Test the site-health probe against a fixture site with one of each problem; needs node and Chrome
     cmds:
       - dash scripts/metrics/site_health_test.sh
+
+  site:design:
+    desc: "Screenshot every page (desktop + mobile, light + dark) and the peer sites' home and install pages into .loop/design/<date>/ for the treemand-site-product-design skill; production by default: task site:design [-- --dir www/treemand/public | --no-peers]"
+    cmds:
+      - sh scripts/site/design_evidence.sh {{.CLI_ARGS}}
+
+  site:design:test:
+    desc: Test the design-evidence capture against a local fixture site and peer; needs node and Chrome
+    cmds:
+      - dash scripts/site/design_evidence_test.sh
 
   site:check:
     desc: Fail if the built site links outside its baseURL
