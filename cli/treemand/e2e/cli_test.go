@@ -256,7 +256,26 @@ func TestTimeoutBoundsADiscoveryThatNeverAnswers(t *testing.T) {
 	if r.elapsed > 12*time.Second {
 		t.Errorf("--timeout=2 took %v against a CLI that never answers", r.elapsed)
 	}
-	mustContain(t, "tree", r.stdout, "fakehang")
+	// No root help is no tree: a bare root would pass for a CLI with no
+	// commands (#229).
+	if r.exit != 1 || strings.TrimSpace(r.stdout) != "" {
+		t.Errorf("exit %d, stdout %q; want exit 1 and no tree", r.exit, r.stdout)
+	}
+	mustContain(t, "stderr", r.stderr, "help for fakehang")
+}
+
+// A root whose help times out once (kubectl on a loaded CI runner, #229) is
+// asked again with a longer budget, and its children are found.
+func TestARootThatTimesOutOnceIsRetried(t *testing.T) {
+	logPath := filepath.Join(t.TempDir(), "calls.log")
+	r := run(t, limit, []string{"FAKE_LOG=" + logPath}, "--no-cache", "--output=json", "fakeslowstart")
+	if r.exit != 0 {
+		t.Fatalf("exit %d, stderr: %s", r.exit, r.stderr)
+	}
+	root := parseJSON(t, r.stdout)
+	if len(root.Children) != 1 || root.Children[0].Name != "alpha" {
+		t.Errorf("root = %+v, want the child alpha found by the retry", root)
+	}
 }
 
 func TestCacheRoundTrip(t *testing.T) {

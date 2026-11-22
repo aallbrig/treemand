@@ -3,6 +3,7 @@ package discovery
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -86,9 +87,23 @@ func (h *HelpDiscoverer) discoverWithHelp(ctx context.Context, cliName string, a
 		Discovered: true,
 	}
 
+	atRoot := depth == 0 && len(args) == 0
 	helpText, err := knownHelp, error(nil)
 	if helpText == "" {
 		helpText, err = h.runHelp(ctx, cliName, args)
+	}
+	if atRoot && errors.Is(err, ErrHelpTimedOut) && ctx.Err() == nil {
+		// A loaded host can push the root past one command's budget (kubectl
+		// on a CI runner, #229): ask once more with a longer one.
+		helpText, err = h.runHelp(withRootRetryBudget(ctx), cliName, args)
+	}
+	if atRoot && err != nil && (errors.Is(err, ErrHelpTimedOut) || ctx.Err() != nil) {
+		// Without the root's help there is no tree: a bare root would pass
+		// for a CLI with no commands.
+		if errors.Is(err, context.DeadlineExceeded) {
+			err = ErrHelpTimedOut
+		}
+		return nil, fmt.Errorf("help for %s %w", cliName, err)
 	}
 	if err != nil || helpText == "" {
 		node.DiscoveryErr = fmt.Sprintf("could not get help: %v", err)
@@ -101,7 +116,6 @@ func (h *HelpDiscoverer) discoverWithHelp(ctx context.Context, cliName string, a
 	node.Flags = parsed.Flags
 	node.Positionals = parsed.Positionals
 
-	atRoot := depth == 0 && len(args) == 0
 	if atRoot && len(parsed.Subcommands) == 0 {
 		helpText, parsed = h.cleoListFallback(ctx, cliName, node, helpText, parsed)
 	}
@@ -363,12 +377,32 @@ func acquireHelpSlot(ctx context.Context) (func(), bool) {
 	}
 }
 
+// ErrHelpTimedOut reports that every help form of a command ran out of its
+// own time: the CLI may be overloaded, not refusing.
+var ErrHelpTimedOut = errors.New("timed out")
+
+// rootRetryScale multiplies the per-command budget for the one retry of a
+// root whose help timed out.
+const rootRetryScale = 3
+
+type budgetScaleKey struct{}
+
+// withRootRetryBudget returns ctx with each help command's budget scaled up
+// for the root's retry; the run's own deadline still bounds it.
+func withRootRetryBudget(ctx context.Context) context.Context {
+	return context.WithValue(ctx, budgetScaleKey{}, rootRetryScale)
+}
+
 // commandTimeout is the time allowed for one help command.
-func (h *HelpDiscoverer) commandTimeout() time.Duration {
-	if h.Timeout <= 0 {
-		return 5 * time.Second
+func (h *HelpDiscoverer) commandTimeout(ctx context.Context) time.Duration {
+	t := h.Timeout
+	if t <= 0 {
+		t = 5 * time.Second
 	}
-	return h.Timeout
+	if scale, ok := ctx.Value(budgetScaleKey{}).(int); ok && scale > 1 {
+		t *= time.Duration(scale)
+	}
+	return t
 }
 
 // helpForm is one way of asking a CLI for help. The order is the priority:
@@ -435,7 +469,7 @@ func (h *HelpDiscoverer) runHelp(ctx context.Context, cliName string, args []str
 		return "", ctx.Err()
 	}
 	if at.timedOut.Load() {
-		return "", fmt.Errorf("help for %s timed out", cliName)
+		return "", ErrHelpTimedOut
 	}
 	// A flag form that was refused but still printed a usage synopsis is the
 	// CLI's help: BSD tools answer --help with "mkdir: illegal option -- -"
@@ -617,7 +651,7 @@ func (h *HelpDiscoverer) runOne(ctx context.Context, resolved string, cmdArgs []
 		return ""
 	}
 	defer release()
-	cctx, cancel := context.WithTimeout(ctx, h.commandTimeout())
+	cctx, cancel := context.WithTimeout(ctx, h.commandTimeout(ctx))
 	defer cancel()
 	out, _, _ := runCapped(cctx, resolved, cmdArgs, pagerEnv, MaxHelpBytes)
 	if cctx.Err() != nil && ctx.Err() != nil {

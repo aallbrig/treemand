@@ -97,6 +97,16 @@ esac
 	// A CLI that never answers: --timeout must bound discovery.
 	"fakehang": "exec sleep 600\n",
 
+	// Hangs on its first two calls (the racing --help and -h of the root, as
+	// kubectl on a loaded CI runner) and answers after that. Logs to $FAKE_LOG.
+	"fakeslowstart": `echo "$*" >>"$FAKE_LOG"
+[ "$(wc -l <"$FAKE_LOG")" -le 2 ] && exec sleep 600
+case "$1" in
+alpha) printf 'alpha things\n\nUsage:\n  fakeslowstart alpha\n\nFlags:\n  -h, --help   help for alpha\n';;
+*) printf 'fakeslowstart starts slowly\n\nUsage:\n  fakeslowstart [command]\n\nAvailable Commands:\n  alpha       first\n\nFlags:\n  -h, --help   help for fakeslowstart\n';;
+esac
+`,
+
 	// Prints errors and exits non-zero for any help request.
 	"fakenohelp": "echo 'unknown flag' >&2\nexit 2\n",
 }
