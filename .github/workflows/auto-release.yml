@@ -69,3 +69,12 @@ jobs:
         env:
           TAG: ${{ steps.plan.outputs.tag }}
         run: bash scripts/loop/smoke.sh "$TAG"
+
+      # Release runs started by GITHUB_TOKEN fire no workflow_run events, so
+      # Publish to Package Managers (normally triggered by Release) is started
+      # explicitly. It reports its own result; channels.yml re-checks daily.
+      - name: Publish to package managers
+        if: steps.plan.outputs.tag != ''
+        env:
+          TAG: ${{ steps.plan.outputs.tag }}
+        run: gh workflow run release-packages.yml --ref main -f tag="$TAG"
