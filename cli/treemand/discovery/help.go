@@ -101,115 +101,159 @@ func (h *HelpDiscoverer) discoverWithHelp(ctx context.Context, cliName string, a
 	node.Flags = parsed.Flags
 	node.Positionals = parsed.Positionals
 
-	// cleo apps (poetry, #166): --help is the help of their "list" command,
-	// which prints the real command list. Running "list" is safe only because
-	// the help itself documents it as the command that lists commands.
-	if depth == 0 && len(args) == 0 && len(parsed.Subcommands) == 0 && cleoListHelpRe.MatchString(helpText) {
-		var timedOut atomic.Bool
-		if out := h.runOne(ctx, resolveBinary(cliName), []string{"list"}, &timedOut); out != "" && !isErrorOutput(out) {
-			if listed := ParseHelpOutputFor(out, cliName); len(listed.Subcommands) > 0 {
-				helpText, parsed = out, listed
-				node.HelpText = out
-				node.Flags = listed.Flags
-				if listed.Description != "" {
-					node.Description = listed.Description
-				}
-			}
-		}
+	atRoot := depth == 0 && len(args) == 0
+	if atRoot && len(parsed.Subcommands) == 0 {
+		helpText, parsed = h.cleoListFallback(ctx, cliName, node, helpText, parsed)
 	}
 
 	// No subcommands in --help at the root: some CLIs (tmux) list their
 	// commands through "list-commands" instead.
-	if depth == 0 && len(args) == 0 && len(parsed.Subcommands) == 0 {
+	if atRoot && len(parsed.Subcommands) == 0 {
 		if kids := h.commandListChildren(ctx, cliName, helpText, fullPath); len(kids) > 0 {
 			node.Children = kids
 			return node, nil
 		}
 	}
 
-	if depth < h.MaxDepth && len(parsed.Subcommands) > 0 {
-		// When a command has a very large number of subcommands (e.g. aws
-		// with 200+ services), eagerly running --help on every child would
-		// take minutes. Instead, create lightweight stub nodes that carry
-		// only the name and path. They can be expanded on demand by the
-		// caller (TUI toggle, or re-running discovery at a deeper depth).
-		threshold := h.StubThreshold
-		if threshold <= 0 {
-			threshold = 50
-		}
-		if h.ChildrenAsStubs || len(parsed.Subcommands) > threshold {
-			for _, sub := range parsed.Subcommands {
-				subFull := append(append([]string{}, fullPath...), sub)
-				node.Children = append(node.Children, &models.Node{
-					Name:        sub,
-					FullPath:    subFull,
-					Discovered:  false,
-					Stub:        true,
-					Description: parsed.SubcommandDescs[sub],
-				})
-			}
-			return node, nil
-		}
+	if depth >= h.MaxDepth || len(parsed.Subcommands) == 0 {
+		return node, nil
+	}
+	// When a command has a very large number of subcommands (e.g. aws
+	// with 200+ services), eagerly running --help on every child would
+	// take minutes. Instead, create lightweight stub nodes that carry
+	// only the name and path. They can be expanded on demand by the
+	// caller (TUI toggle, or re-running discovery at a deeper depth).
+	if h.ChildrenAsStubs || len(parsed.Subcommands) > h.stubThreshold() {
+		node.Children = stubChildren(fullPath, parsed)
+		return node, nil
+	}
+	walk := childWalk{cliName: cliName, args: args, fullPath: fullPath, depth: depth, parentHelp: helpText}
+	node.Children = h.discoverChildren(ctx, walk, parsed)
+	return node, nil
+}
 
-		const maxWorkers = 8
-		sem := make(chan struct{}, maxWorkers)
-		type result struct {
-			idx   int
-			child *models.Node
+// cleoListFallback handles cleo apps (poetry, #166): their --help is the help
+// of their "list" command, which prints the real command list. Running "list"
+// is safe only because the help itself documents it as the command that lists
+// commands. It returns the help text and parse to use from here on, and
+// updates node when the list is used.
+func (h *HelpDiscoverer) cleoListFallback(ctx context.Context, cliName string, node *models.Node, helpText string, parsed ParsedHelp) (string, ParsedHelp) {
+	if !cleoListHelpRe.MatchString(helpText) {
+		return helpText, parsed
+	}
+	var timedOut atomic.Bool
+	out := h.runOne(ctx, resolveBinary(cliName), []string{"list"}, &timedOut)
+	if out == "" || isErrorOutput(out) {
+		return helpText, parsed
+	}
+	listed := ParseHelpOutputFor(out, cliName)
+	if len(listed.Subcommands) == 0 {
+		return helpText, parsed
+	}
+	node.HelpText = out
+	node.Flags = listed.Flags
+	if listed.Description != "" {
+		node.Description = listed.Description
+	}
+	return out, listed
+}
+
+// stubThreshold is the subcommand count above which children become stubs.
+func (h *HelpDiscoverer) stubThreshold() int {
+	if h.StubThreshold <= 0 {
+		return 50
+	}
+	return h.StubThreshold
+}
+
+// stubChildren returns one undiscovered stub per subcommand, carrying the
+// description the parent's help gives it.
+func stubChildren(fullPath []string, parsed ParsedHelp) []*models.Node {
+	children := make([]*models.Node, 0, len(parsed.Subcommands))
+	for _, sub := range parsed.Subcommands {
+		children = append(children, &models.Node{
+			Name:        sub,
+			FullPath:    append(append([]string{}, fullPath...), sub),
+			Discovered:  false,
+			Stub:        true,
+			Description: parsed.SubcommandDescs[sub],
+		})
+	}
+	return children
+}
+
+// childWalk is the parent a child is discovered under.
+type childWalk struct {
+	cliName    string
+	args       []string
+	fullPath   []string
+	depth      int
+	parentHelp string
+}
+
+// discoverChildren discovers every subcommand concurrently (at most eight
+// at a time), keeping the help's order. A child with no description of its
+// own takes the one the parent's help gives it.
+func (h *HelpDiscoverer) discoverChildren(ctx context.Context, walk childWalk, parsed ParsedHelp) []*models.Node {
+	const maxWorkers = 8
+	sem := make(chan struct{}, maxWorkers)
+	results := make([]*models.Node, len(parsed.Subcommands))
+	var wg sync.WaitGroup
+	for i, sub := range parsed.Subcommands {
+		wg.Add(1)
+		go func(i int, sub string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			results[i] = h.discoverChild(ctx, walk, sub)
+		}(i, sub)
+	}
+	wg.Wait()
+	var children []*models.Node
+	for _, child := range results {
+		if child == nil {
+			continue
 		}
-		results := make([]result, len(parsed.Subcommands))
-		var wg sync.WaitGroup
-		for i, sub := range parsed.Subcommands {
-			wg.Add(1)
-			go func(i int, sub string) {
-				defer wg.Done()
-				sem <- struct{}{}
-				defer func() { <-sem }()
-				subArgs := append(append([]string{}, args...), sub)
-				subFull := append(append([]string{}, fullPath...), sub)
-				childHelp, err := h.runHelp(ctx, cliName, subArgs)
-				if err != nil || childHelp == "" {
-					results[i] = result{i, &models.Node{
-						Name:         sub,
-						FullPath:     subFull,
-						Discovered:   true,
-						DiscoveryErr: fmt.Sprintf("could not get help: %v", err),
-					}}
-					return
-				}
-				var child *models.Node
-				if childHelp == helpText {
-					childParsed := ParseHelpOutputFor(childHelp, cliName)
-					child = &models.Node{
-						Name:        sub,
-						FullPath:    subFull,
-						Discovered:  true,
-						HelpText:    childHelp,
-						Description: childParsed.Description,
-						Flags:       childParsed.Flags,
-						Positionals: childParsed.Positionals,
-					}
-				} else {
-					var cerr error
-					child, cerr = h.discoverWithHelp(ctx, cliName, subArgs, depth+1, childHelp)
-					if cerr != nil {
-						child = &models.Node{Name: sub, FullPath: subFull}
-					}
-				}
-				results[i] = result{i, child}
-			}(i, sub)
+		if child.Description == "" {
+			child.Description = parsed.SubcommandDescs[child.Name]
 		}
-		wg.Wait()
-		for _, r := range results {
-			if r.child != nil && r.child.Description == "" {
-				r.child.Description = parsed.SubcommandDescs[r.child.Name]
-			}
-			if r.child != nil {
-				node.Children = append(node.Children, r.child)
-			}
+		children = append(children, child)
+	}
+	return children
+}
+
+// discoverChild runs the help of one subcommand and discovers it.
+func (h *HelpDiscoverer) discoverChild(ctx context.Context, walk childWalk, sub string) *models.Node {
+	subArgs := append(append([]string{}, walk.args...), sub)
+	subFull := append(append([]string{}, walk.fullPath...), sub)
+	childHelp, err := h.runHelp(ctx, walk.cliName, subArgs)
+	if err != nil || childHelp == "" {
+		return &models.Node{
+			Name:         sub,
+			FullPath:     subFull,
+			Discovered:   true,
+			DiscoveryErr: fmt.Sprintf("could not get help: %v", err),
 		}
 	}
-	return node, nil
+	if childHelp == walk.parentHelp {
+		// The CLI ignored the subcommand and printed its parent's help:
+		// keep the node, but do not descend into the same help again.
+		childParsed := ParseHelpOutputFor(childHelp, walk.cliName)
+		return &models.Node{
+			Name:        sub,
+			FullPath:    subFull,
+			Discovered:  true,
+			HelpText:    childHelp,
+			Description: childParsed.Description,
+			Flags:       childParsed.Flags,
+			Positionals: childParsed.Positionals,
+		}
+	}
+	child, err := h.discoverWithHelp(ctx, walk.cliName, subArgs, walk.depth+1, childHelp)
+	if err != nil {
+		return &models.Node{Name: sub, FullPath: subFull}
+	}
+	return child
 }
 
 // resolveBinary finds the executable for cliName.
