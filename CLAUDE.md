@@ -15,4 +15,8 @@ Issues, specs and wayfinder maps live in this repo's GitHub Issues (`gh` CLI). S
 
 ### Domain docs
 
-Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root, created lazily. See `docs/agents/domain.md`.
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Vision
+
+`docs/design/20261109_172533_UTC_vision.md` is the guiding document: what treemand is, who it is for, and how competing work is ranked. Read it before choosing or shaping work. It is maintainer-owned; propose changes as `loop:proposed` issues, never edit it.
