@@ -3,6 +3,7 @@ package models_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"reflect"
 	"slices"
@@ -72,6 +73,36 @@ func goType(t reflect.Type) string {
 	return "unsupported " + t.String()
 }
 
+// checkField compares one struct field with the schema definition it belongs
+// to and returns the key it serializes as ("" when it has none).
+func checkField(t *testing.T, defName string, def schemaDef, owner string, f reflect.StructField) string {
+	t.Helper()
+	jsonKey, jsonOpts, _ := strings.Cut(f.Tag.Get("json"), ",")
+	if jsonKey == "-" || jsonKey == "" {
+		t.Errorf("%s.%s has no json tag", owner, f.Name)
+		return ""
+	}
+	if got := f.Tag.Get("yaml"); got != f.Tag.Get("json") {
+		t.Errorf("%s.%s: yaml tag %q, want it equal to the json tag %q", owner, f.Name, got, f.Tag.Get("json"))
+	}
+	p, ok := def.Properties[jsonKey]
+	if !ok {
+		t.Errorf("%s.%s serializes as %q, which the schema does not describe", owner, f.Name, jsonKey)
+		return jsonKey
+	}
+	if got, want := propType(p), goType(f.Type); got != want {
+		t.Errorf("$defs.%s.%s: schema type %q, model type %q", defName, jsonKey, got, want)
+	}
+	if _, ok := p["description"]; !ok {
+		t.Errorf("$defs.%s.%s has no description", defName, jsonKey)
+	}
+	omitempty := strings.Contains(jsonOpts, "omitempty")
+	if required := slices.Contains(def.Required, jsonKey); required == omitempty {
+		t.Errorf("$defs.%s.%s: required=%v but the field is omitempty=%v", defName, jsonKey, required, omitempty)
+	}
+	return jsonKey
+}
+
 // The schema describes exactly the fields the model serializes, with the same
 // types, and YAML uses the same keys as JSON.
 func TestSchema_matchesModel(t *testing.T) {
@@ -89,31 +120,7 @@ func TestSchema_matchesModel(t *testing.T) {
 		}
 		seen := map[string]bool{}
 		for i := range typ.NumField() {
-			f := typ.Field(i)
-			jsonKey, jsonOpts, _ := strings.Cut(f.Tag.Get("json"), ",")
-			if jsonKey == "-" || jsonKey == "" {
-				t.Errorf("%s.%s has no json tag", typ.Name(), f.Name)
-				continue
-			}
-			if got := f.Tag.Get("yaml"); got != f.Tag.Get("json") {
-				t.Errorf("%s.%s: yaml tag %q, want it equal to the json tag %q", typ.Name(), f.Name, got, f.Tag.Get("json"))
-			}
-			seen[jsonKey] = true
-			p, ok := def.Properties[jsonKey]
-			if !ok {
-				t.Errorf("%s.%s serializes as %q, which the schema does not describe", typ.Name(), f.Name, jsonKey)
-				continue
-			}
-			if got, want := propType(p), goType(f.Type); got != want {
-				t.Errorf("$defs.%s.%s: schema type %q, model type %q", name, jsonKey, got, want)
-			}
-			if _, ok := p["description"]; !ok {
-				t.Errorf("$defs.%s.%s has no description", name, jsonKey)
-			}
-			omitempty := strings.Contains(jsonOpts, "omitempty")
-			if required := slices.Contains(def.Required, jsonKey); required == omitempty {
-				t.Errorf("$defs.%s.%s: required=%v but the field is omitempty=%v", name, jsonKey, required, omitempty)
-			}
+			seen[checkField(t, name, def, typ.Name(), typ.Field(i))] = true
 		}
 		for key := range def.Properties {
 			if !seen[key] {
@@ -158,6 +165,24 @@ var v1Surface = map[string]map[string]string{
 	},
 }
 
+// breakingChange describes how a schema property breaks its v1 promise, or
+// returns "". A trailing "!" marks a property that is always present.
+func breakingChange(def schemaDef, key, want string) string {
+	p, ok := def.Properties[key]
+	if !ok {
+		return "was removed"
+	}
+	got := propType(p)
+	if slices.Contains(def.Required, key) {
+		got += "!"
+	}
+	// Optional properties may become required; nothing else may change.
+	if got == want || got == want+"!" {
+		return ""
+	}
+	return fmt.Sprintf("is %q, v1 promised %q", got, want)
+}
+
 // A breaking change to the schema cannot ship under the same version.
 func TestSchema_v1HasNoBreakingChange(t *testing.T) {
 	if models.SchemaVersion != 1 {
@@ -165,19 +190,9 @@ func TestSchema_v1HasNoBreakingChange(t *testing.T) {
 	}
 	doc := loadSchema(t)
 	for defName, props := range v1Surface {
-		def := doc.Defs[defName]
 		for key, want := range props {
-			p, ok := def.Properties[key]
-			if !ok {
-				t.Errorf("breaking change: $defs.%s.%s was removed; bump SchemaVersion and add tree.v2.json", defName, key)
-				continue
-			}
-			got := propType(p)
-			if slices.Contains(def.Required, key) {
-				got += "!"
-			}
-			if strings.HasSuffix(want, "!") && got != want || !strings.HasSuffix(want, "!") && strings.TrimSuffix(got, "!") != want {
-				t.Errorf("breaking change: $defs.%s.%s is %q, v1 promised %q; bump SchemaVersion and add tree.v2.json", defName, key, got, want)
+			if why := breakingChange(doc.Defs[defName], key, want); why != "" {
+				t.Errorf("breaking change: $defs.%s.%s %s; bump SchemaVersion and add tree.v2.json", defName, key, why)
 			}
 		}
 	}

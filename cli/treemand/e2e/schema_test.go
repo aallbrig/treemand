@@ -73,62 +73,73 @@ func fixtureCLI(t *testing.T, fixture string) (name, dir string) {
 	return name, dir
 }
 
-// Every corpus CLI's JSON and YAML output, and every framework fake's,
-// validates against the published schema.
-func TestSchema_outputValidatesForCorpusAndFakes(t *testing.T) {
+// schemaTarget is one CLI to render: a label, its executable and the
+// directory that holds it.
+type schemaTarget struct{ label, cli, dir string }
+
+// schemaTargets is every corpus fixture behind a fake CLI, plus every
+// framework fake except fakeslow (it sleeps on purpose).
+func schemaTargets(t *testing.T) []schemaTarget {
+	t.Helper()
 	fixtures, err := filepath.Glob("../discovery/testdata/corpus/*.txt")
 	if err != nil || len(fixtures) == 0 {
 		t.Fatalf("no corpus fixtures: %v", err)
 	}
+	var targets []schemaTarget
+	for _, f := range fixtures {
+		name, dir := fixtureCLI(t, f)
+		targets = append(targets, schemaTarget{"corpus/" + filepath.Base(f), name, dir})
+	}
 	fakes := make([]string, 0, len(fakeCLIs))
 	for name := range fakeCLIs {
-		if name != "fakeslow" { // sleeps on purpose
+		if name != "fakeslow" {
 			fakes = append(fakes, name)
 		}
 	}
 	sort.Strings(fakes)
-
-	type target struct{ label, cli, dir string }
-	var targets []target
-	for _, f := range fixtures {
-		name, dir := fixtureCLI(t, f)
-		targets = append(targets, target{"corpus/" + filepath.Base(f), name, dir})
-	}
 	for _, name := range fakes {
-		targets = append(targets, target{"fake/" + name, name, fakeDir})
+		targets = append(targets, schemaTarget{"fake/" + name, name, fakeDir})
 	}
+	return targets
+}
 
+// renderValidated runs treemand on tg in one machine format and checks the
+// output against the schema, returning it.
+func renderValidated(t *testing.T, tg schemaTarget, format string) string {
+	t.Helper()
+	path := "PATH=" + tg.dir + string(os.PathListSeparator) + fakeDir + string(os.PathListSeparator) + os.Getenv("PATH")
+	res := run(t, 60*time.Second, []string{path}, "--no-cache", "--output="+format, "--depth=2", "--timeout=10", tg.cli)
+	if res.exit != 0 {
+		t.Fatalf("--output=%s exited %d: %s", format, res.exit, res.stderr)
+	}
+	validate := schemacheck.ValidateJSON
+	if format == "yaml" {
+		validate = schemacheck.ValidateYAML
+	}
+	if err := validate([]byte(res.stdout)); err != nil {
+		t.Errorf("--output=%s does not match the schema: %v", format, err)
+	}
+	if !strings.Contains(res.stdout, "schema_version") {
+		t.Errorf("--output=%s has no schema_version", format)
+	}
+	return res.stdout
+}
+
+// Every corpus CLI's JSON and YAML output, and every framework fake's,
+// validates against the published schema, and both hold the same data.
+func TestSchema_outputValidatesForCorpusAndFakes(t *testing.T) {
 	// A few runs at a time: unbounded, these 150 runs starve the timing
 	// tests of packages that go test runs alongside.
 	slots := make(chan struct{}, 4)
-	for _, tg := range targets {
+	for _, tg := range schemaTargets(t) {
 		t.Run(tg.label, func(t *testing.T) {
 			t.Parallel()
 			slots <- struct{}{}
 			defer func() { <-slots }()
-			path := "PATH=" + tg.dir + string(os.PathListSeparator) + fakeDir + string(os.PathListSeparator) + os.Getenv("PATH")
-			outputs := map[string]string{}
-			defer func() {
-				if len(outputs) == 2 && !sameData(t, outputs["json"], outputs["yaml"]) {
-					t.Errorf("JSON and YAML output hold different data:\njson: %s\nyaml: %s", outputs["json"], outputs["yaml"])
-				}
-			}()
-			for _, format := range []string{"json", "yaml"} {
-				res := run(t, 60*time.Second, []string{path}, "--no-cache", "--output="+format, "--depth=2", "--timeout=10", tg.cli)
-				if res.exit != 0 {
-					t.Fatalf("--output=%s exited %d: %s", format, res.exit, res.stderr)
-				}
-				outputs[format] = res.stdout
-				validate := schemacheck.ValidateJSON
-				if format == "yaml" {
-					validate = schemacheck.ValidateYAML
-				}
-				if err := validate([]byte(res.stdout)); err != nil {
-					t.Errorf("--output=%s does not match the schema: %v", format, err)
-				}
-				if !strings.Contains(res.stdout, "schema_version") {
-					t.Errorf("--output=%s has no schema_version", format)
-				}
+			jsonOut := renderValidated(t, tg, "json")
+			yamlOut := renderValidated(t, tg, "yaml")
+			if !sameData(t, jsonOut, yamlOut) {
+				t.Errorf("JSON and YAML output hold different data:\njson: %s\nyaml: %s", jsonOut, yamlOut)
 			}
 		})
 	}
