@@ -375,6 +375,16 @@ tasks:
     cmds:
       - go test -count=1 -v ./cli/treemand/e2e
 
+  install:experience:
+    desc: "Run every documented install path (one-liner, upgrade, reinstall, uninstall, go; brew with PROBE_BREW=1) on this host and in Linux containers against the real latest release: task install:experience -- [--record]"
+    cmds:
+      - python3 -I scripts/metrics/measure.py install {{.CLI_ARGS}}
+
+  install:probe:test:
+    desc: Test the install probe against a local fake release and site
+    cmds:
+      - sh scripts/metrics/install_probe_test.sh
+
   install:test:
     desc: Test www/treemand/static/install.sh against a local fake release (checksums, versions, platforms, privileges) and that the docs agree with it
     cmds:
@@ -494,6 +504,7 @@ tasks:
       - task: site:audit
       - task: site:health:test
       - task: install:test
+      - task: install:probe:test
       - task: corpus:test
       - task: coverage:check
       - task: chaos

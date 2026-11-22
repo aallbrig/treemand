@@ -50,6 +50,11 @@
     "exempt_scripts":    {"ratchet": "lower"},
     "stale_exemptions":  {"budget": {"max": 0}, "ratchet": "lower"}
   },
+  "install": {
+    "paths_failed": {"budget": {"max": 0}, "ratchet": "lower", "host_bound": true},
+    "paths_ok":     {"ratchet": "higher", "host_bound": true},
+    "ok.*":         {"ratchet": "higher", "host_bound": true}
+  },
   "zoo": {
     "sweep_panics":    {"budget": {"max": 0}, "ratchet": "lower"},
     "sweep_timeouts":  {"budget": {"max": 0}, "ratchet": "lower"},
