@@ -7,14 +7,11 @@ into the `## Summary` section by the loop.
 
 ## Summary
 
-_Nothing yet._
+- Cycle 1 (#6, v0.3.3): a release run that fails with no jobs and no logs is a GitHub startup failure. Rerun it before rolling back or escalating; `release.sh` does this now.
 
 ## Recent cycles
 
 <!-- Retro appends below: ### Cycle N — YYYY-MM-DD — outcome — #issue vX.Y.Z -->
-
-### Cycle 1 - 2026-11-09 - released - #6 v0.3.3
-Footer hints now drop whole tokens when narrow. Release runs that fail with no jobs and no logs are GitHub startup failures: rerun before rolling back or escalating (release.sh now does).
 
 ### Cycle 2 - 2026-11-09 - released - #7 v0.3.4
 Hardcoded /treemand/ paths broke under baseURL=/; use the demo shortcode (relURL). A red main CI run whose jobs are all green is the same startup glitch: rerun it.
@@ -102,3 +99,6 @@ Community health 57 to 100 with SECURITY.md, a code of conduct, issue forms, a P
 
 ### Cycle 32 - 2026-11-22 - released - #48 v0.9.0
 A versioned JSON Schema (`treemand schema`, served at treemand.dev/schema/tree.v1.json) with a frozen v1 contract test. The first real check found that YAML had never matched JSON: it wrote Go-derived keys (`fullpath`) and no omitempty. Validating every corpus fixture through a fake CLI is cheap, but cap a fan-out e2e test: 152 unbounded runs made discovery's wall-clock hedge tests flaky while `go test` ran both packages together. The CI complexity ratchet counts `_test.go` functions too, so run gocognit `-over 15` on new tests before pushing. Locally, `site:audit` needs Node 24 from nvm on PATH.
+
+### Cycle 33 - 2026-11-22 - released - #214 (open) v0.9.1
+`flattenNode` went from cognitive 57 to under 15 with no row changes: one helper per section, sharing `appendSection`. `functions_over_30` dropped from 8 to 7 and TUI allocations stayed flat. A characterization test that dumps every row field as one line per row, committed before the refactor, made the change safe and quick to review. Pin its golden from the real output, not from a guess: section keys look like `path@depth/flags`, and with sections hidden the flat rows keep their depth+2. Selection is not the work file: `.loop/work` named #51, but select.md puts measure:finding issues first. Budget issues like #214 ship one function per release, say "Part of", and go back to ready.
