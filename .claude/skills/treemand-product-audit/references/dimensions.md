@@ -32,6 +32,7 @@ spaces and quotes; run the result.
 ## 5. Website
 Probe: `task visual:check` screenshots; Lighthouse via `npx --yes lighthouse@12 <url> --only-categories=performance,accessibility,seo,best-practices --chrome-flags=--headless --output=json`;
 `task site:check` link test; the Try page end to end.
+Measured: `task measure -- site-health`, local and with `SITE_BASE=https://treemand.dev/` (treemand-site-runtime-health).
 3 = Lighthouse >= 95 in all four, social card and favicons present, mobile clean, rubric passes.
 
 ## 6. Distribution from the site

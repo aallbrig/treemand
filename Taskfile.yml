@@ -355,7 +355,7 @@ tasks:
     desc: Static checks for the loop machinery (shellcheck, state script, guard and session hooks, skill present)
     cmds:
       - shellcheck -x -S warning scripts/loop/*.sh scripts/loop/hooks/*.sh scripts/dev_session.sh scripts/dev/*.sh scripts/pr_merge.sh scripts/check_*.sh scripts/install_test.sh scripts/site_audit.sh scripts/site_search_index.sh scripts/make_site_assets.sh www/treemand/static/install.sh scripts/infra/*.sh scripts/gates_test.sh scripts/infra_lint.sh scripts/real_cli_ab.sh scripts/corpus_diff.sh scripts/ship.sh scripts/metrics/*.sh scripts/channels_check*.sh
-      - shellcheck --shell=sh -S warning scripts/check_taskfile_cmds.sh scripts/check_taskfile_cmds_test.sh scripts/check_gofmt.sh scripts/doctor.sh
+      - shellcheck --shell=sh -S warning scripts/check_taskfile_cmds.sh scripts/check_taskfile_cmds_test.sh scripts/check_gofmt.sh scripts/doctor.sh scripts/metrics/probes/site-health.sh scripts/metrics/site_health_test.sh
       - python3 -I scripts/loop/state.py summary >/dev/null
       - bash scripts/loop/guard_test.sh
       - sh scripts/loop/hooks/hooks_test.sh
@@ -492,6 +492,7 @@ tasks:
       - task: taskfile:check
       - task: site:check
       - task: site:audit
+      - task: site:health:test
       - task: install:test
       - task: corpus:test
       - task: coverage:check
@@ -518,6 +519,16 @@ tasks:
     desc: Build and serve the site, then check every page at desktop and mobile sizes (SEO tags, accessibility, contrast, layout shift, console errors); needs hugo, node and Chrome
     cmds:
       - bash scripts/site_audit.sh
+
+  site:health:
+    desc: "Crawl the site in headless Chrome and judge its runtime health (HTTP errors, console errors, exceptions, dead links, mixed content); SITE_BASE=https://treemand.dev/ targets production: task site:health [-- --record]"
+    cmds:
+      - python3 -I scripts/metrics/measure.py site-health {{.CLI_ARGS}}
+
+  site:health:test:
+    desc: Test the site-health probe against a fixture site with one of each problem; needs node and Chrome
+    cmds:
+      - sh scripts/metrics/site_health_test.sh
 
   site:check:
     desc: Fail if the built site links outside its baseURL
