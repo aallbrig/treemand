@@ -585,6 +585,7 @@ tasks:
       - task: site:health:test
       - task: site:quality:test
       - task: ci:health:test
+      - task: adoption:signals:test
       - task: site:design:test
       - task: install:test
       - task: install:probe:test
@@ -657,6 +658,16 @@ tasks:
     desc: Test the ci-health probe against a fake gh serving a small Actions API world
     cmds:
       - dash scripts/metrics/ci_health_test.sh
+
+  adoption:signals:
+    desc: "Adoption trend signals from free sources: stars, forks, watchers, release downloads (all, latest), GitHub traffic and tap clones (needs push access), module proxy version, external open issues (needs gh): task adoption:signals [-- --record]"
+    cmds:
+      - python3 -I scripts/metrics/measure.py adoption-signals {{.CLI_ARGS}}
+
+  adoption:signals:test:
+    desc: Test the adoption-signals probe against a fake gh and file stand-ins for the module proxy and Homebrew API
+    cmds:
+      - dash scripts/metrics/adoption_signals_test.sh
 
   site:design:
     desc: "Screenshot every page (desktop + mobile, light + dark) and the peer sites' home and install pages into .loop/design/<date>/ for the treemand-site-product-design skill; production by default: task site:design [-- --dir www/treemand/public | --no-peers]"

@@ -41,6 +41,7 @@ Probe: the Installation page and the README. For each channel (go install, Homeb
 winget, Chocolatey, AUR, Snap, deb/rpm, Docker image, one-line install script) check it is
 documented, copy-pastable, and current against `gh release list`. Test what this machine can:
 `task install:experience` runs every documented path here and in Linux containers (treemand-install-experience).
+Adoption trends: `task measure -- adoption-signals` (treemand-adoption-signals): downloads, traffic, stars; a latest release with no downloads after 7 days is a broken channel.
 3 = every mainstream channel works and matches the latest release, the site detects the
 visitor's OS and shows the right command first, binaries are checksummed and signed.
 

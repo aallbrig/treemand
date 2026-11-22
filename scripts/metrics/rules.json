@@ -1,4 +1,7 @@
 {
+  "adoption-signals": {
+    "latest_zero_downloads_7d": {"budget": {"max": 0}}
+  },
   "ci-health": {
     "success_pct.*":     {"budget": {"min": 90}, "ratchet": "higher", "min_delta": 5},
     "success_pct.ci":    {"budget": {"min": 95}, "ratchet": "higher", "min_delta": 3},
