@@ -1,6 +1,6 @@
 ---
 title: "Commands"
-description: "The treemand commands: the tree view, interactive TUI, output formats, cache, config, completion and version."
+description: "The treemand commands: the tree view, interactive TUI, output formats, cache, config, completion, version and the MCP server."
 weight: 5
 ---
 
@@ -17,3 +17,4 @@ Explore what each treemand command does, with short animated demos for each.
 | [config](config/) | View, validate, and change configuration |
 | [version](version/) | Print version and build info |
 | [completion](completion/) | Generate shell completion scripts |
+| [mcp](mcp/) | MCP server: discovery, search and command assembly as AI agent tools |

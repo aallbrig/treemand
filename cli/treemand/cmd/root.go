@@ -84,6 +84,7 @@ Examples:
   treemand --output=json gh | jq .    # pipe JSON to jq
   treemand --filter=remote git        # only show nodes matching "remote"
   treemand treemand                   # introspect treemand itself
+  treemand mcp                        # MCP server: discovery as AI agent tools
 
 Docs: https://treemand.dev`,
 	Args:          rootArgs,
@@ -484,6 +485,7 @@ func Execute() {
 	rootCmd.SetVersionTemplate("{{.Version}}\n")
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(schemaCmd)
+	rootCmd.AddCommand(mcpCmd)
 	rootCmd.AddCommand(cacheCmd)
 	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(genDocsCmd)
@@ -528,6 +530,7 @@ func NewRootCmd() *cobra.Command {
 	c.PersistentFlags().IntVar(&cfgExpandStubs, "expand-stubs", 0, "Expand undiscovered (stub) nodes N levels deep before output")
 	c.AddCommand(versionCmd)
 	c.AddCommand(schemaCmd)
+	c.AddCommand(mcpCmd)
 	c.AddCommand(cacheCmd)
 	c.AddCommand(configCmd)
 	c.AddCommand(genDocsCmd)

@@ -4,6 +4,7 @@ github.com/aallbrig/treemand/cmd	64
 github.com/aallbrig/treemand/config	92
 github.com/aallbrig/treemand/discovery	90
 github.com/aallbrig/treemand/fuzzy	94
+github.com/aallbrig/treemand/mcp	85
 github.com/aallbrig/treemand/models	100
 github.com/aallbrig/treemand/presets	76
 github.com/aallbrig/treemand/render	95

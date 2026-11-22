@@ -12,6 +12,7 @@ weight: 4
 treemand <cli> [flags]
 treemand version
 treemand schema
+treemand mcp
 treemand cache [clear|list]
 ```
 
