@@ -103,13 +103,20 @@ www/treemand/       Hugo documentation site
 ## Dev session and the autonomous loop
 
 ```bash
-task dev            # tmuxinator session: dev, watch, sites, loops windows (attaches if running)
+task dev            # tmuxinator session treemand_dev (attaches if running)
 task dev:recycle    # kill and restart the session
-task loop:start     # start the autonomous dev loop in the loops window (runs until stopped)
-task loop:stop      # stop it at the next phase boundary (-- --now kills it immediately)
+task dev:bootstrap  # host readiness report: tools task ci needs, with install hints
+task loop:start     # start the autonomous dev loop: adds an agent pane to the loops window
+task loop:stop      # stop it at the next phase boundary (-- --now kills it immediately); the pane closes
 task loop:status    # state, daily caps, failure streak
 task visual:check   # TUI + site screenshots into .loop/shots/
 ```
+
+The session's windows are `bootstrap` (readiness report, then opens the local and
+production sites; set `TREEMAND_NO_BROWSER=1` to skip the browser), `dev` (shell and
+TUI), `watch` (fmt, test and lint on change), `site` (`task site:dev`), `prod` and
+`loops` (a dev shell showing `task loop:status`). The loop's agent pane exists only
+while the loop runs.
 
 The loop is the `treemand-loop` skill (`.claude/skills/treemand-loop/`). One cycle
 ships one issue as one release. File issues labelled `loop:ready` to feed it, or

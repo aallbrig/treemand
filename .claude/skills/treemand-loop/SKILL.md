@@ -1,6 +1,6 @@
 ---
 name: treemand-loop
-description: One full cycle of the treemand autonomous dev loop - pick work, implement, verify, merge, release to production, verify production, then schedule the next cycle. Run by the loops:agent pane under /loop; invoke manually to run a single cycle.
+description: One full cycle of the treemand autonomous dev loop - pick work, implement, verify, merge, release to production, verify production, then schedule the next cycle. Run by the agent pane that loop:start adds to the treemand_dev session's loops window, under /loop; invoke manually to run a single cycle.
 ---
 
 # treemand dev loop - one cycle

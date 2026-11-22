@@ -7,18 +7,22 @@ set -euo pipefail
 
 have_session() { tmux has-session -t "=$LOOP_SESSION" 2>/dev/null; }
 
-# The agent pane is the second pane of the loops window (pane 0 is the dev shell).
-# Pane titles are not reliable: the shell prompt overwrites them.
+# The agent pane is marked with the pane option @treemand_role=agent (titles are
+# not reliable and positions shift). It exists only while the loop runs: start
+# creates it in the loops window running $LOOP_AGENT_CMD directly (no shell), so
+# the pane closes when the supervisor exits.
+AGENT_ROLE=agent
+
 agent_pane() {
-  tmux list-panes -t "=$LOOP_SESSION:loops" -F '#{pane_id}' 2>/dev/null | sed -n 2p
+  tmux list-panes -s -t "=$LOOP_SESSION" -F '#{pane_id} #{@treemand_role}' 2>/dev/null |
+    awk -v r="$AGENT_ROLE" '$2 == r { print $1; exit }'
 }
 
 supervisor_running() {
-  local pane cmd
+  local pane
   pane="$(agent_pane)"
   [ -n "$pane" ] || return 1
-  cmd="$(tmux display-message -p -t "$pane" '#{pane_current_command}')"
-  case "$cmd" in bash | zsh | sh | fish) return 1 ;; *) return 0 ;; esac
+  [ "$(tmux display-message -p -t "$pane" '#{pane_dead}')" != 1 ]
 }
 
 kill_tree() {
@@ -27,22 +31,31 @@ kill_tree() {
   kill "$pid" 2>/dev/null || true
 }
 
+create_agent_pane() {
+  local window="=$LOOP_SESSION:loops" pane
+  tmux list-panes -t "$window" >/dev/null 2>&1 || { echo "loops window missing; run: task dev:recycle" >&2; exit 1; }
+  local env_args=(-e "TREEMAND_SESSION=$LOOP_SESSION")
+  if [ -n "$_env_claude" ]; then env_args+=(-e "LOOP_CLAUDE_BIN=$_env_claude"); fi
+  pane="$(tmux split-window -d -h -t "$window" -c "$LOOP_ROOT" "${env_args[@]}" -P -F '#{pane_id}' "$LOOP_AGENT_CMD")"
+  tmux set-option -p -t "$pane" @treemand_role "$AGENT_ROLE"
+  tmux set-option -p -t "$pane" remain-on-exit off
+  tmux select-pane -t "$pane" -T agent
+}
+
 cmd_start() {
   rm -f "$LOOP_STOP_FILE"
   if ! have_session; then
-    bash "$LOOP_ROOT/scripts/dev_session.sh" start
-    echo "loop started (session created; supervisor launching in loops:agent)"
-    return 0
+    bash "$LOOP_ROOT/scripts/dev_session.sh" start >/dev/null
   fi
   if supervisor_running; then
     echo "loop already running"
     return 0
   fi
-  local pane
-  pane="$(agent_pane)"
-  [ -n "$pane" ] || { echo "loops:agent pane missing; run: task dev:recycle" >&2; exit 1; }
-  tmux send-keys -t "$pane" "task loop:agent" Enter
-  echo "loop started"
+  local stale
+  stale="$(agent_pane)"
+  if [ -n "$stale" ]; then tmux kill-pane -t "$stale"; fi
+  create_agent_pane
+  echo "loop started (supervisor running in the loops window's agent pane)"
 }
 
 cmd_stop() {
@@ -53,8 +66,9 @@ cmd_stop() {
     pane="$(agent_pane)"
     if [ -n "$pane" ]; then
       pid="$(tmux display-message -p -t "$pane" '#{pane_pid}')"
-      for c in $(pgrep -P "$pid" 2>/dev/null || true); do kill_tree "$c"; done
-      echo "agent pane process tree killed"
+      kill_tree "$pid"
+      tmux kill-pane -t "$pane" 2>/dev/null || true
+      echo "agent pane process tree killed and pane closed"
     fi
   fi
 }

@@ -234,7 +234,7 @@ tasks:
   # ── dev session (tmuxinator) ─────────────────────────────────────────────
 
   dev:
-    desc: Start the treemand tmuxinator session, or attach if it is already running
+    desc: Start the treemand_dev tmuxinator session, or attach if it is already running
     cmds:
       - bash scripts/dev_session.sh up
 
@@ -258,10 +258,20 @@ tasks:
     cmds:
       - tmuxinator debug --project-config .tmuxinator/treemand.yml >/dev/null
 
+  dev:bootstrap:
+    desc: Host readiness report (tools task ci needs, with install hints), then open the local and production sites
+    cmds:
+      - sh scripts/dev/bootstrap.sh
+
+  dev:test:
+    desc: Behaviour tests for the dev-session scripts (bootstrap report and browser opening, all stubbed)
+    cmds:
+      - sh scripts/dev/bootstrap_test.sh
+
   # ── dev loop ─────────────────────────────────────────────────────────────
 
   loop:start:
-    desc: Start the autonomous dev loop (creates the session if needed); runs until loop:stop
+    desc: Start the autonomous dev loop (creates the session and the loops agent pane if needed); runs until loop:stop
     cmds:
       - bash scripts/loop/loopctl.sh start
 
@@ -281,7 +291,7 @@ tasks:
       - bash scripts/loop/loopctl.sh attach
 
   loop:agent:
-    desc: Run the supervised Remote Control loop agent (used by the loops:agent pane)
+    desc: Run the supervised Remote Control loop agent (run by the agent pane that loop:start creates)
     cmds:
       - bash scripts/loop/supervisor.sh
 
@@ -293,7 +303,7 @@ tasks:
   loop:check:
     desc: Static checks for the loop machinery (shellcheck, state script, guard hook, skill present)
     cmds:
-      - shellcheck -x -S warning scripts/loop/*.sh scripts/dev_session.sh scripts/pr_merge.sh scripts/check_*.sh scripts/install_test.sh scripts/site_audit.sh scripts/site_search_index.sh scripts/make_site_assets.sh www/treemand/static/install.sh scripts/infra/*.sh scripts/gates_test.sh scripts/infra_lint.sh scripts/real_cli_ab.sh scripts/corpus_diff.sh scripts/ship.sh scripts/metrics/*.sh scripts/channels_check*.sh
+      - shellcheck -x -S warning scripts/loop/*.sh scripts/dev_session.sh scripts/dev/*.sh scripts/pr_merge.sh scripts/check_*.sh scripts/install_test.sh scripts/site_audit.sh scripts/site_search_index.sh scripts/make_site_assets.sh www/treemand/static/install.sh scripts/infra/*.sh scripts/gates_test.sh scripts/infra_lint.sh scripts/real_cli_ab.sh scripts/corpus_diff.sh scripts/ship.sh scripts/metrics/*.sh scripts/channels_check*.sh
       - python3 -I scripts/loop/state.py summary >/dev/null
       - bash scripts/loop/guard_test.sh
       - test -f .claude/skills/treemand-loop/SKILL.md
@@ -425,6 +435,7 @@ tasks:
       - task: test-race
       - task: build
       - task: dev:check
+      - task: dev:test
       - task: loop:check
       - task: docs:check
       - task: site:check

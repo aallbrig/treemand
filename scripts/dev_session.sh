@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Manage the treemand tmuxinator session.
+# Manage the treemand_dev tmuxinator session.
 #   up       attach if the session exists, else create it and attach (default)
 #   attach   attach; fail if absent
 #   start    create detached; no-op if it exists (systemd-friendly)
@@ -7,10 +7,10 @@
 #   recycle  stop, then start detached
 set -euo pipefail
 
-SESSION="${TREEMAND_SESSION:-treemand}"
+SESSION="${TREEMAND_SESSION:-treemand_dev}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG="$ROOT/.tmuxinator/treemand.yml"
-export TREEMAND_ROOT="$ROOT"
+export TREEMAND_ROOT="$ROOT" TREEMAND_SESSION="$SESSION"
 
 exists() { tmux has-session -t "=$SESSION" 2>/dev/null; }
 
