@@ -27,9 +27,9 @@ jobs:
           cache-dependency-path: cli/treemand/go.sum
       - name: zoo (sweep + smoke)
         run: python3 -I scripts/metrics/measure.py zoo --findings | tee zoo.json
-      - name: complexity, parser, tui, tui-layout
+      - name: complexity, parser, tui, tui-layout, tui-keymap
         run: |
-          for p in complexity parser tui tui-layout; do
+          for p in complexity parser tui tui-layout tui-keymap; do
             python3 -I scripts/metrics/measure.py "$p" --findings >"$p.json"
           done
       - uses: actions/upload-artifact@v4
