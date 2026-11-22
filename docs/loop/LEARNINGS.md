@@ -8,14 +8,11 @@ into the `## Summary` section by the loop.
 ## Summary
 
 - Cycle 1 (#6, v0.3.3): a release run that fails with no jobs and no logs is a GitHub startup failure. Rerun it before rolling back or escalating; `release.sh` does this now.
-- Cycles 2-11 (v0.3.4 to v0.3.10): a red CI run whose jobs are all green is a startup glitch, so rerun it. Site links go through relURL or the demo shortcode, never a hardcoded `/treemand/`. Release binaries are `CGO_ENABLED=0`, so the cache uses pure-Go sqlite. Child processes need `cmd.WaitDelay` or an orphan holding stdout hangs past `--timeout`. Check that labels exist before `gh issue create`. Run every parser fixture after each parser heuristic change (aws's justified man text broke a tightened row regex). Verify an issue premise against real output before planning (cycle 11, aws service descriptions).
+- Cycles 2-12 (v0.3.4 to v0.3.11): a red CI run whose jobs are all green is a startup glitch, so rerun it. Site links go through relURL or the demo shortcode, never a hardcoded `/treemand/`. Release binaries are `CGO_ENABLED=0`, so the cache uses pure-Go sqlite. Child processes need `cmd.WaitDelay` or an orphan holding stdout hangs past `--timeout`. Check that labels exist before `gh issue create`. Run every parser fixture after each parser heuristic change (aws's justified man text broke a tightened row regex). Verify an issue premise against real output before planning (cycle 11, aws service descriptions). Re-scope an infeasible issue and ship rather than park it; under zsh, `2>&1 >/dev/null | wc` tees stdout, so redirect to files when checking stream separation.
 
 ## Recent cycles
 
 <!-- Retro appends below: ### Cycle N — YYYY-MM-DD — outcome — #issue vX.Y.Z -->
-
-### Cycle 12 - 2026-11-10 - released - #32 v0.3.11
-Re-scoped #32 instead of leaving it parked (new rule: decide, then ship): stubs get an honest stderr footer plus a public --expand-stubs; descriptions stay lazy because aws help has none and per-service help is about 3s. Under zsh, `2>&1 >/dev/null | wc` tees stdout (multios): redirect to files when checking stream separation.
 
 ### Cycle 13 - 2026-11-10 - released - #33 v0.4.0
 Added a root-only list-commands fallback (tmux: 1 node to 91, all with man-derived descriptions and synopsis flags). make and other target runners are out of scope and skipped, because probing a target can execute project build rules; documented in the fallback-chain ADR. Minor bump for a new capability.
@@ -103,3 +100,6 @@ Releases now build with GoReleaser as a draft that `release.yml` publishes only 
 
 ### Cycle 42 - 2026-11-22 - released - #229 v0.10.1
 A root whose help times out is retried once at 3x the per-command budget, then fails with exit 1 instead of printing a one-node tree; stdout stays empty and nothing is cached. The new branch first pushed `discoverWithHelp` over cognitive 15 (`functions_over_15` 32 to 33, caught only by the PR's ratchet gate): run `measure.py complexity --gate` locally before pushing. `fuzz:smoke` writes its crasher into `discovery/testdata/fuzz`, which then fails `coverage:check`: delete that untracked folder before re-running.
+
+### Cycle 43 - 2026-11-22 - released - #51 v0.10.2
+All third-party actions are now pinned by SHA, every workflow defaults to `contents: read` with writes granted per job, and releases carry build provenance that `gh attestation verify` accepted on the v0.10.2 asset (infra-security: 46/1/1 to 0/0/0). Resolve tags to SHAs with `gh api repos/<o>/<r>/commits/<tag>`, and rewrite refs with Python, not BSD sed (the slashes in `owner/repo` break `s///`). The guard blocks Write to the scratchpad, so keep PR bodies under `.loop/`.
