@@ -156,7 +156,7 @@ treemand git | less -R                               # plain text when piped
 | Code | Meaning | Examples |
 |------|---------|----------|
 | `0` | Success | the tree was printed |
-| `1` | Runtime failure | the CLI is not on `PATH`; discovery could not run |
+| `1` | Runtime failure | the CLI is not on `PATH`; discovery could not run; the CLI's own help timed out, even after one retry |
 | `2` | Usage error | no CLI name, more than one, an unknown flag, a bad flag value, an unknown `--output` format or shell |
 
 A usage error prints what was wrong plus a hint, for example `treemand` alone prints

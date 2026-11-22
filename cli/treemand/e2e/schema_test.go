@@ -91,8 +91,11 @@ func schemaTargets(t *testing.T) []schemaTarget {
 		targets = append(targets, schemaTarget{"corpus/" + filepath.Base(f), name, dir})
 	}
 	fakes := make([]string, 0, len(fakeCLIs))
+	// Timing fakes are left out: fakehang never answers, so it has no tree
+	// to validate, and the slow ones only cost time.
+	timing := map[string]bool{"fakeslow": true, "fakehang": true, "fakeslowstart": true}
 	for name := range fakeCLIs {
-		if name != "fakeslow" {
+		if !timing[name] {
 			fakes = append(fakes, name)
 		}
 	}
