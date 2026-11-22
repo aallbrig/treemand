@@ -13,6 +13,7 @@ fail() { echo "FAIL: $*"; fails=$((fails + 1)); }
 pass() { echo "ok:   $*"; }
 
 [ -d "$dist" ] || { echo "no dist directory at $dist" >&2; exit 2; }
+dist="$(cd "$dist" && pwd)" # absolute: some checks cd into a temp dir
 
 sha256() {
   if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | awk '{print $1}'
