@@ -100,6 +100,17 @@ tasks:
       - shellcheck --shell=sh scripts/metrics/infra_security_test.sh scripts/metrics/probes/infra-security.sh
       - sh scripts/metrics/infra_security_test.sh
 
+  deps:health:
+    desc: "Dependency health through the measurement engine: vulns, outdated and stale Go modules, the Go toolchain, pinned CI tools (skill treemand-dependency-health)"
+    cmds:
+      - python3 -I scripts/metrics/measure.py dependency-health {{.CLI_ARGS}}
+
+  deps:health:test:
+    desc: Test the dependency-health probe on a fixture repo with fake go, govulncheck and a local HTTP server
+    cmds:
+      - shellcheck --shell=sh scripts/metrics/dependency_health_test.sh scripts/metrics/probes/dependency-health.sh
+      - sh scripts/metrics/dependency_health_test.sh
+
   infra:bootstrap:
     desc: Deploy the bootstrap stack (admin credentials) and wire the GitHub production environment
     cmds:
@@ -504,6 +515,7 @@ tasks:
       - task: infra:lint
       - task: infra:security:test
       - task: infra:security
+      - task: deps:health:test
       - task: py:lint
       - task: py:types
       - task: gates:test
