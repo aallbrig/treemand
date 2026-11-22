@@ -107,9 +107,7 @@ func (h *HelpDiscoverer) discoverWithHelp(ctx context.Context, cliName string, a
 	node.Description = parsed.Description
 	node.Flags = parsed.Flags
 	node.Positionals = parsed.Positionals
-	if atRoot {
-		node.Flags = rootFlagsOrMan(ctx, cliName, node.Flags)
-	}
+	node.Flags = rootFlagsOrMan(ctx, cliName, node.Flags, atRoot)
 
 	if atRoot && len(parsed.Subcommands) == 0 {
 		helpText, parsed = h.cleoListFallback(ctx, cliName, node, helpText, parsed)
@@ -1927,8 +1925,8 @@ func nextLineIndented(lines []string, i int) bool {
 
 // rootFlagsOrMan returns flags, or when the root's help lists none, the flags
 // its man page documents: apt's help never lists an option (#65).
-func rootFlagsOrMan(ctx context.Context, cliName string, flags []models.Flag) []models.Flag {
-	if len(flags) > 0 {
+func rootFlagsOrMan(ctx context.Context, cliName string, flags []models.Flag, atRoot bool) []models.Flag {
+	if !atRoot || len(flags) > 0 {
 		return flags
 	}
 	return manFlagsFor(ctx, cliName)
