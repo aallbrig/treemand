@@ -15,10 +15,10 @@ jobs:
         working-directory: cli/treemand
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: cli/treemand/go.mod
           cache-dependency-path: cli/treemand/go.sum
@@ -39,7 +39,7 @@ jobs:
         run: go vet ./...
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v9
         with:
           version: latest
           # The prebuilt binary is compiled with an older Go than go.mod targets;
@@ -61,7 +61,7 @@ jobs:
         run: sh scripts/check_coverage.sh
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         with:
           file: cli/treemand/coverage.out
           fail_ci_if_error: false
@@ -76,9 +76,9 @@ jobs:
     name: Go tests on macOS
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: cli/treemand/go.mod
           cache-dependency-path: cli/treemand/go.sum
@@ -93,16 +93,16 @@ jobs:
     name: Task ci (all gates)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # secrets:history scans every commit
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: cli/treemand/go.mod
           cache-dependency-path: cli/treemand/go.sum
 
-      - uses: arduino/setup-task@v2
+      - uses: arduino/setup-task@v3
         with:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -133,10 +133,10 @@ jobs:
     name: Measurement gate (ratchets)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # the complexity probe reads git churn
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: cli/treemand/go.mod
           cache-dependency-path: cli/treemand/go.sum
@@ -172,8 +172,8 @@ jobs:
       run:
         working-directory: cli/treemand
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: cli/treemand/go.mod
       - name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
@@ -200,7 +200,7 @@ jobs:
           - image: alpine:3
             prep: apk add --no-cache curl ca-certificates
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install the latest release from treemand.dev, then an old one from GitHub
         run: |
           docker run --rm -v "$PWD/www/treemand/static/install.sh:/install.sh:ro" ${{ matrix.image }} sh -c '
@@ -219,7 +219,7 @@ jobs:
     name: install.sh on macOS
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install the latest release
         run: |
           sh www/treemand/static/install.sh
