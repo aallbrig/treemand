@@ -109,4 +109,51 @@ esac
 
 	// Prints errors and exits non-zero for any help request.
 	"fakenohelp": "echo 'unknown flag' >&2\nexit 2\n",
+
+	// apt (#65): no help lists an option. Its commands print the general
+	// help of the tool they forward to, or fail when the Linux Mint wrapper
+	// needs sudo; only the man page names the options.
+	"fakeapt": `case "$1" in
+install) echo 'sudo: a terminal is required to read the password' >&2; exit 1;;
+list|show) cat <<'H'
+apt 2.6.2 (arm64)
+Usage: apt [options] command
+
+Most used commands:
+  list - list packages based on package names
+  show - show package details
+  install - install packages
+
+See apt(8) for more information about the available commands.
+H
+;;
+*) cat <<'H'
+Usage: fakeapt command [options]
+
+Commands:
+  install          - Install and/or upgrade packages
+  list             - List packages handled by the system
+  show             - Display detailed information about a package
+H
+;;
+esac
+`,
+
+	// Answers only for fakeapt, with its man page as man prints it; every
+	// other fake has no man page, as with the real man.
+	"man": `[ "$1" = fakeapt ] || exit 16
+cat <<'M'
+FAKEAPT(8)                            APT                           FAKEAPT(8)
+
+NAME
+       fakeapt - command-line interface
+
+SYNOPSIS
+       fakeapt [-h] [-o=config_string] [-c=config_file] [-t=target_release]
+           [-a=architecture] {list | show | install pkg}
+
+DESCRIPTION
+       fakeapt provides a high-level commandline interface.
+M
+`,
 }
