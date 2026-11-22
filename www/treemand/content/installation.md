@@ -21,6 +21,25 @@ curl -fsSL https://treemand.dev/install.sh | sh -s -- --system            # /usr
 curl -fsSL https://treemand.dev/install.sh | sh -s -- --dry-run           # show what it would do
 ```
 
+## Linux packages
+
+Each release from v0.10.0 on also ships `.deb`, `.rpm` and `.apk` packages for amd64 and arm64. They install `treemand` to `/usr/bin` and its man page, and your package manager can remove it again. The package checksums are in the release's signed `checksums.txt`.
+
+```bash
+# Debian, Ubuntu
+curl -fsSLO https://github.com/aallbrig/treemand/releases/latest/download/treemand_linux_amd64.deb
+sudo apt install ./treemand_linux_amd64.deb
+
+# Fedora, RHEL
+sudo dnf install https://github.com/aallbrig/treemand/releases/latest/download/treemand_linux_amd64.rpm
+
+# Alpine
+curl -fsSLO https://github.com/aallbrig/treemand/releases/latest/download/treemand_linux_amd64.apk
+sudo apk add --allow-untrusted ./treemand_linux_amd64.apk
+```
+
+On arm64, replace `amd64` with `arm64`. Each archive also has a software bill of materials (SPDX JSON) next to it on the release page, named after the archive with `.sbom.json` added.
+
 ## Build from source
 
 Requires Go 1.26+. (`go install …@latest` doesn't work yet: the Go module lives in `cli/treemand/`, so there is no remote install path. Build from a checkout instead.)
