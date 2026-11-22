@@ -1,20 +1,24 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Per-package coverage floor. Fails if any package is below its floor in
 # scripts/coverage_floor.tsv, or a tested package has no floor row.
-#   bash scripts/check_coverage.sh            check
-#   bash scripts/check_coverage.sh --update   deliberately rewrite floors to today's coverage
-#                                             (rounded down); review and commit the diff
+#   sh scripts/check_coverage.sh            check
+#   sh scripts/check_coverage.sh --update   deliberately rewrite floors to today's coverage
+#                                           (rounded down); review and commit the diff
 # Floors are a ratchet: raise them as coverage improves, never lower them to get green.
 # A floor must hold on GitHub CI too: if CI measures lower than your machine, take the CI number.
-set -euo pipefail
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
+# COVERAGE_OUTPUT names a file of `go test -cover` output to judge instead of
+# running the tests (scripts/check_coverage_test.sh).
+set -eu
+cd "$(dirname "$0")/.."
 
-floors=scripts/coverage_floor.tsv
-out="$(cd cli/treemand && go test -count=1 -cover ./... 2>&1)" || {
-  echo "$out" >&2
+floors="${COVERAGE_FLOORS:-scripts/coverage_floor.tsv}"
+if [ -n "${COVERAGE_OUTPUT:-}" ]; then
+  out="$(cat "$COVERAGE_OUTPUT")"
+elif ! out="$(cd cli/treemand && go test -count=1 -cover ./... 2>&1)"; then
+  printf '%s\n' "$out" >&2
   echo "tests failed; coverage not checked" >&2
   exit 1
-}
+fi
 
 # "ok  <pkg>  <time>  coverage: 88.2% of statements" -> "<pkg> 88.2"
 current="$(printf '%s\n' "$out" | awk '/^ok/ && /coverage:/ && /statements/ && !/no statements/ {
@@ -30,23 +34,19 @@ if [ "${1:-}" = "--update" ]; then
   exit 0
 fi
 
-status=0
-declare -A floor
-while IFS=$'\t' read -r pkg min; do
-  case "$pkg" in '' | \#*) continue ;; esac
-  floor["$pkg"]="$min"
-done <"$floors"
-
-while read -r pkg pct; do
-  min="${floor[$pkg]:-}"
-  if [ -z "$min" ]; then
-    echo "no coverage floor for $pkg (now ${pct}%); add one with: task coverage:update-floor" >&2
-    status=1
-  elif awk -v p="$pct" -v m="$min" 'BEGIN { exit !(p + 0 < m + 0) }'; then
-    echo "coverage below floor: $pkg ${pct}% < ${min}%" >&2
-    status=1
-  fi
-done <<<"$current"
-
-[ "$status" = 0 ] && echo "coverage floors held ($(printf '%s\n' "$current" | wc -l | tr -d ' ') packages)"
-exit "$status"
+# The floors file first (package -> minimum), then today's coverage.
+if printf '%s\n' "$current" | awk -F'\t' '
+  FNR == NR { if ($1 != "" && $1 !~ /^#/) floor[$1] = $2; next }
+  {
+    split($0, f, " "); pkg = f[1]; pct = f[2]
+    if (!(pkg in floor)) {
+      printf "no coverage floor for %s (now %s%%); add one with: task coverage:update-floor\n", pkg, pct > "/dev/stderr"; bad = 1
+    } else if (pct + 0 < floor[pkg] + 0) {
+      printf "coverage below floor: %s %s%% < %s%%\n", pkg, pct, floor[pkg] > "/dev/stderr"; bad = 1
+    }
+  }
+  END { exit bad }' "$floors" -; then
+  echo "coverage floors held ($(printf '%s\n' "$current" | grep -c .) packages)"
+else
+  exit 1
+fi

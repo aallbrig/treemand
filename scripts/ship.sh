@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # ship.sh start <branch>
 #   Branch from a freshly fetched origin/main (never a stale local main).
 # ship.sh pr --subject "<commit subject>" --title "<PR title>" --body <file> [--trailer "K: v"]... [--no-merge]
@@ -6,7 +6,7 @@
 #   then wait for its checks and merge it (task pr:merge). Each step must
 #   succeed before the next runs: a failed gate stops everything.
 # Run via task ship:start -- <branch> / task ship:pr -- <args>.
-set -euo pipefail
+set -eu
 cd "$(dirname "$0")/.."
 
 die() { echo "ship: $*" >&2; exit 1; }
@@ -22,14 +22,20 @@ start)
 pr)
   shift
   subject="" title="" body="" merge=1
-  trailers=()
-  while [ $# -gt 0 ]; do
+  # Each option is consumed from the front; trailers are re-appended as
+  # "--trailer V" pairs, so once all n arguments are read "$@" holds exactly
+  # the git commit trailer options.
+  n=$#
+  while [ "$n" -gt 0 ]; do
     case "$1" in
-    --subject) subject="$2"; shift 2 ;;
-    --title) title="$2"; shift 2 ;;
-    --body) body="$2"; shift 2 ;;
-    --trailer) trailers+=(--trailer "$2"); shift 2 ;;
-    --no-merge) merge=0; shift ;;
+    --subject | --title | --body | --trailer) [ "$n" -ge 2 ] || die "$1 needs a value" ;;
+    esac
+    case "$1" in
+    --subject) subject="$2"; shift 2; n=$((n - 2)) ;;
+    --title) title="$2"; shift 2; n=$((n - 2)) ;;
+    --body) body="$2"; shift 2; n=$((n - 2)) ;;
+    --trailer) set -- "$@" --trailer "$2"; shift 2; n=$((n - 2)) ;;
+    --no-merge) merge=0; shift; n=$((n - 1)) ;;
     *) die "unknown argument: $1" ;;
     esac
   done
@@ -43,7 +49,7 @@ pr)
 
   if ! git diff --cached --quiet; then
     # --trailer writes the trailer block after a blank line, as git expects.
-    git commit -q -m "$subject" "${trailers[@]}"
+    git commit -q -m "$subject" "$@"
   fi
   [ "$(git rev-list --count origin/main..HEAD)" -gt 0 ] || die "no commits to ship"
   if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
@@ -52,11 +58,11 @@ pr)
 
   git push -q -u origin "$branch"
   url="$(gh pr create --title "$title" --body-file "$body")"
-  n="${url##*/}"
+  pr="${url##*/}"
   echo "ship: opened $url"
   if [ "$merge" = 1 ]; then
-    bash scripts/pr_merge.sh "$n"
-    echo "ship: merged #$n"
+    sh scripts/pr_merge.sh "$pr"
+    echo "ship: merged #$pr"
   fi
   ;;
 *)

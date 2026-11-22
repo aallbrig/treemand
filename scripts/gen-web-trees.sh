@@ -21,7 +21,7 @@ SPECS=(
 
 for spec in "${SPECS[@]}"; do
   IFS=: read -r name depth extra <<<"$spec"
-  if [ $# -gt 0 ] && [[ ! " $* " =~ " $name " ]]; then continue; fi
+  if [ $# -gt 0 ] && [[ " $* " != *" $name "* ]]; then continue; fi
   if ! command -v "$name" >/dev/null 2>&1 && [ "$name" != treemand ]; then
     echo "skip $name (not installed)"; continue
   fi
@@ -44,5 +44,5 @@ def trim(n):
 trim(d)
 json.dump(d, open(p, "w"), separators=(",", ":"), ensure_ascii=False)
 PY
-  ls -lh "$OUT/$name.json" | awk '{print "  " $5}'
+  du -h "$OUT/$name.json" | awk '{print "  " $1}'
 done

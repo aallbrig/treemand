@@ -1,10 +1,10 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Tests for the measurement engine: budgets, ratchets, recording, the gate.
 # The `check && ok || bad` idiom is safe here: ok only echoes, so it never fails
 # and bad never runs after a passing check (SC2015). Exit codes are read from $?
 # right after the command under test, by design (SC2181).
 # shellcheck disable=SC2015,SC2181
-set -uo pipefail
+set -u
 cd "$(dirname "$0")/../.." || exit 1
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
@@ -13,6 +13,7 @@ mkdir -p "$MEASURE_PROBES"
 fail=0
 ok() { echo "  ok   $1"; }
 bad() { echo "  FAIL $1"; fail=1; }
+has() { case "$1" in *"$2"*) ;; *) return 1 ;; esac; } # has <text> <fragment>
 probe() { # probe <cold> <score>
   printf 'echo '"'"'{"probe":"demo","metrics":{"cold_s.big":%s,"cold_s.small":0.1,"score":%s,"calls":%s}}'"'"'\n' "$1" "$2" "${CALLS:-3}" >"$MEASURE_PROBES/demo.sh"
 }
@@ -25,21 +26,21 @@ m() { python3 -I scripts/metrics/measure.py "$@"; }
 export MEASURE_LOAD="${MEASURE_LOAD:-0.1}"
 
 probe 4 95
-out="$(m demo --record)"; [[ "$out" == *"no findings"* ]] && ok "first run: within budgets, nothing to compare" || bad "first run: $out"
+out="$(m demo --record)"; has "$out" "no findings" && ok "first run: within budgets, nothing to compare" || bad "first run: $out"
 [ "$(wc -l <"$MEASURE_HISTORY/demo.jsonl")" -eq 1 ] && ok "--record appends history" || bad "--record appends history"
 
 probe 6 95
-out="$(m demo)"; [[ "$out" == *"BUDGET     cold_s.big = 6"* ]] && ok "budget breach reported" || bad "budget breach: $out"
-[[ "$out" == *"REGRESSION cold_s.big"* ]] && ok "ratchet regression vs last record" || bad "ratchet regression: $out"
+out="$(m demo)"; has "$out" "BUDGET     cold_s.big = 6" && ok "budget breach reported" || bad "budget breach: $out"
+has "$out" "REGRESSION cold_s.big" && ok "ratchet regression vs last record" || bad "ratchet regression: $out"
 m demo --gate >/dev/null; [ $? = 3 ] && ok "--gate fails on a regression" || bad "--gate fails on a regression"
 
 probe 4.2 95
-out="$(m demo)"; [[ "$out" == *"no findings"* ]] && ok "small drift within tolerance/min_delta is not a regression" || bad "tolerance: $out"
+out="$(m demo)"; has "$out" "no findings" && ok "small drift within tolerance/min_delta is not a regression" || bad "tolerance: $out"
 m demo --gate >/dev/null; [ $? = 0 ] && ok "--gate passes without regressions" || bad "--gate passes"
 
 probe 2 80
-out="$(m demo)"; [[ "$out" == *"IMPROVED   cold_s.big"* ]] && ok "improvement reported" || bad "improvement: $out"
-[[ "$out" == *"BUDGET     score = 80"* && "$out" == *"REGRESSION score"* ]] && ok "higher-is-better ratchet and min budget" || bad "higher ratchet: $out"
+out="$(m demo)"; has "$out" "IMPROVED   cold_s.big" && ok "improvement reported" || bad "improvement: $out"
+has "$out" "BUDGET     score = 80" && has "$out" "REGRESSION score" && ok "higher-is-better ratchet and min budget" || bad "higher ratchet: $out"
 m demo --findings | python3 -c 'import json,sys; d=json.load(sys.stdin); assert {f["kind"] for f in d["findings"]} >= {"budget","regression","improved"}' \
   && ok "--findings emits JSON verdicts" || bad "--findings JSON"
 
@@ -49,7 +50,7 @@ p=sys.argv[1]; r=json.loads(open(p).read().splitlines()[0]); r["host"]="other-ho
 open(p,"w").write(json.dumps(r)+"\n")
 PY
 probe 9 95
-out="$(m demo)"; [[ "$out" != *"REGRESSION cold_s.big"* ]] && ok "host-bound metrics only compare against the same host" || bad "host_bound: $out"
+out="$(m demo)"; ! has "$out" "REGRESSION cold_s.big" && ok "host-bound metrics only compare against the same host" || bad "host_bound: $out"
 
 # Load awareness: on a busy machine host-bound metrics are not judged, and a
 # record taken while busy is never a ratchet baseline.
@@ -58,14 +59,14 @@ probe 4 95
 MEASURE_LOAD=0.3 m demo --record >/dev/null 2>&1
 probe 9 95
 out="$(MEASURE_LOAD=2.5 m demo)"
-if [[ "$out" == *"UNRELIABLE"* && "$out" != *"cold_s.big = 9"* ]]; then ok "busy machine: host-bound metrics reported unreliable, not judged"; else bad "busy: $out"; fi
+if has "$out" "UNRELIABLE" && ! has "$out" "cold_s.big = 9"; then ok "busy machine: host-bound metrics reported unreliable, not judged"; else bad "busy: $out"; fi
 probe 2 95
 MEASURE_LOAD=2.5 m demo --record >/dev/null 2>&1
 probe 4.1 95
 out="$(MEASURE_LOAD=0.3 m demo)"
-if [[ "$out" != *"REGRESSION cold_s.big"* ]]; then ok "a busy record is not a ratchet baseline"; else bad "busy baseline: $out"; fi
+if ! has "$out" "REGRESSION cold_s.big"; then ok "a busy record is not a ratchet baseline"; else bad "busy baseline: $out"; fi
 out="$(CALLS=5 probe 4 95; MEASURE_LOAD=2.5 m demo)"
-if [[ "$out" == *"REGRESSION calls"* ]]; then ok "counts are judged on a busy machine"; else bad "busy counts: $out"; fi
+if has "$out" "REGRESSION calls"; then ok "counts are judged on a busy machine"; else bad "busy counts: $out"; fi
 
 # MEASURE_HOST names the host: CI runners get a new hostname every run.
 rm -f "$MEASURE_HISTORY/demo.jsonl"
@@ -73,7 +74,7 @@ probe 4 95
 MEASURE_HOST=ci-runner m demo --record >/dev/null 2>&1
 probe 9 95
 out="$(MEASURE_HOST=ci-runner m demo)"
-if [[ "$out" == *"REGRESSION cold_s.big"* ]]; then ok "MEASURE_HOST: history from the named host is the baseline"; else bad "MEASURE_HOST: $out"; fi
+if has "$out" "REGRESSION cold_s.big"; then ok "MEASURE_HOST: history from the named host is the baseline"; else bad "MEASURE_HOST: $out"; fi
 # A subject this host lacks (a CLI that is not installed) is skipped, never a
 # regression: the probe names it, or its metrics are simply absent this run.
 rm -f "$MEASURE_HISTORY/demo.jsonl"
@@ -81,14 +82,14 @@ probe 4 95
 m demo --record >/dev/null 2>&1
 printf 'echo '"'"'{"probe":"demo","metrics":{"cold_s.small":0.1,"score":95,"calls":3},"skipped":{"big":"not installed"}}'"'"'\n' >"$MEASURE_PROBES/demo.sh"
 out="$(m demo)"
-if [[ "$out" == *"SKIPPED    big: not installed"* && "$out" != *"REGRESSION"* ]]; then ok "a skipped subject is reported as skipped, not a regression"; else bad "skipped: $out"; fi
+if has "$out" "SKIPPED    big: not installed" && ! has "$out" "REGRESSION"; then ok "a skipped subject is reported as skipped, not a regression"; else bad "skipped: $out"; fi
 m demo --gate >/dev/null; [ $? = 0 ] && ok "--gate passes when a subject is skipped" || bad "--gate with a skipped subject"
 m demo --record >/dev/null 2>&1
 tail -1 "$MEASURE_HISTORY/demo.jsonl" | python3 -I -c 'import json,sys; assert json.load(sys.stdin)["skipped"] == {"big": "not installed"}' \
   && ok "--record keeps what was skipped" || bad "--record skipped"
 printf 'echo '"'"'{"probe":"demo","metrics":{"score":95,"calls":3}}'"'"'\n' >"$MEASURE_PROBES/demo.sh"
 out="$(m demo)"
-if [[ "$out" == *"SKIPPED    small: absent this run"* && "$out" == *"SKIPPED    big: absent this run"* && "$out" != *"REGRESSION"* ]]; then ok "a subject in the baseline but absent this run is reported as skipped"; else bad "absent: $out"; fi
+if has "$out" "SKIPPED    small: absent this run" && has "$out" "SKIPPED    big: absent this run" && ! has "$out" "REGRESSION"; then ok "a subject in the baseline but absent this run is reported as skipped"; else bad "absent: $out"; fi
 m demo --findings | python3 -I -c 'import json,sys; d=json.load(sys.stdin); assert [f for f in d["findings"] if f["kind"] == "skipped"]' \
   && ok "--findings lists skipped subjects" || bad "--findings skipped"
 exit "$fail"

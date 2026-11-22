@@ -1,9 +1,13 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Hermetic tests for www/treemand/static/install.sh: a fake release is served
 # from a local HTTP server (no network, no real release, no real elevated
 # privileges). Run through `task install:test`; part of `task ci`.
-set -uo pipefail
-cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
+# The `check && ok || bad` idiom is safe: ok only prints, so bad never runs
+# after a passing check (SC2015). The printf templates write stub scripts whose
+# $-expressions must stay literal (SC2016).
+# shellcheck disable=SC2015,SC2016
+set -u
+cd "$(dirname "$0")/.." || exit 1
 script="$PWD/www/treemand/static/install.sh"
 
 work="$(mktemp -d)"
@@ -15,8 +19,9 @@ pass=0
 fail=0
 ok() { pass=$((pass + 1)); printf '  ok   %s\n' "$1"; }
 bad() { fail=$((fail + 1)); printf '  FAIL %s\n' "$1"; }
+has() { case "$1" in *"$2"*) ;; *) return 1 ;; esac; } # has TEXT FRAGMENT
 check() { # check NAME COMMAND...  (passes when the command succeeds)
-  local name="$1"; shift
+  name="$1"; shift
   if "$@" >/dev/null 2>&1; then ok "$name"; else bad "$name"; fi
 }
 
@@ -26,7 +31,7 @@ site="$work/site"
 # Signature checks are off unless a test supplies a cosign; this one never exists.
 export TREEMAND_COSIGN="$work/no-such-cosign"
 make_release() { # make_release DIR LABEL [signed]
-  local dir="$1" label="$2" signed="${3:-}" os arch stage
+  dir="$1" label="$2" signed="${3:-}"
   mkdir -p "$dir"
   : >"$dir/checksums.txt"
   for os in linux darwin; do
@@ -60,7 +65,7 @@ chmod +x "$shim/sudo"
 
 # run_install HOME_DIR ARGS...: runs the installer against the fake release.
 run_install() {
-  local home="$1"; shift
+  home="$1"; shift
   mkdir -p "$home"
   HOME="$home" TREEMAND_BASE_URL="$base" PATH="$shim:$PATH" sh "$script" "$@"
 }
@@ -113,28 +118,28 @@ for _ in $(seq 1 50); do curl -sf "http://127.0.0.1:$nport/latest.txt" >/dev/nul
 h="$work/h4"; mkdir -p "$h"
 out="$(HOME="$h" TREEMAND_BASE_URL="http://127.0.0.1:$nport" sh "$script" 2>&1)"; rc=$?
 kill "$npid" 2>/dev/null || true
-if [ $rc -ne 0 ] && [[ "$out" == *"no entry"* ]]; then ok "a missing checksum entry is refused"; else bad "a missing checksum entry is refused"; fi
+if [ $rc -ne 0 ] && has "$out" "no entry"; then ok "a missing checksum entry is refused"; else bad "a missing checksum entry is refused"; fi
 
 # 5. Unsupported platforms and an unreachable release.
 out="$(TREEMAND_ARCH=mips run_install "$work/h5" 2>&1)"; rc=$?
-if [ $rc -ne 0 ] && [[ "$out" == *"unsupported CPU architecture"* ]]; then ok "an unsupported CPU is refused clearly"; else bad "an unsupported CPU is refused clearly"; fi
+if [ $rc -ne 0 ] && has "$out" "unsupported CPU architecture"; then ok "an unsupported CPU is refused clearly"; else bad "an unsupported CPU is refused clearly"; fi
 out="$(TREEMAND_OS=windows run_install "$work/h5" 2>&1)"; rc=$?
-if [ $rc -ne 0 ] && [[ "$out" == *"treemand_windows_amd64.zip"* ]]; then ok "Windows is pointed at the zip"; else bad "Windows is pointed at the zip"; fi
+if [ $rc -ne 0 ] && has "$out" "treemand_windows_amd64.zip"; then ok "Windows is pointed at the zip"; else bad "Windows is pointed at the zip"; fi
 out="$(TREEMAND_OS=plan9 run_install "$work/h5" 2>&1)"; rc=$?
-if [ $rc -ne 0 ] && [[ "$out" == *"unsupported operating system"* ]]; then ok "an unsupported OS is refused clearly"; else bad "an unsupported OS is refused clearly"; fi
+if [ $rc -ne 0 ] && has "$out" "unsupported operating system"; then ok "an unsupported OS is refused clearly"; else bad "an unsupported OS is refused clearly"; fi
 out="$(HOME="$work/h6" TREEMAND_BASE_URL="http://127.0.0.1:1" sh "$script" 2>&1)"; rc=$?
-if [ $rc -ne 0 ] && [[ "$out" == *"could not download"* ]]; then ok "an unreachable release fails with a clear message"; else bad "an unreachable release fails with a clear message"; fi
+if [ $rc -ne 0 ] && has "$out" "could not download"; then ok "an unreachable release fails with a clear message"; else bad "an unreachable release fails with a clear message"; fi
 
 # 6. Detection overrides pick the right asset.
 out="$(TREEMAND_OS=darwin TREEMAND_ARCH=arm64 run_install "$work/h7" --dry-run 2>&1)"
-[[ "$out" == *"treemand_darwin_arm64.tar.gz"* ]] && ok "TREEMAND_OS and TREEMAND_ARCH choose the asset" || bad "TREEMAND_OS and TREEMAND_ARCH choose the asset"
+has "$out" "treemand_darwin_arm64.tar.gz" && ok "TREEMAND_OS and TREEMAND_ARCH choose the asset" || bad "TREEMAND_OS and TREEMAND_ARCH choose the asset"
 out="$(TREEMAND_ARCH=aarch64 run_install "$work/h7" --dry-run 2>&1)"
-[[ "$out" == *"_arm64.tar.gz"* ]] && ok "aarch64 maps to arm64" || bad "aarch64 maps to arm64"
+has "$out" "_arm64.tar.gz" && ok "aarch64 maps to arm64" || bad "aarch64 maps to arm64"
 
 # 7. --dry-run touches nothing and needs no network.
 h="$work/h8"
 out="$(HOME="$h" TREEMAND_BASE_URL="http://127.0.0.1:1" sh "$script" --dry-run 2>&1)"; rc=$?
-[ $rc -eq 0 ] && [[ "$out" == *"would download"* ]] && ok "--dry-run explains and exits 0 without network" || bad "--dry-run explains and exits 0 without network"
+[ $rc -eq 0 ] && has "$out" "would download" && ok "--dry-run explains and exits 0 without network" || bad "--dry-run explains and exits 0 without network"
 check "--dry-run installs nothing" test ! -e "$h/.local/bin"
 
 # 8. --dir, --no-man, and upgrading over an existing install.
@@ -150,7 +155,7 @@ ro="$work/readonly"; mkdir -p "$ro"; chmod 555 "$ro"
 if [ "$(id -u)" != 0 ]; then
   : >"$work/sudo.log"
   out="$(run_install "$work/h10" --dir "$ro" 2>&1)"; rc=$?
-  if [ $rc -ne 0 ] && [[ "$out" == *"not writable"* ]]; then ok "an unwritable --dir fails without using privileges"; else bad "an unwritable --dir fails without using privileges"; fi
+  if [ $rc -ne 0 ] && has "$out" "not writable"; then ok "an unwritable --dir fails without using privileges"; else bad "an unwritable --dir fails without using privileges"; fi
   check "no privileged helper without --system" test ! -s "$work/sudo.log"
   : >"$work/sudo.log"
   run_install "$work/h10" --system --dir "$ro" >/dev/null 2>&1
@@ -162,11 +167,11 @@ chmod 755 "$ro"
 
 # 10. Option handling.
 out="$(sh "$script" --help 2>&1)"; rc=$?
-[ $rc -eq 0 ] && [[ "$out" == *"Usage: install.sh"* ]] && ok "--help prints usage and exits 0" || bad "--help prints usage and exits 0"
+[ $rc -eq 0 ] && has "$out" "Usage: install.sh" && ok "--help prints usage and exits 0" || bad "--help prints usage and exits 0"
 out="$(sh "$script" --bogus 2>&1)"; rc=$?
-[ $rc -ne 0 ] && [[ "$out" == *"unknown option"* ]] && ok "an unknown option is refused" || bad "an unknown option is refused"
+[ $rc -ne 0 ] && has "$out" "unknown option" && ok "an unknown option is refused" || bad "an unknown option is refused"
 out="$(sh "$script" --version 2>&1)"; rc=$?
-[ $rc -ne 0 ] && [[ "$out" == *"needs a value"* ]] && ok "an option missing its value is refused" || bad "an option missing its value is refused"
+[ $rc -ne 0 ] && has "$out" "needs a value" && ok "an option missing its value is refused" || bad "an option missing its value is refused"
 
 # 11. Signatures: a stand-in cosign records its argv and exits with $FAKE_COSIGN_RC.
 fake_cosign="$work/fake-cosign"
@@ -174,27 +179,27 @@ printf '#!/bin/sh\necho "$*" >>"%s/cosign.log"\nexit "${FAKE_COSIGN_RC:-0}"\n' "
 chmod +x "$fake_cosign"
 : >"$work/cosign.log"
 out="$(TREEMAND_COSIGN="$fake_cosign" run_install "$work/s1" 2>&1)"; rc=$?
-[ $rc -eq 0 ] && [[ "$out" == *"signature OK"* ]] && ok "a verified signature installs" || bad "a verified signature installs (rc=$rc: $out)"
+[ $rc -eq 0 ] && has "$out" "signature OK" && ok "a verified signature installs" || bad "a verified signature installs (rc=$rc: $out)"
 grep -q -- "--certificate-identity https://github.com/aallbrig/treemand/.github/workflows/release.yml@refs/tags/v1.0.0 " "$work/cosign.log" \
   && ok "latest is resolved to its tag and that exact identity is pinned" || bad "latest is resolved to its tag and that exact identity is pinned"
 grep -q -- "--certificate-oidc-issuer https://token.actions.githubusercontent.com" "$work/cosign.log" \
   && ok "the GitHub Actions OIDC issuer is pinned" || bad "the GitHub Actions OIDC issuer is pinned"
 out="$(FAKE_COSIGN_RC=1 TREEMAND_COSIGN="$fake_cosign" run_install "$work/s2" 2>&1)"; rc=$?
-if [ $rc -ne 0 ] && [[ "$out" == *"signature check failed"* ]]; then ok "a bad signature is refused"; else bad "a bad signature is refused"; fi
+if [ $rc -ne 0 ] && has "$out" "signature check failed"; then ok "a bad signature is refused"; else bad "a bad signature is refused"; fi
 check "nothing was installed after a bad signature" test ! -e "$work/s2/.local/bin/treemand"
 out="$(TREEMAND_COSIGN="$fake_cosign" run_install "$work/s3" --version v9.9.9 2>&1)"; rc=$?
-if [ $rc -ne 0 ] && [[ "$out" == *"sigstore.json is missing"* ]]; then ok "with cosign, a missing signature is refused"; else bad "with cosign, a missing signature is refused"; fi
+if [ $rc -ne 0 ] && has "$out" "sigstore.json is missing"; then ok "with cosign, a missing signature is refused"; else bad "with cosign, a missing signature is refused"; fi
 out="$(TREEMAND_COSIGN="$fake_cosign" run_install "$work/s4" --version v9.9.9 --no-verify-signature 2>&1)"; rc=$?
-[ $rc -eq 0 ] && [[ "$out" == *"signature check skipped"* ]] && ok "--no-verify-signature installs an unsigned release" || bad "--no-verify-signature installs an unsigned release"
+[ $rc -eq 0 ] && has "$out" "signature check skipped" && ok "--no-verify-signature installs an unsigned release" || bad "--no-verify-signature installs an unsigned release"
 out="$(run_install "$work/s5" 2>&1)"; rc=$?
-[ $rc -eq 0 ] && [[ "$out" == *"cosign not found"* ]] && ok "without cosign: warns and still installs" || bad "without cosign: warns and still installs"
+[ $rc -eq 0 ] && has "$out" "cosign not found" && ok "without cosign: warns and still installs" || bad "without cosign: warns and still installs"
 out="$(run_install "$work/s6" --require-signature 2>&1)"; rc=$?
-if [ $rc -ne 0 ] && [[ "$out" == *"--require-signature"* ]]; then ok "--require-signature without cosign is refused"; else bad "--require-signature without cosign is refused"; fi
+if [ $rc -ne 0 ] && has "$out" "--require-signature"; then ok "--require-signature without cosign is refused"; else bad "--require-signature without cosign is refused"; fi
 check "nothing was installed when a signature was required" test ! -e "$work/s6/.local/bin/treemand"
 printf 'garbage\n' >"$site/latest.txt"
 out="$(run_install "$work/s7" 2>&1)"; rc=$?
 printf 'v1.0.0\n' >"$site/latest.txt"
-if [ $rc -ne 0 ] && [[ "$out" == *"does not name a release"* ]]; then ok "a malformed latest.txt is refused"; else bad "a malformed latest.txt is refused"; fi
+if [ $rc -ne 0 ] && has "$out" "does not name a release"; then ok "a malformed latest.txt is refused"; else bad "a malformed latest.txt is refused"; fi
 
 # 12. The published script and the Installation page agree with the repository.
 echo "documentation"

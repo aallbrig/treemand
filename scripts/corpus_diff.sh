@@ -1,10 +1,10 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # corpus_diff.sh [ref]  (default origin/main)
 # What the working tree's help parser extracts from each corpus fixture,
 # compared with <ref>'s parser on the same fixtures: every subcommand, flag
 # and description gained or lost, with the fixture line it comes from.
 # Read it after any parser change; a change you did not intend is a bug.
-set -euo pipefail
+set -eu
 cd "$(dirname "$0")/.."
 ref="${1:-origin/main}"
 fixtures="$PWD/cli/treemand/discovery/testdata/corpus"
@@ -20,8 +20,9 @@ cp cli/treemand/tools/corpusdump/main.go "$work/cli/treemand/tools/corpusdump/"
 "$work/old" "$fixtures" | LC_ALL=C sort >"$work/old.tsv"
 "$work/new" "$fixtures" | LC_ALL=C sort >"$work/new.tsv"
 
+tab="$(printf '\t')"
 show() { # show <sign> <file>
-  while IFS=$'\t' read -r cli kind value; do
+  while IFS="$tab" read -r cli kind value; do
     src=""
     if [ "$kind" != desc ]; then
       word="${value%% *}"

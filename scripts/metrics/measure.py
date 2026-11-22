@@ -86,6 +86,14 @@ def history_file(probe: str) -> Path:
     return HISTORY / (probe + ".jsonl")
 
 
+def probe_shell(path: Path) -> str:
+    # A POSIX probe (#!/bin/sh) runs under sh; the rest, exempt in
+    # scripts/shell-exempt.txt or shebang-less test probes, under bash.
+    with path.open() as f:
+        first = f.readline().split()
+    return "sh" if first[:1] == ["#!/bin/sh"] or first[:2] == ["#!/usr/bin/env", "sh"] else "bash"
+
+
 def run_probe(probe: str, input_file: str | None) -> Obj:
     if input_file:
         with Path(input_file).open() as f:
@@ -93,7 +101,7 @@ def run_probe(probe: str, input_file: str | None) -> Obj:
     path = PROBES / (probe + ".sh")
     if not path.exists():
         sys.exit(f"measure: no probe {probe!r} (have: {', '.join(list_probes())})")
-    p = subprocess.run(["bash", str(path)], check=False, cwd=ROOT, stdout=subprocess.PIPE, text=True)
+    p = subprocess.run([probe_shell(path), str(path)], check=False, cwd=ROOT, stdout=subprocess.PIPE, text=True)
     if p.returncode != 0:
         sys.exit(f"measure: probe {probe} failed (exit {p.returncode})")
     return cast("Obj", json.loads(p.stdout))

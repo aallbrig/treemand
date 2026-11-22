@@ -1,8 +1,8 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Deploy infra/site.yaml through the treemand-cfn-exec service role. Used by
 # CI (role ARN from the production environment secret) and by hand (role ARN
 # read from the bootstrap stack). Nothing account-specific is printed.
-set -euo pipefail
+set -eu
 cd "$(dirname "$0")/../.."
 export AWS_REGION=us-east-1 AWS_DEFAULT_REGION=us-east-1
 

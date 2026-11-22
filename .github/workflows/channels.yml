@@ -21,4 +21,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Check channels
-        run: bash scripts/channels_check.sh
+        run: sh scripts/channels_check.sh

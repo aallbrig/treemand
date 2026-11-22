@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Probe (heavy, weekly): treemand across the cli-zoo container. Builds the
 # image from this tree, then:
 #   sweep: every executable on the container's PATH, one level deep
@@ -6,7 +6,7 @@
 #             sweep_panics, sweep_error_pct
 #   smoke: full discovery of each zoo CLI -> nodes.<cli>, flags.<cli>
 # Real programs only ever run inside the disposable container.
-set -euo pipefail
+set -eu
 cd "$(dirname "$0")/../../.."
 docker build -q -t treemand-cli-zoo -f test/cli-zoo/Dockerfile . >/dev/null
 work="$(mktemp -d)"

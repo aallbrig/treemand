@@ -14,5 +14,5 @@ repos:
     rev: v0.10.0
     hooks:
       - id: shellcheck
-        # Same severity as task loop:check: info-level findings do not block commits.
+        # Same severity as task shell:check: info-level findings do not block commits.
         args: ["-x", "-S", "warning"]
