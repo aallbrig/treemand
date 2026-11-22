@@ -111,3 +111,6 @@ A versioned JSON Schema (`treemand schema`, served at treemand.dev/schema/tree.v
 
 ### Cycle 36 - 2026-11-22 - released - #214 (open) v0.9.4
 `Left` went from cognitive 43 to under 10; `functions_over_30` 5 to 4. `ExpandAll` marks leaves expanded too, so Left on a leaf collapses in place there; a characterization test needs a layout with collapsed leaves to reach the parent-jump path. `task pr:merge` can outlast a 10-minute foreground call (`task ci` takes about 10 minutes), so run it in the background.
+
+### Cycle 37 - 2026-11-22 - released - #214 (open) v0.9.6
+`Right` went from cognitive 33 to under 15; `functions_over_30` 4 to 3. PR bodies now need a `## Release note` section (`none` for a refactor) or the PR Body check fails; run `scripts/release/check_note.sh` on the body before `pr:merge`. `wait.sh` can print `none` even when the release succeeds, because the tag lands on the changelog commit after the merge; confirm with `gh release list` and `git merge-base --is-ancestor`.
