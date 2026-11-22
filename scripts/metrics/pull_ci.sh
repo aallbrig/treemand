@@ -1,12 +1,12 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Records the latest successful "Measure timing" run on main into docs/metrics,
 # under the runner's stable host name, so timing ratchets have a baseline that
 # a loaded development host cannot distort. Prints each probe's verdicts.
-set -euo pipefail
+set -eu
 cd "$(dirname "$0")/../.."
 run="$(gh run list --workflow measure-timing.yml --branch main --status success --limit 1 \
   --json databaseId --jq '.[0].databaseId // empty')"
-if [[ -z "$run" ]]; then
+if [ -z "$run" ]; then
   echo "measure:pull: no successful Measure timing run on main yet" >&2
   exit 1
 fi

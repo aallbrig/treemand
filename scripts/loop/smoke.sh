@@ -1,7 +1,7 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Verify production for a release tag: the published binary runs and reports the
 # version, and the site answers.   usage: smoke.sh <vX.Y.Z>
-set -euo pipefail
+set -eu
 tag="${1:?usage: smoke.sh <tag>}"
 repo="aallbrig/treemand"
 site="https://treemand.dev/"

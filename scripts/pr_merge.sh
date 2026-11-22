@@ -1,6 +1,6 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Pass the PR's CI gate, then merge with a merge commit: scripts/pr_merge.sh N
-set -euo pipefail
+set -eu
 n="${1:?usage: pr_merge.sh <pr-number>}"
 
 # Checks may not be registered the instant a PR opens; wait for them to appear.

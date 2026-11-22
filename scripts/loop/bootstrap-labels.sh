@@ -1,6 +1,6 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Idempotently create the labels the loop uses.
-set -euo pipefail
+set -eu
 mk() { gh label create "$1" --color "$2" --description "$3" --force >/dev/null && echo "label: $1"; }
 mk "loop:ready" 0e8a16 "Approved work the dev loop should pick up"
 mk "loop:in-progress" fbca04 "The dev loop is working on this"

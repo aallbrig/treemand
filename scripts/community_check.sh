@@ -1,9 +1,9 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Fail when a community-health file GitHub's checklist counts is missing, or
 # when Dependabot or the release-notes config points at something that does
 # not exist in this repo. Hermetic: reads only the checkout.
-#   bash scripts/community_check.sh [repo-root]
-set -euo pipefail
+#   sh scripts/community_check.sh [repo-root]
+set -eu
 
 root=${1:-$(git rev-parse --show-toplevel)}
 fail=0
@@ -15,9 +15,9 @@ for f in README.md LICENSE CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md \
   [ -s "$root/$f" ] || err "missing $f"
 done
 
-shopt -s nullglob
-forms=("$root"/.github/ISSUE_TEMPLATE/*.yml)
-[ "${#forms[@]}" -ge 2 ] || err "expected at least one issue form besides config.yml"
+forms=0
+for f in "$root"/.github/ISSUE_TEMPLATE/*.yml; do [ -e "$f" ] && forms=$((forms + 1)); done
+[ "$forms" -ge 2 ] || err "expected at least one issue form besides config.yml"
 
 dep="$root/.github/dependabot.yml"
 if [ -s "$dep" ]; then

@@ -1,0 +1,29 @@
+# Shell scripts allowed to stay bash, one per line: "path — reason".
+# Every other shell script is POSIX sh (#!/bin/sh), linted with
+# `shellcheck --shell=sh -S warning` (task shell:check) and run under dash.
+# This list is the migration backlog: the shell-portability probe counts it
+# (exempt_scripts) and its ratchet only lets it shrink. Migrate a script, then
+# delete its line here; never add a line for a new script.
+scripts/capture_corpus.sh — arrays of CLI specs and BASH_SOURCE; pipefail on the capture pipelines
+scripts/gen-web-trees.sh — an array of CLI specs, here-strings and [[ ]] pattern tests
+scripts/infra/bootstrap.sh — here-strings; pipefail so a failed AWS call fails the deploy
+scripts/infra/metrics_downloads.sh — $'...' strings and local; pipefail on the Athena query pipeline
+scripts/infra/mirror_release.sh — here-strings, local and shopt nullglob; pipefail on the download pipeline
+scripts/loop/chaos.sh — BASH_SOURCE and pipefail on the fake-CLI pipelines
+scripts/loop/corpus.sh — arrays, here-strings and read options beyond POSIX
+scripts/loop/guard.sh — many [[ ]] regex matches (=~) and shopt nocasematch on the command being guarded
+scripts/loop/guard_test.sh — tests guard.sh as bash; local and BASH_SOURCE
+scripts/loop/issues.sh — BASH_SOURCE to locate lib.sh; pipefail on gh pipelines
+scripts/loop/preflight.sh — BASH_SOURCE to locate lib.sh; pipefail on gh and git pipelines
+scripts/loop/release.sh — BASH_SOURCE and here-strings; pipefail on gh pipelines
+scripts/loop/rollback.sh — BASH_SOURCE and ${var:0:8} substrings
+scripts/loop/visual-check.sh — BASH_SOURCE and pipefail on the capture pipelines
+scripts/metrics/probes/complexity.sh — pipefail: a failed git log or find must fail the probe, not report zeros
+scripts/metrics/probes/parser.sh — pipefail: a failed go run must fail the probe, not report an empty corpus
+scripts/metrics/probes/perf.sh — [[ ]], += string building, ${var// /,} replacement and $'\n'
+scripts/metrics/probes/tui.sh — pipefail: a failed go test -bench must fail the probe, not report no frames
+scripts/real_cli_ab.sh — pipefail: a failed git archive must not feed tar a partial tree
+scripts/record-demo.sh — [[ ]] tests and &> redirections
+scripts/record-subcmd-gifs.sh — &> redirections; pipefail on the vhs runs
+scripts/site_audit.sh — BASH_SOURCE and pipefail on the server and audit pipelines
+test/cli-zoo/run.sh — arrays; runs inside the cli-zoo container, whose image has bash

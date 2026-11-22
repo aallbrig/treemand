@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Checks every install channel the site documents (www/treemand/data/install.yaml)
 # against what is really published:
 #   - a channel that needs a maintainer-created account or repo (Scoop, WinGet,
@@ -10,7 +10,7 @@
 # Offline overrides (tests): CHANNELS_DATA (install.yaml path),
 # CHANNELS_RELEASES ("0.8.1 0.8.0": newest first), CHANNELS_BREW_VERSION,
 # CHANNELS_SKIP_SITE=1.
-set -euo pipefail
+set -eu
 cd "$(dirname "$0")/.."
 
 data="${CHANNELS_DATA:-www/treemand/data/install.yaml}"
@@ -25,27 +25,29 @@ for ch in Scoop WinGet Chocolatey AUR Snap; do
 done
 
 releases="${CHANNELS_RELEASES:-}"
-if [[ -z "$releases" ]]; then
+if [ -z "$releases" ]; then
   releases="$(curl -fsSL 'https://api.github.com/repos/aallbrig/treemand/releases?per_page=10' |
     python3 -I -c 'import json,sys; r=[x["tag_name"].lstrip("v") for x in json.load(sys.stdin) if not x["draft"] and not x["prerelease"]]; print(" ".join(r[:2]))')"
 fi
-read -r latest previous <<<"$releases"
+# shellcheck disable=SC2086 # "newest previous": split into $1 and $2
+set -- $releases
+latest="${1:-}" previous="${2:-}"
 previous="${previous:-$latest}"
 
 if grep -qiE '^[[:space:]]*- title:[[:space:]]*Homebrew' "$data"; then
   brew="${CHANNELS_BREW_VERSION:-}"
-  if [[ -z "$brew" ]]; then
+  if [ -z "$brew" ]; then
     brew="$(curl -fsSL https://raw.githubusercontent.com/aallbrig/homebrew-tap/main/Formula/treemand.rb |
       sed -n 's/^[[:space:]]*version "\(.*\)"/\1/p' | head -1)"
   fi
-  if [[ "$brew" == "$latest" || "$brew" == "$previous" ]]; then
+  if [ "$brew" = "$latest" ] || [ "$brew" = "$previous" ]; then
     ok "Homebrew formula $brew (latest release $latest)"
   else
     bad "Homebrew formula is ${brew:-missing}; latest release is $latest (allowed: $latest or $previous)"
   fi
 fi
 
-if [[ "${CHANNELS_SKIP_SITE:-}" != 1 ]]; then
+if [ "${CHANNELS_SKIP_SITE:-}" != 1 ]; then
   if curl -fsSL -o /dev/null https://treemand.dev/install.sh; then
     ok "install script served"
   else

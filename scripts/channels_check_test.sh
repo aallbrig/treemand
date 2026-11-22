@@ -1,14 +1,14 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Hermetic tests for channels_check.sh: no network, fixture data only.
-set -uo pipefail
+set -u
 cd "$(dirname "$0")/.." || exit 1
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 fail=0
 check() { # check <want-exit> <label> ; env set by caller
-  local want="$1" label="$2" got=0
-  CHANNELS_SKIP_SITE=1 bash scripts/channels_check.sh >"$work/out" 2>&1 || got=$?
-  if [[ "$got" == "$want" ]]; then echo "ok    $label"; else echo "FAIL  $label (exit $got, want $want)"; cat "$work/out"; fail=1; fi
+  want="$1" label="$2" got=0
+  CHANNELS_SKIP_SITE=1 sh scripts/channels_check.sh >"$work/out" 2>&1 || got=$?
+  if [ "$got" = "$want" ]; then echo "ok    $label"; else echo "FAIL  $label (exit $got, want $want)"; cat "$work/out"; fail=1; fi
 }
 
 cat >"$work/good.yaml" <<'EOF'

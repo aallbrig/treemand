@@ -1,9 +1,9 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Build the browser (wasm) TUI: build.sh <out-dir>
 # Bubble Tea and atotto/clipboard have no js/wasm support, so the build uses
 # temporary patched copies of them (stub files added) via an alternate
 # go.mod (-modfile). The repo's go.mod and the module cache are untouched.
-set -euo pipefail
+set -eu
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 MOD="$(cd "$HERE/../.." && pwd)"
@@ -33,4 +33,4 @@ GOWORK=off GOOS=js GOARCH=wasm go build -modfile="$WORK/go.mod" -trimpath -ldfla
   -o "$OUT/treemand.wasm" ./web/wasm
 # GOROOT's copy is read-only; plain cp would fail on every rebuild.
 install -m 0644 "$(go env GOROOT)/lib/wasm/wasm_exec.js" "$OUT/wasm_exec.js"
-ls -lh "$OUT/treemand.wasm" | awk '{print "treemand.wasm " $5}'
+du -h "$OUT/treemand.wasm" | awk '{print "treemand.wasm " $1}'

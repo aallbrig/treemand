@@ -1,18 +1,20 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Proves the account-identifier and Project-tag gates fire. Fixtures are
 # assembled at runtime so no flaggable literal is ever committed.
-set -euo pipefail
+set -eu
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 fail=0
+scans=0
 
 acct="$(printf '%s%s' 123456 789012)"     # 12 digits, split so this file stays clean
 zone="$(printf 'Z%s' 0742QX9TJ3K8LMRW)"
 
 leaks() { # leaks <relative-path> <content> -> exit 0 when gitleaks flags it
-  local dir="$work/scan-$RANDOM"
+  scans=$((scans + 1))
+  dir="$work/scan-$scans"
   mkdir -p "$dir/$(dirname "$1")"
   printf '%s\n' "$2" >"$dir/$1"
   ! gitleaks dir --config "$root/.gitleaks.toml" --no-banner --log-level error "$dir" >/dev/null 2>&1

@@ -23,7 +23,7 @@ trap cleanup EXIT
 # The Try page needs the compiled wasm next to the site.
 bash cli/treemand/web/wasm/build.sh www/treemand/static/try >/dev/null
 (cd www/treemand && hugo --quiet -b / -d "$out")
-bash scripts/site_search_index.sh "$out" >/dev/null
+sh scripts/site_search_index.sh "$out" >/dev/null
 
 # A free port by default: a fixed one can be held by a server another run left
 # behind, and the audit would then test that server's (stale) files.

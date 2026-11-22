@@ -17,6 +17,6 @@ git worktree add -q -B "loop/revert-${merge:0:8}" "$wt" origin/main
   git push -u origin HEAD
   url="$(gh pr create --fill --label release:patch --title "Revert ${merge:0:8}: failed production verification" \
     --body "Automatic revert by the dev loop after a post-release smoke test failed.")"
-  bash "$LOOP_ROOT/scripts/pr_merge.sh" "$url"
+  sh "$LOOP_ROOT/scripts/pr_merge.sh" "$url"
 )
 git worktree remove --force "$wt"

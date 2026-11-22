@@ -32,4 +32,4 @@ For each budget or regression finding:
 
 ## Adding a probe
 
-A probe is a bash script printing `{"probe", "metrics": {name: number}, "details": [...]}`, with numbers only in `metrics` and `name.subject` for per-item metrics (`cold_s.docker`). Give each metric a rule: a budget for where it should be, a ratchet for which way is better, `host_bound` for anything timing- or machine-dependent. `scripts/metrics/measure_test.sh` covers the engine; a probe with heavy setup prints its own `details` explaining what it measured.
+A probe is a POSIX `sh` script (bash only when `scripts/shell-exempt.txt` lists it) printing `{"probe", "metrics": {name: number}, "details": [...]}`, with numbers only in `metrics` and `name.subject` for per-item metrics (`cold_s.docker`). Give each metric a rule: a budget for where it should be, a ratchet for which way is better, `host_bound` for anything timing- or machine-dependent. `scripts/metrics/measure_test.sh` covers the engine; a probe with heavy setup prints its own `details` explaining what it measured.

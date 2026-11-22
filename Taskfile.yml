@@ -87,7 +87,7 @@ tasks:
   infra:lint:
     desc: cfn-lint (with the Project=treemand tag rule) and checkov over infra/*.yaml
     cmds:
-      - bash scripts/infra_lint.sh
+      - sh scripts/infra_lint.sh
 
   infra:bootstrap:
     desc: Deploy the bootstrap stack (admin credentials) and wire the GitHub production environment
@@ -97,12 +97,12 @@ tasks:
   infra:deploy:
     desc: Deploy the site stack (S3, CloudFront, DNS, logs) through the treemand-cfn-exec service role
     cmds:
-      - bash scripts/infra/deploy_site.sh
+      - sh scripts/infra/deploy_site.sh
 
   site:publish:
     desc: Build the site for https://treemand.dev, sync it to S3 (releases/ untouched) and invalidate the CDN
     cmds:
-      - bash scripts/infra/publish_site.sh
+      - sh scripts/infra/publish_site.sh
 
   metrics:downloads:
     desc: "treemand.dev usage from CloudFront logs via Athena: task metrics:downloads -- [days]"
@@ -145,17 +145,17 @@ tasks:
   corpus:diff:
     desc: "Every subcommand, flag and description the parser gains or loses on the corpus vs a ref: task corpus:diff -- [ref]"
     cmds:
-      - bash scripts/corpus_diff.sh {{.CLI_ARGS}}
+      - sh scripts/corpus_diff.sh {{.CLI_ARGS}}
 
   ship:start:
     desc: "Start work on a branch from a freshly fetched origin/main: task ship:start -- <branch>"
     cmds:
-      - bash scripts/ship.sh start {{.CLI_ARGS}}
+      - sh scripts/ship.sh start {{.CLI_ARGS}}
 
   ship:pr:
     desc: "Commit what is staged, push, open the PR and merge it, stopping at the first failure: task ship:pr -- --subject S --title T --body FILE [--trailer K:V]..."
     cmds:
-      - bash scripts/ship.sh pr {{.CLI_ARGS}}
+      - sh scripts/ship.sh pr {{.CLI_ARGS}}
 
   measure:
     desc: "Run a measurement probe and judge it against its rules: task measure -- <probe> [--record] [--gate] [--findings]"
@@ -165,7 +165,7 @@ tasks:
   measure:pull:
     desc: Record the latest CI timing run (tui, perf) into docs/metrics under the runner's host name
     cmds:
-      - bash scripts/metrics/pull_ci.sh
+      - sh scripts/metrics/pull_ci.sh
 
   measure:list:
     desc: List the measurement probes
@@ -175,29 +175,28 @@ tasks:
   measure:test:
     desc: Test the measurement engine (budgets, ratchets, history, gate)
     cmds:
-      - bash scripts/metrics/measure_test.sh
+      - dash scripts/metrics/measure_test.sh
 
   channels:check:
     desc: Check every documented install channel is published and current (network)
     cmds:
-      - bash scripts/channels_check.sh
+      - sh scripts/channels_check.sh
 
   channels:test:
     desc: Test the install-channel check offline
     cmds:
-      - bash scripts/channels_check_test.sh
+      - dash scripts/channels_check_test.sh
 
   release:test:
-    desc: Test the release planner (which merged PRs ask for which release) and lint the release scripts as POSIX sh
+    desc: Test the release planner (which merged PRs ask for which release); task shell:check lints the release scripts
     cmds:
-      - shellcheck --shell=sh -x scripts/release/lib.sh scripts/release/plan.sh scripts/release/plan_test.sh scripts/release/lib_test.sh scripts/release/dispatch.sh scripts/release/wait.sh
-      - sh scripts/release/plan_test.sh
-      - sh scripts/release/lib_test.sh
+      - dash scripts/release/plan_test.sh
+      - dash scripts/release/lib_test.sh
 
   gates:test:
     desc: Prove the account-identifier and Project-tag gates fire on fixtures
     cmds:
-      - bash scripts/gates_test.sh
+      - dash scripts/gates_test.sh
 
   # ── tests ────────────────────────────────────────────────────────────────
 
@@ -283,10 +282,10 @@ tasks:
   dev:test:
     desc: Behaviour tests for the dev-host scripts (bootstrap report, setup with stubbed installers, git hook chain, autostart units)
     cmds:
-      - sh scripts/dev/bootstrap_test.sh
-      - sh scripts/dev/setup_test.sh
-      - sh scripts/dev/hooks_test.sh
-      - sh scripts/dev/autostart_test.sh
+      - dash scripts/dev/bootstrap_test.sh
+      - dash scripts/dev/setup_test.sh
+      - dash scripts/dev/hooks_test.sh
+      - dash scripts/dev/autostart_test.sh
 
   autostart:install:
     desc: Start the dev session at login (launchd LaunchAgent on macOS, systemd --user unit on Linux); the loop resumes only if enabled
@@ -312,7 +311,7 @@ tasks:
     desc: Behaviour tests for the prod window panes (fake curl, gh, aws and openssl) and their shellcheck
     cmds:
       - shellcheck --shell=sh -x scripts/prod/*.sh
-      - sh scripts/prod/prod_test.sh
+      - dash scripts/prod/prod_test.sh
 
   # ── dev loop ─────────────────────────────────────────────────────────────
 
@@ -349,16 +348,15 @@ tasks:
   loop:labels:
     desc: Create the GitHub labels the loop uses (idempotent)
     cmds:
-      - bash scripts/loop/bootstrap-labels.sh
+      - sh scripts/loop/bootstrap-labels.sh
 
   loop:check:
     desc: Static checks for the loop machinery (shellcheck, state script, guard and session hooks, skill present)
     cmds:
-      - shellcheck -x -S warning scripts/loop/*.sh scripts/loop/hooks/*.sh scripts/dev_session.sh scripts/dev/*.sh scripts/pr_merge.sh scripts/check_*.sh scripts/install_test.sh scripts/site_audit.sh scripts/site_search_index.sh scripts/make_site_assets.sh www/treemand/static/install.sh scripts/infra/*.sh scripts/gates_test.sh scripts/infra_lint.sh scripts/real_cli_ab.sh scripts/corpus_diff.sh scripts/ship.sh scripts/metrics/*.sh scripts/channels_check*.sh
-      - shellcheck --shell=sh -S warning scripts/check_taskfile_cmds.sh scripts/check_taskfile_cmds_test.sh scripts/check_gofmt.sh scripts/doctor.sh scripts/metrics/probes/site-health.sh scripts/metrics/site_health_test.sh
+      - task: shell:check
       - python3 -I scripts/loop/state.py summary >/dev/null
       - bash scripts/loop/guard_test.sh
-      - sh scripts/loop/hooks/hooks_test.sh
+      - dash scripts/loop/hooks/hooks_test.sh
       - test -f .claude/skills/treemand-loop/SKILL.md
       - test -f .claude/skills/treemand-product-audit/SKILL.md
 
@@ -380,7 +378,7 @@ tasks:
   install:test:
     desc: Test www/treemand/static/install.sh against a local fake release (checksums, versions, platforms, privileges) and that the docs agree with it
     cmds:
-      - bash scripts/install_test.sh
+      - dash scripts/install_test.sh
 
   corpus:test:
     desc: Parse the committed help fixtures and fail if any metric regressed against the baseline
@@ -406,12 +404,12 @@ tasks:
   coverage:check:
     desc: Fail if any package is below its floor in scripts/coverage_floor.tsv
     cmds:
-      - bash scripts/check_coverage.sh
+      - sh scripts/check_coverage.sh
 
   coverage:update-floor:
     desc: Deliberately ratchet the coverage floors to today's coverage (review the diff)
     cmds:
-      - bash scripts/check_coverage.sh --update
+      - sh scripts/check_coverage.sh --update
 
   fuzz:
     desc: "Fuzz a help parser for a while: task fuzz -- FuzzParseHelpOutput 60s"
@@ -447,8 +445,8 @@ tasks:
   loop:test-session:
     desc: Exercise the dev session, loop control and the supervisor on isolated tmux servers with fake gh and claude
     cmds:
-      - sh scripts/loop/session_test.sh
-      - sh scripts/loop/supervisor_test.sh
+      - dash scripts/loop/session_test.sh
+      - dash scripts/loop/supervisor_test.sh
 
   doctor:
     desc: Show what else is running on this machine before touching real infrastructure
@@ -490,6 +488,8 @@ tasks:
       - task: loop:check
       - task: docs:check
       - task: taskfile:check
+      - task: shell:check
+      - task: shell:test
       - task: site:check
       - task: site:audit
       - task: site:health:test
@@ -504,16 +504,28 @@ tasks:
     cmds:
       - sh scripts/check_gofmt.sh
 
+  shell:check:
+    desc: Lint every shell script with shellcheck at warning severity, POSIX sh unless scripts/shell-exempt.txt lets it stay bash
+    cmds:
+      - sh scripts/check_shell.sh
+
+  shell:test:
+    desc: Tests for the shell tooling under dash (shell-portability probe, coverage floor check, ship.sh)
+    cmds:
+      - dash scripts/shell_portability_test.sh
+      - dash scripts/check_coverage_test.sh
+      - dash scripts/ship_test.sh
+
   taskfile:check:
     desc: Every Taskfile cmds entry is one simple command (no pipes, chains, control flow or multi-line scripts)
     cmds:
-      - sh scripts/check_taskfile_cmds_test.sh
+      - dash scripts/check_taskfile_cmds_test.sh
 
   docs:check:
     desc: Every `task X` named in docs, scripts, CI or the loop skill must exist in this Taskfile; community-health files present and consistent
     cmds:
-      - bash scripts/check_task_refs.sh
-      - bash scripts/community_check.sh
+      - sh scripts/check_task_refs.sh
+      - sh scripts/community_check.sh
 
   site:audit:
     desc: Build and serve the site, then check every page at desktop and mobile sizes (SEO tags, accessibility, contrast, layout shift, console errors); needs hugo, node and Chrome
@@ -528,17 +540,17 @@ tasks:
   site:health:test:
     desc: Test the site-health probe against a fixture site with one of each problem; needs node and Chrome
     cmds:
-      - sh scripts/metrics/site_health_test.sh
+      - dash scripts/metrics/site_health_test.sh
 
   site:check:
     desc: Fail if the built site links outside its baseURL
     cmds:
-      - bash scripts/check_site_baseurl.sh
+      - sh scripts/check_site_baseurl.sh
 
   pr:merge:
     desc: "Pass the PR's CI gate, then merge with a merge commit: task pr:merge -- N"
     cmds:
-      - bash scripts/pr_merge.sh {{.CLI_ARGS}}
+      - sh scripts/pr_merge.sh {{.CLI_ARGS}}
 
   # ── hooks ────────────────────────────────────────────────────────────────
 

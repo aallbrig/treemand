@@ -1,9 +1,9 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Regenerate the site's icons and social card from their sources in
 # www/treemand/assets-src/ using headless Chrome or Chromium. The outputs are
 # committed under www/treemand/static/; run this after editing a source.
-set -euo pipefail
-cd "$(dirname "${BASH_SOURCE[0]}")/../www/treemand"
+set -eu
+cd "$(dirname "$0")/../www/treemand"
 chrome="${CHROME:-$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)}"
 [ -n "$chrome" ] || { echo "make_site_assets: set CHROME to a Chrome or Chromium binary" >&2; exit 1; }
 src="$PWD/assets-src"
@@ -16,6 +16,7 @@ cp "$src/icon.svg" "$out/icon.svg"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 for spec in "favicon-32.png 32" "apple-touch-icon.png 180"; do
+  # shellcheck disable=SC2086 # split "name size" into $1 and $2
   set -- $spec
   printf '<!doctype html><meta charset=utf-8><style>html,body{margin:0;background:transparent}img{display:block;width:%spx;height:%spx}</style><img src="file://%s/icon.svg">' "$2" "$2" "$src" >"$tmp/$1.html"
   shot "$tmp/$1.html" "$out/$1" "$2" "$2"
