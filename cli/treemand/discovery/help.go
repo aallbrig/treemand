@@ -227,7 +227,7 @@ type childWalk struct {
 	depth      int
 	parentHelp string
 	// globalFlags are the parent's options that its usage accepts with any
-	// command ("apt command [options]"); a child with no help of its own
+	// command ("apt command [options]"); a child with no flags of its own
 	// takes them, marked inherited.
 	globalFlags []models.Flag
 }
