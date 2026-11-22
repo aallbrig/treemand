@@ -14,10 +14,7 @@
 // target is checked once per run: same-origin ones directly, external ones
 // with HEAD (GET when HEAD is refused) under a short timeout, at most
 // EXTERNAL_CONCURRENCY at a time and one request per host per HOST_GAP_MS.
-import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { launchChrome } from "../site/cdp.mjs";
 
 const BASE = process.env.BASE;
 const CHROME = process.env.CHROME;
@@ -43,63 +40,9 @@ const strip = (u) => { const x = new URL(u); x.hash = ""; return x.href; };
 const sameOrigin = (u) => { try { return new URL(u).origin === origin; } catch { return false; } };
 
 // ── Chrome and the DevTools protocol ────────────────────────────────────────
-const profile = mkdtempSync(join(tmpdir(), "site-health-"));
-const chrome = spawn(CHROME, [
-  "--headless=new", "--no-sandbox", "--disable-gpu", "--remote-debugging-port=0",
-  `--user-data-dir=${profile}`, "about:blank",
-], { stdio: ["ignore", "ignore", "pipe"] });
-const removeProfile = () => {
-  try { rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch { /* best effort */ }
-};
-const chromeExited = new Promise((resolve) => chrome.once("exit", resolve));
-async function cleanup() {
-  chrome.kill();
-  await Promise.race([chromeExited, new Promise((r) => setTimeout(r, 5000))]);
-  removeProfile();
-}
-process.on("exit", () => { chrome.kill("SIGKILL"); removeProfile(); });
-
-const port = await new Promise((resolve, reject) => {
-  let buf = "";
-  chrome.stderr.on("data", (d) => {
-    buf += d;
-    const m = buf.match(/DevTools listening on ws:\/\/127\.0\.0\.1:(\d+)\//);
-    if (m) resolve(m[1]);
-  });
-  chrome.on("exit", () => reject(new Error("chrome exited early")));
-  setTimeout(() => reject(new Error("chrome did not start")), 20000);
-});
-
-async function newPage() {
-  const res = await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: "PUT" });
-  const target = await res.json();
-  const ws = new WebSocket(target.webSocketDebuggerUrl);
-  await new Promise((r) => ws.addEventListener("open", r, { once: true }));
-  let id = 0;
-  const pending = new Map();
-  const listeners = [];
-  ws.addEventListener("message", (e) => {
-    const msg = JSON.parse(e.data);
-    if (msg.id && pending.has(msg.id)) {
-      const { resolve, reject } = pending.get(msg.id);
-      pending.delete(msg.id);
-      msg.error ? reject(new Error(msg.error.message)) : resolve(msg.result);
-    } else if (msg.method) listeners.forEach((l) => l(msg.method, msg.params));
-  });
-  return {
-    id: target.id,
-    send: (method, params = {}) => new Promise((resolve, reject) => {
-      const n = ++id;
-      pending.set(n, { resolve, reject });
-      ws.send(JSON.stringify({ id: n, method, params }));
-    }),
-    on: (fn) => listeners.push(fn),
-    close: async () => {
-      ws.close();
-      await fetch(`http://127.0.0.1:${port}/json/close/${target.id}`).catch(() => {});
-    },
-  };
-}
+const chrome = await launchChrome(CHROME, "site-health-");
+const newPage = chrome.newPage;
+const cleanup = chrome.close;
 
 // ── Link checking (cached for the run) ──────────────────────────────────────
 const linkCache = new Map(); // url without hash -> Promise<{status, ok, unverifiable, type, final, error}>

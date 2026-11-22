@@ -7,10 +7,8 @@
 // Run it through `task site:audit`, which builds and serves the site. This is
 // not Lighthouse and produces no Lighthouse score: it checks the same families
 // of rules deterministically, in this repository, with no downloads.
-import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
+import { launchChrome } from "./site/cdp.mjs";
 
 const BASE = process.env.BASE;
 const CHROME = process.env.CHROME;
@@ -29,62 +27,9 @@ const VIEWPORTS = [
 ];
 
 // ── Chrome and the DevTools protocol ────────────────────────────────────────
-const profile = mkdtempSync(join(tmpdir(), "site-audit-"));
-const chrome = spawn(CHROME, [
-  "--headless=new", "--no-sandbox", "--disable-gpu", "--remote-debugging-port=0",
-  `--user-data-dir=${profile}`, "about:blank",
-], { stdio: ["ignore", "ignore", "pipe"] });
-// Chrome keeps writing into its profile until it has exited, so deleting the
-// directory right after kill() races with it (ENOTEMPTY). Wait for the exit,
-// retry the delete, and never let cleanup change the audit's verdict.
-const removeProfile = () => {
-  try { rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch { /* best effort */ }
-};
-const chromeExited = new Promise((resolve) => chrome.once("exit", resolve));
-async function cleanup() {
-  chrome.kill();
-  await Promise.race([chromeExited, new Promise((r) => setTimeout(r, 5000))]);
-  removeProfile();
-}
-process.on("exit", () => { chrome.kill("SIGKILL"); removeProfile(); });
-
-const port = await new Promise((resolve, reject) => {
-  let buf = "";
-  chrome.stderr.on("data", (d) => {
-    buf += d;
-    const m = buf.match(/DevTools listening on ws:\/\/127\.0\.0\.1:(\d+)\//);
-    if (m) resolve(m[1]);
-  });
-  chrome.on("exit", () => reject(new Error("chrome exited early")));
-  setTimeout(() => reject(new Error("chrome did not start")), 20000);
-});
-
-async function newPage() {
-  const res = await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: "PUT" });
-  const target = await res.json();
-  const ws = new WebSocket(target.webSocketDebuggerUrl);
-  await new Promise((r) => ws.addEventListener("open", r, { once: true }));
-  let id = 0;
-  const pending = new Map();
-  const listeners = [];
-  ws.addEventListener("message", (e) => {
-    const msg = JSON.parse(e.data);
-    if (msg.id && pending.has(msg.id)) {
-      const { resolve, reject } = pending.get(msg.id);
-      pending.delete(msg.id);
-      msg.error ? reject(new Error(msg.error.message)) : resolve(msg.result);
-    } else if (msg.method) listeners.forEach((l) => l(msg.method, msg.params));
-  });
-  return {
-    send: (method, params = {}) => new Promise((resolve, reject) => {
-      const n = ++id;
-      pending.set(n, { resolve, reject });
-      ws.send(JSON.stringify({ id: n, method, params }));
-    }),
-    on: (fn) => listeners.push(fn),
-    close: () => ws.close(),
-  };
-}
+const chrome = await launchChrome(CHROME, "site-audit-");
+const newPage = chrome.newPage;
+const cleanup = chrome.close;
 
 // ── In-page checks (run inside the document) ───────────────────────────────
 const pageChecks = () => {

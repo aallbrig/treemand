@@ -1,0 +1,15 @@
+# Peer developer-tool sites the treemand-site-product-design skill compares
+# treemand.dev against: their home and install pages only, one fetch each.
+# Chosen from docs/research (issue #132's devtool website patterns research;
+# taskfile.dev is the maintainer's named reference). Columns are TAB-separated:
+# site	page	url
+taskfile	home	https://taskfile.dev/
+taskfile	install	https://taskfile.dev/docs/installation
+deno	home	https://deno.com/
+deno	install	https://docs.deno.com/runtime/getting_started/installation/
+bun	home	https://bun.com/
+bun	install	https://bun.com/docs/installation
+goreleaser	home	https://goreleaser.com/
+goreleaser	install	https://goreleaser.com/getting-started/install/
+uv	home	https://docs.astral.sh/uv/
+uv	install	https://docs.astral.sh/uv/getting-started/installation/
