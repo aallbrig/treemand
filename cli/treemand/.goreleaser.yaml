@@ -1,0 +1,116 @@
+# GoReleaser builds every release asset; release.yml runs it on a v* tag.
+#
+# The asset names and layouts below are a contract. install.sh, the
+# treemand.dev mirror, the Homebrew tap and the package-manager publish
+# (release-packages.yml) all depend on them, and
+# scripts/release/snapshot_test.sh checks them in CI:
+#   treemand_<os>_<arch>.tar.gz  holds treemand_<os>_<arch> and treemand.1
+#   treemand_windows_amd64.zip   holds treemand_windows_amd64.exe
+#   checksums.txt                sha256sum format, signed keyless by cosign
+#   checksums.txt.sigstore.json  the bundle install.sh verifies against
+#                                release.yml@refs/tags/<tag>
+#
+# Dry run: task release:snapshot (no signing, nothing published).
+version: 2
+project_name: treemand
+
+before:
+  hooks:
+    # The man page carries the version, so it is generated per release.
+    - go run -ldflags "-X github.com/aallbrig/treemand/cmd.Version={{ .Tag }} -X github.com/aallbrig/treemand/cmd.Commit={{ .FullCommit }} -X github.com/aallbrig/treemand/cmd.BuildDate={{ .Date }}" . gendocs --output-dir build/docs
+
+builds:
+  # Archive binaries keep their platform in the name (install.sh and the tap expect it).
+  - id: unix
+    binary: "treemand_{{ .Os }}_{{ .Arch }}"
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    env: &env [CGO_ENABLED=0]
+    ldflags: &ldflags
+      - -s -w
+      - -X github.com/aallbrig/treemand/cmd.Version={{ .Tag }}
+      - -X github.com/aallbrig/treemand/cmd.Commit={{ .FullCommit }}
+      - -X github.com/aallbrig/treemand/cmd.BuildDate={{ .Date }}
+  - id: windows
+    binary: "treemand_{{ .Os }}_{{ .Arch }}"
+    goos: [windows]
+    goarch: [amd64]
+    env: *env
+    ldflags: *ldflags
+  # Linux packages install the binary as plain `treemand`.
+  - id: pkg
+    binary: treemand
+    goos: [linux]
+    goarch: [amd64, arm64]
+    env: *env
+    ldflags: *ldflags
+
+archives:
+  - id: unix
+    ids: [unix]
+    formats: [tar.gz]
+    name_template: "treemand_{{ .Os }}_{{ .Arch }}"
+    wrap_in_directory: false
+    files:
+      - src: build/docs/man/treemand.1
+        strip_parent: true
+  - id: windows
+    ids: [windows]
+    formats: [zip]
+    name_template: "treemand_{{ .Os }}_{{ .Arch }}"
+    wrap_in_directory: false
+    files:
+      - none* # the binary only, as before
+
+nfpms:
+  - id: packages
+    ids: [pkg]
+    package_name: treemand
+    # Version-free like the archives, so releases/latest/download/<name> is stable.
+    file_name_template: "treemand_{{ .Os }}_{{ .Arch }}"
+    vendor: treemand
+    homepage: https://treemand.dev
+    maintainer: aallbrig <aallbrig@users.noreply.github.com>
+    description: Visualize and interactively explore any CLI command hierarchy as a tree
+    license: MIT
+    formats: [deb, rpm, apk]
+    bindir: /usr/bin
+    contents:
+      - src: build/docs/man/treemand.1
+        dst: /usr/share/man/man1/treemand.1
+      - src: ../../LICENSE
+        dst: /usr/share/licenses/treemand/LICENSE
+
+sboms:
+  - id: archives
+    artifacts: archive # SPDX JSON per archive: <archive>.sbom.json
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+  # Archives and packages only. The tap and release-packages.yml find an
+  # archive's line with a substring grep, so a "<archive>.sbom.json" line
+  # would give them two hashes.
+  ids: [unix, windows, packages]
+
+signs:
+  # Keyless: the certificate names release.yml at the tag, the identity install.sh pins.
+  - id: cosign
+    cmd: cosign
+    artifacts: checksum
+    signature: "${artifact}.sigstore.json"
+    args: [sign-blob, --yes, "--bundle=${signature}", "${artifact}"]
+    output: true
+
+changelog:
+  # Auto Release replaces the body with the notes from scripts/release/notes.py.
+  use: github-native
+
+release:
+  name_template: "{{ .Tag }}"
+  # release.yml publishes the draft only after the signature verifies, so no
+  # user sees a release install.sh cannot verify.
+  draft: true
+  # A re-run of the Release workflow reuses the draft and its assets.
+  use_existing_draft: true
+  replace_existing_artifacts: true
