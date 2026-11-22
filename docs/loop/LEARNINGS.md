@@ -123,3 +123,6 @@ A versioned JSON Schema (`treemand schema`, served at treemand.dev/schema/tree.v
 
 ### Cycle 40 - 2026-11-22 - released - #214 v0.9.9
 `rebuildNodeLines` went from cognitive 31 to under 15; `functions_over_30` 1 to 0 closes #214 after eight releases, one function each. Locally, run `task ci` with Node 24 first on PATH (`PATH=~/.nvm/versions/node/v24.*/bin:$PATH`) or `site:audit` fails at the very end. The #335 wall-clock scale test failed the PR's macOS job by 3 ms under `-race`: confirm the failing test from the log, `gh run rerun --failed`, then merge.
+
+### Cycle 41 - 2026-11-22 - released - #46 v0.10.0
+Releases now build with GoReleaser as a draft that `release.yml` publishes only after cosign verifies; v0.10.0 shipped the same asset names plus .deb/.rpm/.apk and SBOMs, with release-health and install probes unchanged. The PR's `Release snapshot` job caught a relative-path bug in the contract test that local runs hid, so keep release changes behind that job. `fuzz:smoke` double-counted the #338 crasher again: rerun the failed job.
