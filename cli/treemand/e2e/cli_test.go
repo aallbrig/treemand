@@ -344,3 +344,35 @@ func TestCacheIsInvalidatedWhenTheCLIChanges(t *testing.T) {
 		t.Errorf("the upgraded CLI was served from a stale cache entry: %+v", after.Children)
 	}
 }
+
+// apt prints no option in any help (#65): the root takes its options from the
+// man page, and every command, whose help is not its own, inherits them.
+func TestApt_commandsShowTheOptionsTheManPageDocuments(t *testing.T) {
+	manDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(manDir, "man"), []byte(fakeAptMan), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := "PATH=" + manDir + string(os.PathListSeparator) + fakeDir + string(os.PathListSeparator) + os.Getenv("PATH")
+	r := run(t, limit, []string{path}, "--no-cache", "--output=json", "fakeapt")
+	if r.exit != 0 {
+		t.Fatalf("exit %d, stderr: %q", r.exit, r.stderr)
+	}
+	root := parseJSON(t, r.stdout)
+	for _, f := range []string{"-o", "-t", "-a"} {
+		if !root.hasFlag(f) {
+			t.Errorf("root flag %s missing: %v", f, root.Flags)
+		}
+	}
+	for _, name := range []string{"install", "list", "show"} {
+		c, ok := root.child(name)
+		if !ok {
+			t.Fatalf("child %s missing", name)
+		}
+		if !c.hasFlag("-o") || !c.hasFlag("-t") {
+			t.Errorf("%s flags = %v, want the inherited -o and -t", name, c.Flags)
+		}
+		if len(c.Children) != 0 {
+			t.Errorf("%s has %d children, want none", name, len(c.Children))
+		}
+	}
+}

@@ -47,11 +47,12 @@ func ParseCommandList(out string) []CommandListEntry {
 	return entries
 }
 
-var synopsisFlagRe = regexp.MustCompile(`\[-([A-Za-z]+)(?:\s+([A-Za-z][A-Za-z-]*))?\]`)
+var synopsisFlagRe = regexp.MustCompile(`\[-([A-Za-z]+)(?:(?:\s+|=)([A-Za-z][A-Za-z0-9_.-]*))?\]`)
 
 // SynopsisFlags extracts flags from a synopsis such as
 // "[-dE] [-c working-directory] key": a bracketed letter cluster is a set of
 // boolean flags, a single letter followed by a word is a flag taking a value.
+// The value may also follow an "=", as in apt's "[-o=config_string]".
 func SynopsisFlags(synopsis string) []models.Flag {
 	var flags []models.Flag
 	seen := map[string]bool{}
@@ -153,10 +154,7 @@ func (h *HelpDiscoverer) commandListChildren(ctx context.Context, cliName, helpT
 	// "list-commands" is an argument, and a CLI without such a command acts
 	// on it: "touch list-commands" creates a file, "mkdir" a directory. Only
 	// ask a CLI that documents the command (tmux does, in its help or man page).
-	man, merr := NewManDiscoverer().fetchManPage(ctx, cliName)
-	if merr != nil {
-		man = ""
-	}
+	man := h.manPage(ctx, cliName)
 	if !strings.Contains(helpText, "list-commands") && !strings.Contains(man, "list-commands") {
 		return nil
 	}

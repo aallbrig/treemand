@@ -73,7 +73,9 @@ func adopt(stub, res *models.Node) {
 	if stub.Description == "" {
 		stub.Description = res.Description
 	}
-	stub.Flags = res.Flags
+	if len(res.Flags) > 0 || !allInherited(stub.Flags) {
+		stub.Flags = res.Flags
+	}
 	stub.Positionals = res.Positionals
 	stub.HelpText = res.HelpText
 	stub.DiscoveryErr = res.DiscoveryErr

@@ -1,0 +1,12 @@
+APT(8)                                APT                               APT(8)
+
+NAME
+       apt - command-line interface
+
+SYNOPSIS
+       apt [-h] [-o=config_string] [-c=config_file] [-t=target_release]
+           [-a=architecture] {list | search | show | update |
+           install pkg [{=pkg_version_number | /target_release}]...  |
+           remove pkg...  | upgrade | full-upgrade | edit-sources |
+           {-v | --version} | {-h | --help}}
+

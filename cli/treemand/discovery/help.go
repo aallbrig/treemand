@@ -37,6 +37,8 @@ type HelpDiscoverer struct {
 	ChildrenAsStubs bool
 
 	form atomic.Int32 // helpForm the root answered with; children try it first
+
+	manPages sync.Map // cliName -> its man page as plain text ("" for none)
 }
 
 // NewHelpDiscoverer creates a HelpDiscoverer with sensible defaults.
@@ -54,7 +56,7 @@ func (h *HelpDiscoverer) Discover(ctx context.Context, cliName string, args []st
 	node, err := h.discover(ctx, cliName, args, 0)
 	if err == nil && node != nil {
 		if node.Description == "" && len(args) == 0 {
-			node.Description = manOneLiner(ctx, cliName)
+			node.Description = h.manOneLiner(ctx, cliName)
 		}
 		models.MarkInheritedFlags(node)
 	}
@@ -63,12 +65,27 @@ func (h *HelpDiscoverer) Discover(ctx context.Context, cliName string, args []st
 
 // manOneLiner returns the NAME one-liner from cliName's man page, or "" when
 // there is no man page. Used when --help is only a usage synopsis.
-func manOneLiner(ctx context.Context, cliName string) string {
-	plain, err := NewManDiscoverer().fetchManPage(ctx, cliName)
-	if err != nil || plain == "" {
+func (h *HelpDiscoverer) manOneLiner(ctx context.Context, cliName string) string {
+	plain := h.manPage(ctx, cliName)
+	if plain == "" {
 		return ""
 	}
 	return ParseHelpOutput(plain).Description
+}
+
+// manPage returns cliName's man page as plain text, or "" when it has none.
+// It is fetched once per discoverer: the root may need it for its options,
+// its description and its command list.
+func (h *HelpDiscoverer) manPage(ctx context.Context, cliName string) string {
+	if v, ok := h.manPages.Load(cliName); ok {
+		return v.(string)
+	}
+	plain, err := NewManDiscoverer().fetchManPage(ctx, cliName)
+	if err != nil {
+		plain = ""
+	}
+	h.manPages.Store(cliName, plain)
+	return plain
 }
 
 func (h *HelpDiscoverer) discover(ctx context.Context, cliName string, args []string, depth int) (*models.Node, error) {
@@ -105,8 +122,9 @@ func (h *HelpDiscoverer) discoverWithHelp(ctx context.Context, cliName string, a
 
 	parsed := ParseHelpOutputFor(helpText, cliName)
 	node.Description = parsed.Description
-	node.Flags = parsed.Flags
 	node.Positionals = parsed.Positionals
+	var forAnyCommand []models.Flag
+	node.Flags, forAnyCommand = h.rootOptions(ctx, cliName, helpText, parsed.Flags, atRoot)
 
 	if atRoot && len(parsed.Subcommands) == 0 {
 		helpText, parsed = h.cleoListFallback(ctx, cliName, node, helpText, parsed)
@@ -130,10 +148,11 @@ func (h *HelpDiscoverer) discoverWithHelp(ctx context.Context, cliName string, a
 	// only the name and path. They can be expanded on demand by the
 	// caller (TUI toggle, or re-running discovery at a deeper depth).
 	if h.ChildrenAsStubs || len(parsed.Subcommands) > h.stubThreshold() {
-		node.Children = stubChildren(fullPath, parsed)
+		node.Children = stubChildren(fullPath, parsed, forAnyCommand)
 		return node, nil
 	}
-	walk := childWalk{cliName: cliName, args: args, fullPath: fullPath, depth: depth, parentHelp: helpText}
+	walk := childWalk{cliName: cliName, args: args, fullPath: fullPath, depth: depth, parentHelp: helpText,
+		globalFlags: forAnyCommand}
 	node.Children = h.discoverChildren(ctx, walk, parsed)
 	return node, nil
 }
@@ -203,7 +222,7 @@ func (h *HelpDiscoverer) stubThreshold() int {
 
 // stubChildren returns one undiscovered stub per subcommand, carrying the
 // description the parent's help gives it.
-func stubChildren(fullPath []string, parsed ParsedHelp) []*models.Node {
+func stubChildren(fullPath []string, parsed ParsedHelp, forAnyCommand []models.Flag) []*models.Node {
 	children := make([]*models.Node, 0, len(parsed.Subcommands))
 	for _, sub := range parsed.Subcommands {
 		children = append(children, &models.Node{
@@ -212,6 +231,7 @@ func stubChildren(fullPath []string, parsed ParsedHelp) []*models.Node {
 			Discovered:  false,
 			Stub:        true,
 			Description: parsed.SubcommandDescs[sub],
+			Flags:       inheritedCopy(forAnyCommand),
 		})
 	}
 	return children
@@ -224,6 +244,10 @@ type childWalk struct {
 	fullPath   []string
 	depth      int
 	parentHelp string
+	// globalFlags are the parent's options that every command accepts (see
+	// rootOptions); a child with no flags of its own takes them, marked
+	// inherited.
+	globalFlags []models.Flag
 }
 
 // discoverChildren discovers every subcommand concurrently (at most eight
@@ -258,7 +282,22 @@ func (h *HelpDiscoverer) discoverChildren(ctx context.Context, walk childWalk, p
 }
 
 // discoverChild runs the help of one subcommand and discovers it.
+//
+// A child that ends with no flags of its own takes the options its parent's
+// usage accepts with any command, marked inherited: apt prints no help for
+// its commands (they echo the general help of apt, apt-get or apt-cache, or
+// fail when the Linux Mint wrapper needs sudo), yet "apt install -o ..." and
+// "apt install -t <release>" are valid.
 func (h *HelpDiscoverer) discoverChild(ctx context.Context, walk childWalk, sub string) *models.Node {
+	child := h.discoverChildNode(ctx, walk, sub)
+	if len(child.Flags) == 0 {
+		child.Flags = inheritedCopy(walk.globalFlags)
+	}
+	return child
+}
+
+// discoverChildNode runs the help of one subcommand and discovers it.
+func (h *HelpDiscoverer) discoverChildNode(ctx context.Context, walk childWalk, sub string) *models.Node {
 	subArgs := append(append([]string{}, walk.args...), sub)
 	subFull := append(append([]string{}, walk.fullPath...), sub)
 	childHelp, err := h.runHelp(ctx, walk.cliName, subArgs)
@@ -1900,4 +1939,49 @@ func nextLineIndented(lines []string, i int) bool {
 		return l[0] == ' ' || l[0] == '\t'
 	}
 	return false
+}
+
+// rootOptions returns the root's options and those of them every command
+// accepts. When the root's help lists no options, they come from its man page
+// (apt's help never lists one, #65), and when its usage also takes options
+// with any command ("Usage: apt command [options]"), each command accepts
+// them: its own help, which says nothing of options, cannot list them either.
+// A CLI whose help lists its options is left as it is: its commands' helps
+// list theirs.
+func (h *HelpDiscoverer) rootOptions(ctx context.Context, cliName, helpText string, flags []models.Flag, atRoot bool) (own, forAnyCommand []models.Flag) {
+	if !atRoot || len(flags) > 0 {
+		return flags, nil
+	}
+	man := ManFlags(h.manPage(ctx, cliName))
+	if !optionsWithCommandRe.MatchString(helpText) {
+		return man, nil
+	}
+	return man, man
+}
+
+// optionsWithCommandRe matches a usage line that takes options with any
+// command: "Usage: apt command [options]", "Usage: apt [options] command".
+var optionsWithCommandRe = regexp.MustCompile(`(?im)^\s*usage:.*(?:\[options?\].*\bcommand\b|\bcommand\b.*\[options?\])`)
+
+// inheritedCopy returns a copy of flags, each marked inherited.
+func inheritedCopy(flags []models.Flag) []models.Flag {
+	if len(flags) == 0 {
+		return nil
+	}
+	out := make([]models.Flag, len(flags))
+	for i, f := range flags {
+		f.Inherited = true
+		out[i] = f
+	}
+	return out
+}
+
+// allInherited reports whether every flag is an inherited one (true for none).
+func allInherited(flags []models.Flag) bool {
+	for _, f := range flags {
+		if !f.Inherited {
+			return false
+		}
+	}
+	return true
 }
