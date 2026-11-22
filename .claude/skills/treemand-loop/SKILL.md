@@ -62,8 +62,8 @@ Helpers live in `scripts/loop/`; call state as `python3 -I scripts/loop/state.py
 6. **Review**: run `/code-review` (low or medium effort) or `mattpocock-skills:code-review`
    on the PR diff. Fix each finding, or waive it in the PR body with the reason.
    Re-verify after fixes.
-7. **Ship**: push the branch and open a PR (`## Summary` / `## Test plan`, closes the
-   issue), labelled `release:patch` (fix, polish) or `release:minor` (feature or
+7. **Ship**: push the branch and open a PR (`## Summary` / `## Test plan` / `## Release note`
+   per **treemand-release-notes**, closes the issue), labelled `release:patch` (fix, polish) or `release:minor` (feature or
    breaking change, pre-1.0); loop machinery and docs carry neither. Then
    `task pr:merge -- <PR>`. Text follows the repo's CLAUDE.md.
 8. **Release**: hosts never tag. The merge starts the **Auto Release** workflow (tag,

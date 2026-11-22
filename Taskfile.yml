@@ -221,10 +221,11 @@ tasks:
       - dash scripts/channels_check_test.sh
 
   release:test:
-    desc: Test the release planner (which merged PRs ask for which release); task shell:check lints the release scripts
+    desc: Test the release scripts (planner, run polling, PR release-note check); task shell:check lints them
     cmds:
       - dash scripts/release/plan_test.sh
       - dash scripts/release/lib_test.sh
+      - dash scripts/release/check_note_test.sh
 
   gates:test:
     desc: Prove the account-identifier and Project-tag gates fire on fixtures
