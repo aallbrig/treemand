@@ -1,0 +1,71 @@
+name: Auto Release
+
+# Releases are cut here, never from a developer's or the loop's machine.
+# A pull request asks for a release with the label release:patch or
+# release:minor; after it merges, this workflow tags main, runs the Release
+# workflow on that tag and smoke-tests production. Every PR merged since the
+# last tag counts (scripts/release/plan.sh), so a run GitHub cancels while it
+# waits in the concurrency group loses nothing: the next run includes it.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write # push the tag
+  actions: write # start the Release workflow
+
+jobs:
+  release:
+    name: Tag, release and verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Plan
+        id: plan
+        run: |
+          plan="$(sh scripts/release/plan.sh)"
+          echo "plan: $plan"
+          if [ "$plan" = none ]; then
+            echo "tag=" >>"$GITHUB_OUTPUT"
+          else
+            echo "tag=${plan#* }" >>"$GITHUB_OUTPUT"
+          fi
+
+      - name: Tag main
+        if: steps.plan.outputs.tag != ''
+        env:
+          TAG: ${{ steps.plan.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "$TAG" HEAD
+          git push origin "$TAG"
+
+      # A tag pushed with GITHUB_TOKEN starts no workflows, so start Release
+      # explicitly on the tag. GITHUB_REF is then refs/tags/<tag>, the signing
+      # identity install.sh verifies.
+      - name: Run the Release workflow
+        if: steps.plan.outputs.tag != ''
+        env:
+          TAG: ${{ steps.plan.outputs.tag }}
+        run: sh scripts/release/dispatch.sh "$TAG"
+
+      - name: Smoke-test production
+        if: steps.plan.outputs.tag != ''
+        env:
+          TAG: ${{ steps.plan.outputs.tag }}
+        run: bash scripts/loop/smoke.sh "$TAG"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Revert the most recent merge on main through a PR and merge it.  The caller
-# then runs release.sh patch to ship the reverted state.   usage: rollback.sh
+# Revert the most recent merge on main through a PR labelled release:patch and
+# merge it; Auto Release then ships the reverted state.   usage: rollback.sh
 set -euo pipefail
 # shellcheck source=scripts/loop/lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -15,7 +15,7 @@ git worktree add -q -B "loop/revert-${merge:0:8}" "$wt" origin/main
   cd "$wt"
   git revert -m 1 --no-edit "$merge"
   git push -u origin HEAD
-  url="$(gh pr create --fill --title "Revert ${merge:0:8}: failed production verification" \
+  url="$(gh pr create --fill --label release:patch --title "Revert ${merge:0:8}: failed production verification" \
     --body "Automatic revert by the dev loop after a post-release smoke test failed.")"
   bash "$LOOP_ROOT/scripts/pr_merge.sh" "$url"
 )
