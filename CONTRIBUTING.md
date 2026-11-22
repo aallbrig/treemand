@@ -25,6 +25,10 @@ back to `go install`, `pipx` or nvm (Node from `.nvmrc`), and lists anything
 that still needs a manual step. It exits non-zero while a required tool is
 missing or the hooks are not active.
 
+Agent tooling (gopls, dlv and the Claude Code Go LSP plugin) is provisioned
+the same way; [docs/agents/dev-tooling.md](docs/agents/dev-tooling.md) covers
+when to use each.
+
 ### Git Hooks
 
 `setup.sh --install` (or `task hooks`) installs:

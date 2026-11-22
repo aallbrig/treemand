@@ -7,6 +7,8 @@ description: Fix a treemand parser gap tracked in the corpus (an issue named in 
 
 A gap is a mismatch between a CLI's ground truth (`cli/treemand/discovery/testdata/corpus/expect.json`) and what the parser extracts from its fixture, marked with the issue that tracks it. The fix is done when the marker is gone and the corpus enforces it.
 
+When the parser's output is a surprise, use LSP references and `dlv` breakpoints rather than prints: [docs/agents/dev-tooling.md](../../../docs/agents/dev-tooling.md).
+
 1. **Go red.** List every CLI whose `gaps` names the issue (`grep '"gaps": \[.*<N>' expect.json`), see what the parser makes of each with `task corpus:show -- <cli>`, and write a focused unit test in `discovery/` with the smallest help excerpt that shows the shape, copied from the fixture. Done when that test fails for the reason the issue describes.
 2. **Fix the parser** (`discovery/help.go` and friends) for the shape, not for one CLI: other families print similar text, so state the rule in a comment.
 3. **Check the whole corpus.** `go test ./discovery` must pass: the baseline (`TestCorpus_noRegressionAgainstBaseline`) fails on any subcommand, flag or description lost in any corpus CLI. Then `task corpus:diff` lists every subcommand, flag and description gained or lost against origin/main, with the fixture line it comes from. Done when every line of that diff is one you meant: a surprise gain is a change to inspect, and a loss is a bug unless it removes garbage.

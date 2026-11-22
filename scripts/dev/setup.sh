@@ -3,7 +3,8 @@
 # dev session need (list: scripts/dev/tools.txt) and the git hooks.
 # Dry run by default: it reports and changes nothing. --install installs what
 # is missing with the host's package manager (brew, apt or dnf), falling back
-# to go install, pipx or nvm, then installs and verifies the git hooks.
+# to go install, pipx, nvm or claude plugin install (agent tooling:
+# docs/agents/dev-tooling.md), then installs and verifies the git hooks.
 # Exits 1 while a required tool is missing or the hooks are not active.
 
 usage() {
@@ -105,6 +106,7 @@ run_install() {
         go:*) has go && go install "${m_arg#go:}" ;;
         pipx:*) has pipx && pipx install "${m_arg#pipx:}" ;;
         gem:*) has gem && $sudo gem install "${m_arg#gem:}" ;;
+        claude-plugin:*) has claude && claude plugin install "${m_arg#claude-plugin:}" --scope user ;;
         nvm) install_node ;;
       esac
       ;;
@@ -139,7 +141,10 @@ report_row() {
     how=""
   else
     row_method "$@"
-    case "$tried" in *" $1 "*) status=failed ;; *) status=missing ;; esac
+    case "$tried" in
+      *" $1 "*) status=failed ;;
+      *) if tool_unsuitable "$1"; then status=unsuitable; else status=missing; fi ;;
+    esac
     how="$m_cmd"
     if [ "$2" = required ]; then req_missing=$((req_missing + 1)); else opt_missing=$((opt_missing + 1)); fi
   fi
