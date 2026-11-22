@@ -30,11 +30,30 @@ Clients configured with JSON take the same command:
 
 ## Tools
 
-| Tool | Arguments | Returns |
-|------|-----------|---------|
-| `discover` | `cli`, `depth` (1 to 5, default 2), `include_help` | The command tree as JSON, following the schema `treemand schema` prints. Raw help text is left out unless `include_help` is true. |
-| `search` | `cli`, `query`, `limit` (default 20) | Commands, flags and positional arguments that match the query, best first, each with its full command path. |
-| `assemble` | `cli`, `path`, `flags` (`{name, value}` objects), `args` | A shell-quoted command line and its `argv`. The path must exist; a flag the help does not list is kept with a warning. |
+### `discover`
+
+The command tree as JSON, following the schema `treemand schema` prints.
+
+- `cli`: a command on `PATH`, such as `git`
+- `depth`: levels of subcommands, 1 to 5 (default 2)
+- `include_help`: keep each command's raw help text (default false)
+
+### `search`
+
+Commands, flags and positional arguments that match a query, best first, each
+with its full command path.
+
+- `cli`, `query`
+- `limit`: most results (default 20)
+
+### `assemble`
+
+A shell-quoted command line and its `argv`. The path must exist; a flag the
+help does not list is kept, with a warning.
+
+- `cli`, `path`: subcommand names, such as `["remote", "add"]`
+- `flags`: `{name, value}` objects; leave out `value` for a switch
+- `args`: positional arguments
 
 For example, `assemble` with `{"cli": "git", "path": ["commit"], "flags": [{"name": "m", "value": "fix: it's done"}]}`
 returns `git commit --message 'fix: it'\''s done'`.

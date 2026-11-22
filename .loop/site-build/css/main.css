@@ -361,3 +361,8 @@ html.js .search-btn[hidden], html.js .theme-toggle[hidden] { display: inline-fle
   .search-btn-label, .search-kbd { display: none; }
   .search-dialog { margin-top: 1rem; max-height: calc(100vh - 2rem); }
 }
+
+/* Changelog: one section per release, newest first. */
+.changelog-entry { border-top: 1px solid var(--border); margin-top: 2.5rem; padding-top: 1rem; }
+.changelog-entry h2 { margin: 0; }
+.changelog-meta { color: var(--muted); margin: 0.25rem 0 1rem; }
