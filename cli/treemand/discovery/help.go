@@ -363,15 +363,15 @@ func (h *HelpDiscoverer) runHelp(ctx context.Context, cliName string, args []str
 	if h.learnedForm() == formShort {
 		flags = []helpForm{formShort, formFlag}
 	}
-	// timedOut is set when a form ran out of its own time. That is no answer:
-	// the CLI may be overloaded, not refusing. Positional forms pass "help" as
-	// an argument a subcommand may act on ("npm prune help" prunes, #176), so
-	// they only ever follow flag forms that answered and refused.
-	var timedOut atomic.Bool
+	// at.timedOut is set when a form ran out of its own time. That is no
+	// answer: the CLI may be overloaded, not refusing. Positional forms pass
+	// "help" as an argument a subcommand may act on ("npm prune help" prunes,
+	// #176), so they only ever follow flag forms that answered and refused.
+	var at formAttempts
 	// A preset may document "<cli> [path...] help" as the CLI's help (aws):
 	// ask that first, one call instead of two failing flag forms before it.
 	if p, ok := presets.Lookup(cliName); ok && p.HelpSubcommand {
-		if s := h.tryForm(ctx, resolved, args, formSuffix, &timedOut); s != "" {
+		if s := h.tryForm(ctx, resolved, args, formSuffix, &at); s != "" {
 			return s, nil
 		}
 	}
@@ -383,22 +383,30 @@ func (h *HelpDiscoverer) runHelp(ctx context.Context, cliName string, args []str
 	if h.learnedForm() != formUnknown {
 		race = h.formsInTurn
 	}
-	if s, f := race(ctx, resolved, args, flags, &timedOut); s != "" {
+	if s, f := race(ctx, resolved, args, flags, &at); s != "" {
 		h.form.CompareAndSwap(int32(formUnknown), int32(f))
 		return s, nil
 	}
 	if ctx.Err() != nil {
 		return "", ctx.Err()
 	}
-	if timedOut.Load() {
+	if at.timedOut.Load() {
 		return "", fmt.Errorf("help for %s timed out", cliName)
 	}
+	// A flag form that was refused but still printed a usage synopsis is the
+	// CLI's help: BSD tools answer --help with "mkdir: illegal option -- -"
+	// and then "usage: mkdir [-pv] ...". Such a CLI takes operands, not
+	// subcommands, so a positional "help" would be acted on ("mkdir help"
+	// creates ./help, #273): never send one, use the usage instead.
+	if s := at.refusedUsage(); s != "" {
+		return s, nil
+	}
 
-	if s := h.tryForm(ctx, resolved, args, formSuffix, &timedOut); s != "" {
+	if s := h.tryForm(ctx, resolved, args, formSuffix, &at); s != "" {
 		return s, nil
 	}
 	if len(args) > 0 {
-		if s := h.tryForm(ctx, resolved, args, formPrefix, &timedOut); s != "" {
+		if s := h.tryForm(ctx, resolved, args, formPrefix, &at); s != "" {
 			return s, nil
 		}
 	}
@@ -409,7 +417,7 @@ func (h *HelpDiscoverer) runHelp(ctx context.Context, cliName string, args []str
 // highest-priority one that produced help. It returns as soon as that is
 // decided, cancelling (killing) the forms still running. Never pass it a
 // positional form: see runHelp.
-func (h *HelpDiscoverer) raceForms(ctx context.Context, resolved string, args []string, forms []helpForm, timedOut *atomic.Bool) (string, helpForm) {
+func (h *HelpDiscoverer) raceForms(ctx context.Context, resolved string, args []string, forms []helpForm, at *formAttempts) (string, helpForm) {
 	for _, f := range forms {
 		if f != formFlag && f != formShort {
 			panic("discovery: only flag help forms may be raced")
@@ -419,7 +427,7 @@ func (h *HelpDiscoverer) raceForms(ctx context.Context, resolved string, args []
 		return "", formUnknown
 	}
 	if len(forms) == 1 {
-		return h.tryForm(ctx, resolved, args, forms[0], timedOut), forms[0]
+		return h.tryForm(ctx, resolved, args, forms[0], at), forms[0]
 	}
 	rctx, cancel := context.WithCancel(ctx)
 	// Cancel the losers and wait for them: a form still running after
@@ -434,7 +442,7 @@ func (h *HelpDiscoverer) raceForms(ctx context.Context, resolved string, args []
 		wg.Add(1)
 		go func(ch chan<- string, f helpForm) {
 			defer wg.Done()
-			ch <- h.tryForm(rctx, resolved, args, f, timedOut)
+			ch <- h.tryForm(rctx, resolved, args, f, at)
 		}(results[i], forms[i])
 	}
 	// Hedge: the preferred form gets a head start, so a CLI that answers it
@@ -468,12 +476,12 @@ func (h *HelpDiscoverer) raceForms(ctx context.Context, resolved string, args []
 
 // formsInTurn tries flag forms one after another, stopping at the first that
 // answers, or when one times out (a timeout is no refusal).
-func (h *HelpDiscoverer) formsInTurn(ctx context.Context, resolved string, args []string, forms []helpForm, timedOut *atomic.Bool) (string, helpForm) {
+func (h *HelpDiscoverer) formsInTurn(ctx context.Context, resolved string, args []string, forms []helpForm, at *formAttempts) (string, helpForm) {
 	for _, f := range forms {
-		if s := h.tryForm(ctx, resolved, args, f, timedOut); s != "" {
+		if s := h.tryForm(ctx, resolved, args, f, at); s != "" {
 			return s, f
 		}
-		if timedOut.Load() || ctx.Err() != nil {
+		if at.timedOut.Load() || ctx.Err() != nil {
 			break
 		}
 	}
@@ -484,9 +492,44 @@ func (h *HelpDiscoverer) formsInTurn(ctx context.Context, resolved string, args 
 // is started alongside it.
 const hedgeDelay = 250 * time.Millisecond
 
+// formAttempts is what the help forms tried for one node learned besides
+// their answers. Racing forms share it.
+type formAttempts struct {
+	timedOut atomic.Bool
+	mu       sync.Mutex
+	// usage holds refused flag-form output that carries a usage synopsis,
+	// by flag form.
+	usage map[helpForm]string
+}
+
+func (a *formAttempts) noteRefusedUsage(f helpForm, s string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.usage == nil {
+		a.usage = map[helpForm]string{}
+	}
+	a.usage[f] = s
+}
+
+// refusedUsage returns the refused flag-form output with a usage synopsis,
+// --help's before -h's, or "".
+func (a *formAttempts) refusedUsage() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	for _, f := range []helpForm{formFlag, formShort} {
+		if s := a.usage[f]; s != "" {
+			return s
+		}
+	}
+	return ""
+}
+
+// usageLineRe matches a usage synopsis line: "usage: mkdir [-pv] ...".
+var usageLineRe = regexp.MustCompile(`(?im)^[ \t]*usage:[ \t]+\S`)
+
 // tryForm runs one help form and returns its sanitized output, or "" when the
 // command printed nothing or an error instead of help.
-func (h *HelpDiscoverer) tryForm(ctx context.Context, resolved string, args []string, f helpForm, timedOut *atomic.Bool) string {
+func (h *HelpDiscoverer) tryForm(ctx context.Context, resolved string, args []string, f helpForm, at *formAttempts) string {
 	var cmdArgs []string
 	switch f {
 	case formFlag:
@@ -500,13 +543,19 @@ func (h *HelpDiscoverer) tryForm(ctx context.Context, resolved string, args []st
 	default:
 		return ""
 	}
-	s := h.runOne(ctx, resolved, cmdArgs, timedOut)
-	if s == "" || isErrorOutput(s) {
+	s := h.runOne(ctx, resolved, cmdArgs, &at.timedOut)
+	if s == "" {
+		return ""
+	}
+	if isErrorOutput(s) {
+		if (f == formFlag || f == formShort) && usageLineRe.MatchString(s) {
+			at.noteRefusedUsage(f, s)
+		}
 		return ""
 	}
 	// Truncated help (curl) points at a complete form; prefer it.
 	if f == formFlag && truncatedHelpRe.MatchString(s) {
-		if all := h.runOne(ctx, resolved, append(append([]string{}, args...), "--help", "all"), timedOut); all != "" {
+		if all := h.runOne(ctx, resolved, append(append([]string{}, args...), "--help", "all"), &at.timedOut); all != "" {
 			return all
 		}
 	}

@@ -112,3 +112,31 @@ execute a user's build rule. `make`, `gmake`, `bmake`, `ninja`, `just`, `task`
 and `rake` are explicitly skipped by the list-commands probe. A future
 target-listing feature would need an explicit opt-in flag (for example
 `make -qp` or `just --list` behind a flag), not default discovery.
+
+## Addendum 2026-11-22: a refused flag form with a usage synopsis ends the chain
+
+BSD tools reject `--help` and `-h` but still print their usage, on stderr
+with a non-zero exit:
+
+```
+$ mkdir --help
+mkdir: illegal option -- -
+usage: mkdir [-pv] [-m mode] directory_name ...
+```
+
+`isErrorOutput` rightly calls this a refusal, so the chain went on to the
+positional forms, and `mkdir help` created `./help` (#273).
+
+**Decision.** When both flag forms are refused and either printed a usage
+synopsis (a line starting with `usage:`, any case), the positional forms
+are never tried. The refused output (`--help`'s before `-h`'s) is the node's
+help text. A CLI that answers a flag with its usage takes operands, not a
+`help` subcommand, so a positional `help` is an operand it acts on.
+
+- Go-style CLIs are unaffected: `go mod --help` prints `go mod: unknown
+  command` and `Run 'go help mod' for usage.`, which has no `usage:` line, so
+  `help mod` is still reached. aws asks its positional form first via its preset.
+- The rejected rule, "try a positional `help` only when the usage lists a
+  `help` subcommand", would have dropped the go and aws-style fallbacks.
+- Marker test: `TestRunHelp_usageAfterAnIllegalOptionIsHelpAndNoPositionalFormRuns`;
+  chaos case `chaos-bsdoperand` fails as `SIDE-EFFECT` if the fake creates a file.
