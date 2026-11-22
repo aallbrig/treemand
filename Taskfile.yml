@@ -377,6 +377,16 @@ tasks:
     cmds:
       - bash scripts/loop/visual-check.sh
 
+  tui:ux:
+    desc: "Capture the TUI in task flows (open, search, expand, flags, assemble, help, errors) at 80x24, 120x40 and 200x60 as ANSI, text and PNG frames under .loop/tui-ux/<date>/ for the treemand-tui-ux skill: task tui:ux [-- --sizes 80x24 --flows help --no-png]"
+    cmds:
+      - sh scripts/tui/ux_evidence.sh {{.CLI_ARGS}}
+
+  tui:ux:test:
+    desc: Behaviour tests for the TUI UX evidence script against a fake TUI; needs tmux (skips without it)
+    cmds:
+      - dash scripts/tui/ux_evidence_test.sh
+
   corpus:
     desc: Run treemand against real CLIs on this machine and print quality metrics (TSV)
     cmds:
@@ -514,6 +524,7 @@ tasks:
       - task: taskfile:check
       - task: shell:check
       - task: shell:test
+      - task: tui:ux:test
       - task: site:check
       - task: site:audit
       - task: site:health:test

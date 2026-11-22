@@ -1,0 +1,60 @@
+# Task flows for scripts/tui/ux_evidence.sh. One step per line:
+#   flow|target|step|keys
+# Every flow starts a fresh TUI on its target; its first step is the opened
+# frame. Steps run in order and each ends with a captured frame.
+#   target  the CLI to open (@broken is a fake CLI whose help fails; @missing
+#           is a name on no PATH); only a flow's first line needs it
+#   keys    space-separated tmux key names (Down, Right, Enter, Escape, C-e,
+#           BSpace, PageDown, ...) or lit:TEXT to type TEXT; empty = no keys
+# Safety: Enter, r and R in the command modal (C-e) run the command. Close it
+# with Escape. Never press c there either (it writes the system clipboard).
+# Never press d or D in a flow: they open a browser.
+open|git|01_loading|
+open||02_opened|
+open||03_down|Down
+search|git|01_opened|
+search||02_slash|/
+search||03_typed|lit:rebase
+search||04_kept|Enter
+search||05_next_match|n
+search||06_cleared|/ Escape
+expand|git|01_opened|
+expand||02_section_open|Down Right
+expand||03_cursor_down_seven|Down Down Down Down Down Down Down
+expand||04_command_open|Right
+expand||05_expand_all|e
+expand||06_deep|PageDown PageDown
+expand||07_collapse_all|E
+flags|git|01_opened|
+flags||02_filtered|/ lit:commit Enter
+flags||03_on_commit|Right Down Down Down
+flags||04_expanded_in_filter|Right
+flags||05_filter_cleared|/ Escape
+flags||06_flag_rows|Down Down
+flags||07_flag_picker|f
+flags||08_picker_scrolled|Down Down Down Down Down
+flags||09_picker_closed|Escape
+assemble|git|01_opened|
+assemble||02_on_commit|/ lit:commit Enter Right Down Down Down
+assemble||03_pick_command|Enter
+assemble||04_flag_picker|f
+assemble||05_add_bool_flag|Enter
+assemble||06_value_prompt|Down Down Enter
+assemble||07_value_typed|lit:3
+assemble||08_value_added|Enter Escape
+assemble||09_undo_token|BSpace
+assemble||10_command_modal|C-e
+assemble||11_modal_cancelled|Escape
+assemble||12_clear_all|C-k
+help|git|01_opened|
+help||02_key_overlay|?
+help||03_overlay_scrolled|PageDown
+help||04_overlay_closed|Escape
+help||05_help_pane_off|H
+help||06_help_pane_on|H
+help||07_focus_help_pane|Tab
+help||08_help_pane_scrolled|PageDown
+error_broken|@broken|01_opened|
+error_broken||02_rediscover|r
+error_broken||03_try_expand|Right
+error_missing|@missing|01_opened|
