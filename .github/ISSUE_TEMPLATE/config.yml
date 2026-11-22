@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://treemand.dev
+    about: Installation, usage and keyboard reference
+  - name: Report a security vulnerability
+    url: https://github.com/aallbrig/treemand/security
+    about: Report privately; see SECURITY.md

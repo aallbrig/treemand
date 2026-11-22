@@ -1,0 +1,48 @@
+name: Bug report
+description: treemand crashed, mis-parsed a CLI, or the TUI misbehaved
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. For a security problem, use the Security tab instead (see SECURITY.md).
+  - type: input
+    id: version
+    attributes:
+      label: treemand version
+      description: Output of `treemand version`
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: OS, terminal and install method
+      placeholder: macOS 15, iTerm2, Homebrew
+    validations:
+      required: true
+  - type: input
+    id: cli
+    attributes:
+      label: CLI being explored, and its version
+      placeholder: kubectl v1.31.0
+  - type: textarea
+    id: command
+    attributes:
+      label: Command you ran
+      render: shell
+      placeholder: treemand -i kubectl
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and what happened instead
+      description: For a mis-parse, name the missing or wrong subcommands or flags.
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Output or help text
+      description: Paste error output, or the CLI's `--help` text for a mis-parse. Remove anything private.
+      render: text

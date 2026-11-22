@@ -1,5 +1,6 @@
 # 🌲 treemand — explore CLIs as trees, build commands interactively
 
+[![Latest release](https://img.shields.io/github/v/release/aallbrig/treemand?sort=semver)](https://github.com/aallbrig/treemand/releases/latest)
 [![Go version](https://img.shields.io/badge/go-1.25%2B-blue)](https://go.dev/dl/)
 [![CI](https://img.shields.io/github/actions/workflow/status/aallbrig/treemand/ci.yml?branch=main)](https://github.com/aallbrig/treemand/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
