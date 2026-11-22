@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/aallbrig/treemand/models"
 )
 
 // Fuzz targets for the parser's line-level hot paths: flag rows, section
@@ -65,22 +67,25 @@ func FuzzParseFlag(f *testing.F) {
 		if okA != okB || !reflect.DeepEqual(a, b) {
 			t.Fatalf("parseFlag is not deterministic: %+v/%v vs %+v/%v", a, okA, b, okB)
 		}
-		if !okA {
-			return
-		}
-		if !strings.HasPrefix(a.Name, "-") || strings.TrimLeft(a.Name, "-") == "" {
-			t.Fatalf("flag name %q is not an option name", a.Name)
-		}
-		if strings.ContainsAny(a.Name, " \t,") || strings.ContainsAny(a.ShortName, " \t,") {
-			t.Fatalf("flag names hold separators: name %q short %q", a.Name, a.ShortName)
-		}
-		if strings.HasPrefix(a.ShortName, "-") {
-			t.Fatalf("short name %q keeps its dash", a.ShortName)
-		}
-		if a.ValueType == "" {
-			t.Fatalf("flag %q has no value type", a.Name)
+		if okA {
+			checkParsedFlag(t, a)
 		}
 	})
+}
+
+// checkParsedFlag fails t unless f is a well-formed flag.
+func checkParsedFlag(t *testing.T, f models.Flag) {
+	t.Helper()
+	switch {
+	case !strings.HasPrefix(f.Name, "-") || strings.TrimLeft(f.Name, "-") == "":
+		t.Fatalf("flag name %q is not an option name", f.Name)
+	case strings.ContainsAny(f.Name, " \t,") || strings.ContainsAny(f.ShortName, " \t,"):
+		t.Fatalf("flag names hold separators: name %q short %q", f.Name, f.ShortName)
+	case strings.HasPrefix(f.ShortName, "-"):
+		t.Fatalf("short name %q keeps its dash", f.ShortName)
+	case f.ValueType == "":
+		t.Fatalf("flag %q has no value type", f.Name)
+	}
 }
 
 // sectionValues is every section detectSection may return.
