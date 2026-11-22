@@ -129,118 +129,146 @@ const (
 )
 
 func (r *Renderer) renderNode(w io.Writer, node *models.Node, prefix string, isLast bool, depth int) {
-	if r.opts.MaxDepth >= 0 && depth > r.opts.MaxDepth {
+	if !r.visible(node, depth) {
 		return
-	}
-	if r.opts.Exclude != "" && strings.Contains(node.Name, r.opts.Exclude) {
-		return
-	}
-	if r.opts.Filter != "" && !strings.Contains(node.Name, r.opts.Filter) &&
-		!r.hasMatchingDescendant(node, r.opts.Filter) {
-		return
-	}
-
-	// Choose connector
-	conn := connMid
-	if isLast {
-		conn = connLast
-	}
-
-	// Choose icon
-	icon := r.opts.Icons.Leaf
-	if node.Virtual {
-		icon = r.opts.Icons.Virtual
-	} else if len(node.Children) > 0 {
-		icon = r.opts.Icons.Branch
-	}
-
-	// Format the node name
-	var namePart string
-	switch depth {
-	case 0:
-		namePart = r.styles.base.Render(node.Name)
-	default:
-		namePart = r.styles.subcmd.Render(node.Name)
-	}
-
-	// Build inline metadata
-	var meta []string
-	if !r.opts.CommandsOnly {
-		for _, p := range node.Positionals {
-			if p.Required {
-				meta = append(meta, r.styles.pos.Render("<"+p.Name+">"))
-			} else {
-				meta = append(meta, r.styles.pos.Render("["+p.Name+"]"))
-			}
-		}
-		// Only count / show own (non-inherited) flags.
-		var ownFlags []models.Flag
-		for _, f := range node.Flags {
-			if !f.Inherited {
-				ownFlags = append(ownFlags, f)
-			}
-		}
-		if len(ownFlags) > 0 && len(ownFlags) <= 5 {
-			var flagStrs []string
-			for _, f := range ownFlags {
-				fs := r.flagStyle(f.ValueType).Render(f.Name)
-				if f.ValueType != "" && f.ValueType != "bool" {
-					fs += "=" + r.styles.value.Render("<"+f.ValueType+">")
-				}
-				flagStrs = append(flagStrs, fs)
-			}
-			meta = append(meta, "["+strings.Join(flagStrs, ",")+"]")
-		} else if len(ownFlags) > 5 {
-			meta = append(meta, r.styles.dim.Render(fmt.Sprintf("[%d flags]", len(ownFlags))))
-		}
-	}
-
-	// Description (dimmed, truncated at configured line length).
-	desc := ""
-	if node.Description != "" {
-		d := node.Description
-		limit := r.opts.DescLineLength
-		if limit <= 0 {
-			limit = 80
-		}
-		if len([]rune(d)) > limit {
-			d = string([]rune(d)[:limit]) + "…"
-		}
-		desc = "  " + r.styles.dim.Render(d)
-	}
-
-	// Append a subtle indicator for stub or discovery-error nodes.
-	suffix := ""
-	if node.Stub {
-		suffix = "  " + r.styles.dim.Render("(…)")
-	} else if node.DiscoveryErr != "" {
-		suffix = "  " + r.styles.dim.Render("(?)")
 	}
 
 	line := prefix
 	if depth > 0 {
-		line += conn
+		line += connector(isLast, connLast, connMid)
 	}
-	line += icon + namePart
-	if len(meta) > 0 {
+	line += r.icon(node) + r.name(node, depth)
+	if meta := r.meta(node); len(meta) > 0 {
 		line += " " + strings.Join(meta, " ")
 	}
-	line += desc + suffix
-
+	line += r.description(node) + r.suffix(node)
 	fmt.Fprintln(w, line)
 
-	// Determine padding for children
 	childPrefix := prefix
 	if depth > 0 {
-		if isLast {
-			childPrefix += connLastPad
-		} else {
-			childPrefix += connMidPad
-		}
+		childPrefix += connector(isLast, connLastPad, connMidPad)
 	}
-
 	for i, child := range node.Children {
 		r.renderNode(w, child, childPrefix, i == len(node.Children)-1, depth+1)
+	}
+}
+
+// connector picks the last-child or middle-child form of a tree connector.
+func connector(isLast bool, last, mid string) string {
+	if isLast {
+		return last
+	}
+	return mid
+}
+
+// visible reports whether the depth limit, exclude and filter options keep node.
+func (r *Renderer) visible(node *models.Node, depth int) bool {
+	if r.opts.MaxDepth >= 0 && depth > r.opts.MaxDepth {
+		return false
+	}
+	if r.opts.Exclude != "" && strings.Contains(node.Name, r.opts.Exclude) {
+		return false
+	}
+	return r.opts.Filter == "" || strings.Contains(node.Name, r.opts.Filter) ||
+		r.hasMatchingDescendant(node, r.opts.Filter)
+}
+
+func (r *Renderer) icon(node *models.Node) string {
+	switch {
+	case node.Virtual:
+		return r.opts.Icons.Virtual
+	case len(node.Children) > 0:
+		return r.opts.Icons.Branch
+	default:
+		return r.opts.Icons.Leaf
+	}
+}
+
+func (r *Renderer) name(node *models.Node, depth int) string {
+	if depth == 0 {
+		return r.styles.base.Render(node.Name)
+	}
+	return r.styles.subcmd.Render(node.Name)
+}
+
+// meta builds the inline positionals and own-flag summary shown after a name.
+func (r *Renderer) meta(node *models.Node) []string {
+	if r.opts.CommandsOnly {
+		return nil
+	}
+	meta := r.positionals(node.Positionals)
+	if flags := r.ownFlags(node.Flags); flags != "" {
+		meta = append(meta, flags)
+	}
+	return meta
+}
+
+func (r *Renderer) positionals(ps []models.Positional) []string {
+	var out []string
+	for _, p := range ps {
+		if p.Required {
+			out = append(out, r.styles.pos.Render("<"+p.Name+">"))
+		} else {
+			out = append(out, r.styles.pos.Render("["+p.Name+"]"))
+		}
+	}
+	return out
+}
+
+// maxInlineFlags is the most own flags listed by name; more show as a count.
+const maxInlineFlags = 5
+
+// ownFlags lists a node's non-inherited flags inline, or counts them when
+// there are too many to list.
+func (r *Renderer) ownFlags(flags []models.Flag) string {
+	var own []models.Flag
+	for _, f := range flags {
+		if !f.Inherited {
+			own = append(own, f)
+		}
+	}
+	if len(own) == 0 {
+		return ""
+	}
+	if len(own) > maxInlineFlags {
+		return r.styles.dim.Render(fmt.Sprintf("[%d flags]", len(own)))
+	}
+	strs := make([]string, 0, len(own))
+	for _, f := range own {
+		fs := r.flagStyle(f.ValueType).Render(f.Name)
+		if f.ValueType != "" && f.ValueType != "bool" {
+			fs += "=" + r.styles.value.Render("<"+f.ValueType+">")
+		}
+		strs = append(strs, fs)
+	}
+	return "[" + strings.Join(strs, ",") + "]"
+}
+
+// description is the dimmed description, truncated at the configured length.
+func (r *Renderer) description(node *models.Node) string {
+	if node.Description == "" {
+		return ""
+	}
+	limit := r.opts.DescLineLength
+	if limit <= 0 {
+		limit = 80
+	}
+	d := node.Description
+	if runes := []rune(d); len(runes) > limit {
+		d = string(runes[:limit]) + "…"
+	}
+	return "  " + r.styles.dim.Render(d)
+}
+
+// suffix marks stub and discovery-error nodes.
+func (r *Renderer) suffix(node *models.Node) string {
+	switch {
+	case node.Stub:
+		return "  " + r.styles.dim.Render("(…)")
+	case node.DiscoveryErr != "":
+		return "  " + r.styles.dim.Render("(?)")
+	default:
+		return ""
 	}
 }
 
