@@ -75,6 +75,26 @@
     "broken_external_links.*":{"ratchet": "lower"},
     "mixed_content.*":       {"budget": {"max": 0}, "ratchet": "lower"}
   },
+  "site-quality": {
+    "lh_performance.*":    {"ratchet": "higher", "min_delta": 8, "host_bound": true, "timing": true},
+    "lh_accessibility.*":  {"budget": {"min": 95}, "ratchet": "higher"},
+    "lh_best_practices.*": {"budget": {"min": 95}, "ratchet": "higher"},
+    "lh_seo.*":            {"budget": {"min": 95}, "ratchet": "higher"},
+    "axe_critical.*":      {"budget": {"max": 0}, "ratchet": "lower"},
+    "axe_serious.*":       {"budget": {"max": 0}, "ratchet": "lower"},
+    "axe_moderate.*":      {"ratchet": "lower"},
+    "axe_minor.*":         {"ratchet": "lower"},
+    "cls.*":               {"budget": {"max": 0.1}, "ratchet": "lower", "min_delta": 0.02},
+    "weight_bytes.*":      {"ratchet": "lower", "tolerance": 0.1},
+    "weight_bytes.production.home.mobile":      {"budget": {"max": 30000}, "ratchet": "lower", "tolerance": 0.1},
+    "weight_bytes.production.home.desktop":     {"budget": {"max": 2000000}, "ratchet": "lower", "tolerance": 0.1},
+    "weight_bytes.production.installation.*":   {"budget": {"max": 30000}, "ratchet": "lower", "tolerance": 0.1},
+    "weight_bytes.production.try.*":            {"budget": {"max": 3000000}, "ratchet": "lower", "tolerance": 0.1},
+    "weight_bytes.local.home.mobile":           {"budget": {"max": 120000}, "ratchet": "lower", "tolerance": 0.1},
+    "weight_bytes.local.home.desktop":          {"budget": {"max": 2100000}, "ratchet": "lower", "tolerance": 0.1},
+    "weight_bytes.local.installation.*":        {"budget": {"max": 120000}, "ratchet": "lower", "tolerance": 0.1},
+    "weight_bytes.local.try.*":                 {"budget": {"max": 12000000}, "ratchet": "lower", "tolerance": 0.1}
+  },
   "shell-portability": {
     "non_posix_scripts": {"budget": {"max": 0}, "ratchet": "lower"},
     "exempt_scripts":    {"ratchet": "lower"},

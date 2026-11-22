@@ -528,6 +528,7 @@ tasks:
       - task: site:check
       - task: site:audit
       - task: site:health:test
+      - task: site:quality:test
       - task: site:design:test
       - task: install:test
       - task: install:probe:test
@@ -579,6 +580,16 @@ tasks:
     desc: Test the site-health probe against a fixture site with one of each problem; needs node and Chrome
     cmds:
       - dash scripts/metrics/site_health_test.sh
+
+  site:quality:
+    desc: "Lighthouse scores, axe violations, CLS and page weight for home, installation and try at mobile and desktop sizes; SITE_BASE=https://treemand.dev/ targets production: task site:quality [-- --record]"
+    cmds:
+      - python3 -I scripts/metrics/measure.py site-quality {{.CLI_ARGS}}
+
+  site:quality:test:
+    desc: Test the site-quality probe against a fixture site and a stand-in Lighthouse; needs node and Chrome
+    cmds:
+      - dash scripts/metrics/site_quality_test.sh
 
   site:design:
     desc: "Screenshot every page (desktop + mobile, light + dark) and the peer sites' home and install pages into .loop/design/<date>/ for the treemand-site-product-design skill; production by default: task site:design [-- --dir www/treemand/public | --no-peers]"
