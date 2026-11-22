@@ -64,9 +64,10 @@ function readPeers(file) {
     .filter((p) => p.site && p.page && /^https?:/.test(p.url || ""));
 }
 
-// Desktop views render as a mouse user sees them wherever Chrome runs: a
-// headless CI runner otherwise reports (hover: none). Mobile views switch to
-// touch with Emulation.setTouchEmulationEnabled (2 = hover, 4 = fine pointer).
+// Desktop views ask Chrome for a mouse (2 = hover, 4 = fine pointer); some
+// headless Linux hosts still report (hover: none), so each view records what it
+// rendered as (`hover_none` in the manifest). Mobile views switch to touch with
+// Emulation.setTouchEmulationEnabled.
 const chrome = await launchChrome(CHROME, "design-evidence-", [
   "--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4",
 ]);
