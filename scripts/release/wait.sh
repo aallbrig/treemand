@@ -7,6 +7,8 @@
 # smoke-tested the commit; prints "none" when the run decided not to release.
 # Exits non-zero when the run failed: the loop treats that as FIX_MAIN.
 set -eu
+# shellcheck source=scripts/release/lib.sh
+. "$(dirname "$0")/lib.sh"
 sha="${1:?usage: wait.sh <merge-commit-sha>}"
 repo="${REPO:-$(gh repo view --json nameWithOwner --jq .nameWithOwner)}"
 
@@ -21,8 +23,8 @@ while [ "$i" -lt 60 ]; do
 done
 [ -n "$run_id" ] || { echo "wait: no Auto Release run for $sha" >&2; exit 4; }
 
-if ! gh run watch "$run_id" --repo "$repo" --exit-status >/dev/null; then
-  conclusion="$(gh run view "$run_id" --repo "$repo" --json conclusion --jq .conclusion)"
+conclusion="$(run_conclusion "$run_id" "$repo" || true)"
+if [ "$conclusion" != success ]; then
   # A newer merge's run supersedes a cancelled one and releases this commit too.
   if [ "$conclusion" = cancelled ]; then
     echo "wait: run $run_id was superseded by a newer merge; watch that one" >&2

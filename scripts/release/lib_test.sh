@@ -1,0 +1,20 @@
+#!/bin/sh
+# Tests for lib.sh: run_conclusion rides out transient gh API errors.
+set -eu
+here="$(cd "$(dirname "$0")" && pwd)"
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+# Fake gh: fails twice (an API error), reports in_progress once, then success.
+cat >"$work/gh" <<'GH'
+#!/bin/sh
+n=$(cat "$COUNT" 2>/dev/null || echo 0); n=$((n + 1)); echo "$n" >"$COUNT"
+case "$n" in 1 | 2) exit 1 ;; 3) echo "in_progress " ;; *) echo "completed success" ;; esac
+GH
+chmod +x "$work/gh"
+# shellcheck source=scripts/release/lib.sh
+. "$here/lib.sh"
+got="$(PATH="$work:$PATH" COUNT="$work/n" RELEASE_POLL_SECONDS=0 run_conclusion 1 example/repo)"
+if [ "$got" = success ]; then echo "  ok   run_conclusion survives API errors and waits for completion"; else
+  echo "  FAIL run_conclusion: want success, got '$got'"
+  exit 1
+fi

@@ -7,6 +7,8 @@
 # That is infrastructure, not the code, so such a run is retried twice.
 # Needs gh with actions:write (REPO=owner/name, default: the current repository).
 set -eu
+# shellcheck source=scripts/release/lib.sh
+. "$(dirname "$0")/lib.sh"
 tag="${1:?usage: dispatch.sh <vX.Y.Z>}"
 repo="${REPO:-$(gh repo view --json nameWithOwner --jq .nameWithOwner)}"
 
@@ -25,7 +27,7 @@ done
 echo "dispatch: Release run $run_id for $tag"
 
 attempt=0
-until gh run watch "$run_id" --repo "$repo" --exit-status >/dev/null; do
+until [ "$(run_conclusion "$run_id" "$repo")" = success ]; do
   built="$(gh run view "$run_id" --repo "$repo" --json jobs \
     --jq '[.jobs[].name] | index("Build & Release")')"
   attempt=$((attempt + 1))
