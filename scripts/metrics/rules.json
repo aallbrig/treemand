@@ -124,6 +124,19 @@
     "failing_checks":          {"budget": {"max": 0}, "ratchet": "lower"},
     "undescribed_subcommands": {"budget": {"max": 0}, "ratchet": "lower"}
   },
+  "release-health": {
+    "releases_checked":         {"budget": {"min": 1}},
+    "lead_time_min":            {"ratchet": "lower", "tolerance": 0.5, "min_delta": 5},
+    "assets_missing":           {"budget": {"max": 0}, "ratchet": "lower"},
+    "checksum_mismatches":      {"budget": {"max": 0}, "ratchet": "lower"},
+    "signature_failures":       {"budget": {"max": 0}, "ratchet": "lower"},
+    "tap_lag":                  {"budget": {"max": 0}, "ratchet": "lower"},
+    "mirror_lag":               {"budget": {"max": 0}, "ratchet": "lower"},
+    "mirror_assets_missing":    {"budget": {"max": 0}, "ratchet": "lower"},
+    "install_script_missing":   {"budget": {"max": 0}, "ratchet": "lower"},
+    "package_publish_failed":   {"budget": {"max": 0}, "ratchet": "lower"},
+    "auto_release_failure_pct": {"ratchet": "lower", "min_delta": 5}
+  },
   "zoo": {
     "sweep_panics":    {"budget": {"max": 0}, "ratchet": "lower"},
     "sweep_timeouts":  {"budget": {"max": 0}, "ratchet": "lower"},
