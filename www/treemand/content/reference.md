@@ -82,7 +82,7 @@ treemand --output=yaml git       # full tree as YAML (same structure)
 ### JSON / YAML Schema
 
 JSON and YAML output share one structure, described by a versioned
-[JSON Schema](/schema/tree.v1.json) (draft 2020-12). Print it with:
+[JSON Schema](https://treemand.dev/schema/tree.v1.json) (draft 2020-12). Print it with:
 
 ```bash
 treemand schema > tree.schema.json

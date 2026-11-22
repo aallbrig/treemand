@@ -22,9 +22,9 @@ treemand --output=text git          # default colored text tree
 ## JSON schema
 
 The output follows a versioned JSON Schema, published at
-[/schema/tree.v1.json](/schema/tree.v1.json) and printed by `treemand schema`.
+[treemand.dev/schema/tree.v1.json](https://treemand.dev/schema/tree.v1.json) and printed by `treemand schema`.
 The root carries `"schema_version": 1`; within a version the output only gains
-optional properties. See the [reference](/reference/#json--yaml-schema) for an
+optional properties. See the [reference](../../reference/#json--yaml-schema) for an
 example and the full compatibility promise.
 
 ```bash
