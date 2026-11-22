@@ -1,25 +1,26 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Manage the treemand_dev tmuxinator session.
 #   up       attach if the session exists, else create it and attach (default)
 #   attach   attach; fail if absent
-#   start    create detached; no-op if it exists (systemd-friendly)
+#   start    create detached; no-op if it exists (safe at login: autostart runs it)
 #   stop     kill every pane's process tree, then the session
 #   recycle  stop, then start detached
-set -euo pipefail
+set -eu
 
 SESSION="${TREEMAND_SESSION:-treemand_dev}"
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIG="$ROOT/.tmuxinator/treemand.yml"
-export TREEMAND_ROOT="$ROOT" TREEMAND_SESSION="$SESSION"
+TREEMAND_ROOT="$ROOT"
+TREEMAND_SESSION="$SESSION"
+export TREEMAND_ROOT TREEMAND_SESSION
 
 exists() { tmux has-session -t "=$SESSION" 2>/dev/null; }
 
 kill_tree() {
-  local pid="$1" child
-  for child in $(pgrep -P "$pid" 2>/dev/null || true); do
+  for child in $(pgrep -P "$1" 2>/dev/null || true); do
     kill_tree "$child"
   done
-  kill "$pid" 2>/dev/null || true
+  kill "$1" 2>/dev/null || true
 }
 
 start() {
@@ -44,7 +45,6 @@ stop() {
     echo "session '$SESSION' not running"
     return 0
   fi
-  local pid
   for pid in $(tmux list-panes -s -t "=$SESSION" -F '#{pane_pid}'); do
     kill_tree "$pid"
   done

@@ -75,7 +75,7 @@ create_agent_pane() {
 
 launch() {
   if ! have_session; then
-    bash "$LOOP_ROOT/scripts/dev_session.sh" start >/dev/null
+    sh "$LOOP_ROOT/scripts/dev_session.sh" start >/dev/null
   fi
   if supervisor_running; then
     echo "loop already running"
