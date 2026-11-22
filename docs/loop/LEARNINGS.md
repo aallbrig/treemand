@@ -8,14 +8,11 @@ into the `## Summary` section by the loop.
 ## Summary
 
 - Cycle 1 (#6, v0.3.3): a release run that fails with no jobs and no logs is a GitHub startup failure. Rerun it before rolling back or escalating; `release.sh` does this now.
-- Cycles 2-10 (v0.3.4 to v0.3.10): a red CI run whose jobs are all green is a startup glitch, so rerun it. Site links go through relURL or the demo shortcode, never a hardcoded `/treemand/`. Release binaries are `CGO_ENABLED=0`, so the cache uses pure-Go sqlite. Child processes need `cmd.WaitDelay` or an orphan holding stdout hangs past `--timeout`. Check that labels exist before `gh issue create`. Run every parser fixture after each parser heuristic change (aws's justified man text broke a tightened row regex).
+- Cycles 2-11 (v0.3.4 to v0.3.10): a red CI run whose jobs are all green is a startup glitch, so rerun it. Site links go through relURL or the demo shortcode, never a hardcoded `/treemand/`. Release binaries are `CGO_ENABLED=0`, so the cache uses pure-Go sqlite. Child processes need `cmd.WaitDelay` or an orphan holding stdout hangs past `--timeout`. Check that labels exist before `gh issue create`. Run every parser fixture after each parser heuristic change (aws's justified man text broke a tightened row regex). Verify an issue premise against real output before planning (cycle 11, aws service descriptions).
 
 ## Recent cycles
 
 <!-- Retro appends below: ### Cycle N — YYYY-MM-DD — outcome — #issue vX.Y.Z -->
-
-### Cycle 11 - 2026-11-10 - parked - #32
-Parked: aws root help lists services as bare bullets, so descriptions cannot be carried from the parent; per-service help is about 3s each (20 min cold). Stub marking (discovered:false, (...) in text) already exists. Verify an issue premise against real output before planning; filed findings on the issue with three re-scope options.
 
 ### Cycle 12 - 2026-11-10 - released - #32 v0.3.11
 Re-scoped #32 instead of leaving it parked (new rule: decide, then ship): stubs get an honest stderr footer plus a public --expand-stubs; descriptions stay lazy because aws help has none and per-service help is about 3s. Under zsh, `2>&1 >/dev/null | wc` tees stdout (multios): redirect to files when checking stream separation.
@@ -103,3 +100,6 @@ A versioned JSON Schema (`treemand schema`, served at treemand.dev/schema/tree.v
 
 ### Cycle 41 - 2026-11-22 - released - #46 v0.10.0
 Releases now build with GoReleaser as a draft that `release.yml` publishes only after cosign verifies; v0.10.0 shipped the same asset names plus .deb/.rpm/.apk and SBOMs, with release-health and install probes unchanged. The PR's `Release snapshot` job caught a relative-path bug in the contract test that local runs hid, so keep release changes behind that job. `fuzz:smoke` double-counted the #338 crasher again: rerun the failed job.
+
+### Cycle 42 - 2026-11-22 - released - #229 v0.10.1
+A root whose help times out is retried once at 3x the per-command budget, then fails with exit 1 instead of printing a one-node tree; stdout stays empty and nothing is cached. The new branch first pushed `discoverWithHelp` over cognitive 15 (`functions_over_15` 32 to 33, caught only by the PR's ratchet gate): run `measure.py complexity --gate` locally before pushing. `fuzz:smoke` writes its crasher into `discovery/testdata/fuzz`, which then fails `coverage:check`: delete that untracked folder before re-running.
