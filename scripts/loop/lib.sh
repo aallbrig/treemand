@@ -12,5 +12,7 @@ if [ -f "$LOOP_DIR/config.env" ]; then
   . "$LOOP_DIR/config.env"
 fi
 if [ -n "$_env_claude" ]; then LOOP_CLAUDE_BIN="$_env_claude"; fi
-LOOP_SESSION="${TREEMAND_SESSION:-treemand}"
+LOOP_SESSION="${TREEMAND_SESSION:-treemand_dev}"
+# What the agent pane runs; `loopctl start` creates the pane with this command.
+LOOP_AGENT_CMD="${LOOP_AGENT_CMD:-task loop:agent}"
 LOOP_STOP_FILE="$LOOP_DIR/STOP"
