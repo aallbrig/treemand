@@ -1,6 +1,6 @@
 // Headless Chrome over the DevTools protocol, with no npm dependencies. The
-// site drivers share it: scripts/site_audit.mjs, scripts/metrics/site_health.mjs
-// and scripts/site/design_evidence.mjs. Needs Node 22+ (the global WebSocket).
+// site drivers share it: scripts/site_audit.mjs, scripts/metrics/site_health.mjs,
+// scripts/metrics/site_quality.mjs and scripts/site/design_evidence.mjs. Needs Node 22+ (the global WebSocket).
 //
 //   import { launchChrome } from "./cdp.mjs";
 //   const chrome = await launchChrome(process.env.CHROME, "site-audit-");
