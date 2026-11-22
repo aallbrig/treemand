@@ -105,3 +105,6 @@ A versioned JSON Schema (`treemand schema`, served at treemand.dev/schema/tree.v
 
 ### Cycle 34 - 2026-11-22 - released - #214 (open) v0.9.2
 `runRoot` went from cognitive 58 to 11 with one helper per stage; `functions_over_30` 7 to 6. Host load blocked the pre-commit hook on discovery wall-clock tests: confirm a timing failure on main once, then retry in a quiet minute.
+
+### Cycle 35 - 2026-11-22 - released - #214 (open) v0.9.3
+`discoverWithHelp` went from cognitive 56 to under 15; `functions_over_30` 6 to 5. Pin the uncovered branches with a characterization test before refactoring (here a child whose help fails and a child that echoes its parent's help). `fuzz:smoke` can trip on the known #338 crasher by chance, so re-run before you suspect the change.
