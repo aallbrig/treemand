@@ -8,14 +8,11 @@ into the `## Summary` section by the loop.
 ## Summary
 
 - Cycle 1 (#6, v0.3.3): a release run that fails with no jobs and no logs is a GitHub startup failure. Rerun it before rolling back or escalating; `release.sh` does this now.
-- Cycles 2-12 (v0.3.4 to v0.3.11): a red CI run whose jobs are all green is a startup glitch, so rerun it. Site links go through relURL or the demo shortcode, never a hardcoded `/treemand/`. Release binaries are `CGO_ENABLED=0`, so the cache uses pure-Go sqlite. Child processes need `cmd.WaitDelay` or an orphan holding stdout hangs past `--timeout`. Check that labels exist before `gh issue create`. Run every parser fixture after each parser heuristic change (aws's justified man text broke a tightened row regex). Verify an issue premise against real output before planning (cycle 11, aws service descriptions). Re-scope an infeasible issue and ship rather than park it; under zsh, `2>&1 >/dev/null | wc` tees stdout, so redirect to files when checking stream separation.
+- Cycles 2-13 (v0.3.4 to v0.4.0): a red CI run whose jobs are all green is a startup glitch, so rerun it. Site links go through relURL or the demo shortcode, never a hardcoded `/treemand/`. Release binaries are `CGO_ENABLED=0`, so the cache uses pure-Go sqlite. Child processes need `cmd.WaitDelay` or an orphan holding stdout hangs past `--timeout`. Check that labels exist before `gh issue create`. Run every parser fixture after each parser heuristic change (aws's justified man text broke a tightened row regex). Verify an issue premise against real output before planning (cycle 11, aws service descriptions). Re-scope an infeasible issue and ship rather than park it; under zsh, `2>&1 >/dev/null | wc` tees stdout, so redirect to files when checking stream separation. Never probe make-style target runners: running a target can execute build rules (cycle 13).
 
 ## Recent cycles
 
 <!-- Retro appends below: ### Cycle N — YYYY-MM-DD — outcome — #issue vX.Y.Z -->
-
-### Cycle 13 - 2026-11-10 - released - #33 v0.4.0
-Added a root-only list-commands fallback (tmux: 1 node to 91, all with man-derived descriptions and synopsis flags). make and other target runners are out of scope and skipped, because probing a target can execute project build rules; documented in the fallback-chain ADR. Minor bump for a new capability.
 
 ### Cycle 14 - 2026-11-10 - released - #34 v0.4.1
 #34 had three causes: a per-child 5s deadline shared by a whole subtree (docker/gh), kubectl flag syntax (=false: with the next-line description), and each node running help up to 4 times. Fixing the last cut cold times 2-4x (gh 23s to 7s, npm 30s to 9s), so #35 is mostly addressed. perf:compare flagged apt memory 18 to 118MB, but that is a child process (apt changelog) and the main binary measures the same on this host; history swings 118/17/18, so the apt rss gate is noisy. Never `cd` out of a worktree between commands: edits once landed in the main checkout and had to be moved.
@@ -103,3 +100,6 @@ A root whose help times out is retried once at 3x the per-command budget, then f
 
 ### Cycle 43 - 2026-11-22 - released - #51 v0.10.2
 All third-party actions are now pinned by SHA, every workflow defaults to `contents: read` with writes granted per job, and releases carry build provenance that `gh attestation verify` accepted on the v0.10.2 asset (infra-security: 46/1/1 to 0/0/0). Resolve tags to SHAs with `gh api repos/<o>/<r>/commits/<tag>`, and rewrite refs with Python, not BSD sed (the slashes in `owner/repo` break `s///`). The guard blocks Write to the scratchpad, so keep PR bodies under `.loop/`.
+
+### Cycle 44 - 2026-11-22 - released - #49 v0.11.0
+`treemand mcp` ships a dependency-free stdio MCP server with `discover`, `search` and `assemble`, tested end to end over stdio against the fake CLIs. A timed-out discovery returns a partial tree without failing, so the server labels it partial instead of passing it off as complete. `assemble` keeps flags the help does not list, with a warning, because help text misses flags (`go test`). In site markdown, a heading named `search` gets `id="search"` and fails the CI site audit's duplicate-id check, so give such headings explicit `{#ids}`. Run `task site:audit` after any docs change, not only before it.
