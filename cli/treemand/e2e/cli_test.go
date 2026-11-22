@@ -348,7 +348,12 @@ func TestCacheIsInvalidatedWhenTheCLIChanges(t *testing.T) {
 // apt prints no option in any help (#65): the root takes its options from the
 // man page, and every command, whose help is not its own, inherits them.
 func TestApt_commandsShowTheOptionsTheManPageDocuments(t *testing.T) {
-	r := run(t, limit, nil, "--no-cache", "--output=json", "fakeapt")
+	manDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(manDir, "man"), []byte(fakeAptMan), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := "PATH=" + manDir + string(os.PathListSeparator) + fakeDir + string(os.PathListSeparator) + os.Getenv("PATH")
+	r := run(t, limit, []string{path}, "--no-cache", "--output=json", "fakeapt")
 	if r.exit != 0 {
 		t.Fatalf("exit %d, stderr: %q", r.exit, r.stderr)
 	}

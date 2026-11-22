@@ -70,8 +70,10 @@ func (m *ManDiscoverer) Discover(ctx context.Context, cliName string, _ []string
 // via `col -bx`.  Returns the plain-text output or ("", nil) if no man page
 // is installed for the tool.
 func (m *ManDiscoverer) fetchManPage(ctx context.Context, cliName string) (string, error) {
-	// Sanitise: cliName must be a single token (no spaces, no shell metacharacters).
-	if strings.ContainsAny(cliName, " \t\r\n;|&`$<>(){}") {
+	// Sanitise: cliName must be a single token (no spaces, no shell
+	// metacharacters) and not a path: man reads "./tool" as a page file and
+	// would render the binary itself.
+	if strings.ContainsAny(cliName, " \t\r\n;|&`$<>(){}/\\") {
 		return "", nil
 	}
 
@@ -142,14 +144,4 @@ func manSection(plain, name string) string {
 		}
 	}
 	return strings.Join(body, "\n")
-}
-
-// manFlagsFor fetches cliName's man page and returns ManFlags of it, or nil
-// when there is no man page.
-func manFlagsFor(ctx context.Context, cliName string) []models.Flag {
-	plain, err := NewManDiscoverer().fetchManPage(ctx, cliName)
-	if err != nil || plain == "" {
-		return nil
-	}
-	return ManFlags(plain)
 }

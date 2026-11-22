@@ -137,3 +137,59 @@ func TestHelpDiscoverer_rootOptionsOnlyWhenUsageTakesThemWithAnyCommand(t *testi
 		t.Fatalf("children = %+v, want run with no flags", node.Children)
 	}
 }
+
+// The TUI lists commands as stubs and crawls them one at a time; the stubs
+// carry the options too, and a crawl that finds none keeps them.
+func TestCrawler_aptLike_stubsKeepTheOptions(t *testing.T) {
+	writeAptLike(t)
+	d := discovery.NewHelpDiscoverer(3)
+	d.ChildrenAsStubs = true
+	root, err := d.Discover(context.Background(), "aptlike", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := discovery.CompletePending(context.Background(), root, "aptlike", 3, 150, 4); got != 4 {
+		t.Fatalf("filled %d stubs, want 4", got)
+	}
+	for _, c := range root.Children {
+		if c.Stub || !flagNames(c.Flags)["-o"] {
+			t.Errorf("%s: stub=%v flags=%v, want a filled node with -o", c.Name, c.Stub, flagNames(c.Flags))
+		}
+	}
+}
+
+// A root whose help lists its options leaves its commands' flags to their own
+// helps, even when its usage takes options with any command (docker).
+func TestHelpDiscoverer_listedRootOptionsAreNotPushedDown(t *testing.T) {
+	dir := t.TempDir()
+	cli := "#!/bin/sh\n" +
+		"case \"$1\" in\n" +
+		"run) printf 'Usage: listed run NAME\\n\\nRun a thing.\\n';;\n" +
+		"*) printf 'Usage: listed [OPTIONS] COMMAND\\n\\nOptions:\\n  -q   quiet\\n\\nCommands:\\n  run    - Run a thing\\n';;\n" +
+		"esac\n"
+	if err := os.WriteFile(filepath.Join(dir, "listed"), []byte(cli), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	node, err := discovery.NewHelpDiscoverer(2).Discover(context.Background(), "listed", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(node.Children) != 1 || len(node.Children[0].Flags) != 0 {
+		t.Fatalf("children = %+v, want run with no flags", node.Children[0])
+	}
+}
+
+// A stub's inherited options give way to the flags its own help lists.
+func TestFill_ownFlagsReplaceInheritedOnes(t *testing.T) {
+	stub := &models.Node{Name: "x", Stub: true, Flags: []models.Flag{{Name: "-o", Inherited: true}}}
+	discovery.Fill(stub, &models.Node{Name: "x", Flags: []models.Flag{{Name: "--own"}}})
+	if names := flagNames(stub.Flags); !names["--own"] || names["-o"] {
+		t.Errorf("flags = %v, want only --own", names)
+	}
+	kept := &models.Node{Name: "y", Stub: true, Flags: []models.Flag{{Name: "-o", Inherited: true}}}
+	discovery.Fill(kept, &models.Node{Name: "y"})
+	if !flagNames(kept.Flags)["-o"] {
+		t.Errorf("flags = %v, want the inherited -o kept", kept.Flags)
+	}
+}

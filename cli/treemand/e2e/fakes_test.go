@@ -112,7 +112,7 @@ esac
 
 	// apt (#65): no help lists an option. Its commands print the general
 	// help of the tool they forward to, or fail when the Linux Mint wrapper
-	// needs sudo; only the man page names the options.
+	// needs sudo; only the man page names the options (fakeAptMan).
 	"fakeapt": `case "$1" in
 install) echo 'sudo: a terminal is required to read the password' >&2; exit 1;;
 list|show) cat <<'H'
@@ -138,10 +138,12 @@ H
 ;;
 esac
 `,
+}
 
-	// Answers only for fakeapt, with its man page as man prints it; every
-	// other fake has no man page, as with the real man.
-	"man": `[ "$1" = fakeapt ] || exit 16
+// fakeAptMan is man as it answers for fakeapt. TestApt_* put it first on
+// PATH; every other test keeps the real man, for which no fake has a page.
+const fakeAptMan = `#!/bin/sh
+[ "$1" = fakeapt ] || exit 16
 cat <<'M'
 FAKEAPT(8)                            APT                           FAKEAPT(8)
 
@@ -155,5 +157,4 @@ SYNOPSIS
 DESCRIPTION
        fakeapt provides a high-level commandline interface.
 M
-`,
-}
+`

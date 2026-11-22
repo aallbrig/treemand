@@ -134,7 +134,9 @@ func Fill(stub, discovered *models.Node) {
 	if discovered.Description != "" {
 		stub.Description = discovered.Description
 	}
-	if len(stub.Flags) == 0 {
+	// A stub may hold only the options its parent's commands all accept
+	// (apt's, see rootOptions); its own discovered flags replace those.
+	if len(stub.Flags) == 0 || (len(discovered.Flags) > 0 && allInherited(stub.Flags)) {
 		stub.Flags = discovered.Flags
 	}
 	if len(stub.Positionals) == 0 {
