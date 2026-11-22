@@ -22,4 +22,4 @@ For speed, wall-clock numbers alone prove nothing: other projects load this host
 
 ## Changing what discovery sends to a CLI
 
-Help is asked with `--help` / `-h` first. Positional forms (`<cli> <sub> help`, `help <cli> <sub>`, `list-commands`) run only after the flag forms fail or when the CLI documents them. Any change to that ordering ships with a marker test: a fake CLI that touches a file if it is given the argument, asserted untouched (see `TestRunHelp_neverPassesHelpAsAnArgumentWhileAFlagFormWorks`).
+Help is asked with `--help` / `-h` first. Positional forms (`<cli> <sub> help`, `help <cli> <sub>`, `list-commands`) run only after the flag forms fail or when the CLI documents them, and never after a refused flag form printed a `usage:` line (BSD `mkdir --help`: such a CLI takes operands, so `help` would be one, #273). Any change to that ordering ships with a marker test: a fake CLI that touches a file if it is given the argument, asserted untouched (see `TestRunHelp_neverPassesHelpAsAnArgumentWhileAFlagFormWorks`).

@@ -37,6 +37,10 @@ mk chaos-utf8       "printf 'Usage: chaos-utf8\n\nCommands:\n  caf\xc3\xa9  ok\n
 mk chaos-wide       'echo "Usage: chaos-wide [command]"; echo; echo "Commands:"; for i in $(seq 1 6000); do echo "  cmd$i  Command number $i"; done'
 mk chaos-nohelp     'echo "unknown flag" >&2; exit 2'
 mk chaos-empty      'exit 0'
+# BSD mkdir: flags are rejected with a usage line, every operand is created.
+# Discovery must never send it a positional "help" (#273).
+mk chaos-bsdoperand "for a in \"\$@\"; do case \"\$a\" in -*) echo \"chaos-bsdoperand: illegal option -- \${a#-}\" >&2; echo 'usage: chaos-bsdoperand [-pv] directory_name ...' >&2; exit 64;; esac; done
+touch \"$work/chaos-bsdoperand.acted\""
 
 fail=0
 printf 'case\tstatus\tsecs\trss_mb\n'
@@ -54,6 +58,7 @@ for c in "$work"/chaos-*; do
   [ "$rc" -eq 124 ] || [ "$rc" -eq 137 ] && status="HUNG(rc=$rc)"
   grep -qE 'panic:|goroutine [0-9]+ \[|fatal error' "$err" "$work/$name.out" 2>/dev/null && status="PANIC"
   [ "${rss:-0}" -gt 1024 ] && status="MEMORY(${rss}MB)"
+  [ -e "$work/$name.acted" ] && status="SIDE-EFFECT"
   if grep -qx "$name" "$LOOP_ROOT/scripts/loop/chaos.xfail" 2>/dev/null; then
     if [ "$status" = ok ]; then status="XPASS (fixed: remove $name from scripts/loop/chaos.xfail)"; fail=1
     else status="xfail:$status"; fi

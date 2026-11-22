@@ -260,3 +260,34 @@ func TestRunHelp_aLearnedFormIsAskedAloneOnSlowChildren(t *testing.T) {
 		}
 	}
 }
+
+// bsdOperandCLI behaves like BSD mkdir: every flag form is rejected with an
+// "illegal option" line followed by the usage synopsis, on stderr with exit
+// 64, and every other argument is an operand it acts on (mkdir creates a
+// directory named "help").
+const bsdOperandCLI = `for a in "$@"; do case "$a" in
+-*) printf 'formcli: illegal option -- %s\nusage: formcli [-pv] [-m mode] directory_name ...\n' "${a#-}" >&2; exit 64;;
+esac; done
+for a in "$@"; do touch "$MARKER"; done
+`
+
+func TestRunHelp_usageAfterAnIllegalOptionIsHelpAndNoPositionalFormRuns(t *testing.T) {
+	for _, args := range [][]string{nil, {"sub"}} {
+		bin, logPath := formCLI(t, 0, bsdOperandCLI)
+		marker := filepath.Join(t.TempDir(), "acted")
+		t.Setenv("MARKER", marker)
+
+		node, err := NewHelpDiscoverer(1).Discover(context.Background(), bin, args)
+		if _, serr := os.Stat(marker); serr == nil {
+			t.Errorf("args %q: a positional help form ran although the flag form printed a usage synopsis; calls: %q", args, calls(t, logPath))
+		}
+		for _, c := range calls(t, logPath) {
+			if f := strings.Fields(c); len(f) > 0 && (f[len(f)-1] == "help" || f[0] == "help") {
+				t.Errorf("args %q: positional help form invoked: %q", args, c)
+			}
+		}
+		if err != nil || node == nil || !strings.Contains(node.HelpText, "usage: formcli [-pv]") {
+			t.Errorf("args %q: the usage synopsis was not used as help: err=%v node=%+v", args, err, node)
+		}
+	}
+}
