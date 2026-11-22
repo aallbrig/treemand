@@ -151,7 +151,13 @@ func TestMCP_agentDiscoversSearchesAndAssembles(t *testing.T) {
 	}
 	mustContain(t, "unknown subcommand error", text, "alpha, beta, gamma")
 
-	// Only --help probes ran: every logged call ends in a help flag.
+	assertOnlyHelpProbes(t, logFile, "two words")
+}
+
+// assertOnlyHelpProbes fails unless every call the fake CLI logged was a help
+// probe, and none carried built, never-run text.
+func assertOnlyHelpProbes(t *testing.T, logFile, neverRun string) {
+	t.Helper()
 	logged, err := os.ReadFile(logFile)
 	if err != nil {
 		t.Fatal(err)
@@ -162,7 +168,7 @@ func TestMCP_agentDiscoversSearchesAndAssembles(t *testing.T) {
 			t.Errorf("the server ran something other than a help probe: %q", line)
 		}
 	}
-	if strings.Contains(string(logged), "two words") {
+	if strings.Contains(string(logged), neverRun) {
 		t.Errorf("assemble must never run the command it builds")
 	}
 }
