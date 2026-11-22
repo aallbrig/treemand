@@ -52,5 +52,5 @@ treemand --icons=nerd git           # Nerd Font glyphs (requires patched font)
 | `--full-path` | Show full command paths instead of just names |
 | `--no-color` | Disable colored output |
 | `--no-cache` | Skip the discovery cache for this run |
-| `--timeout=N` | Discovery timeout in seconds (default 30) |
+| `--timeout=N` | Discovery timeout in seconds (default 30; 0 = no limit) |
 | `--strategy=<list>` | Discovery strategies: `help` (default), `man`, `completions` |

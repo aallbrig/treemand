@@ -74,7 +74,7 @@ returns `git commit --message 'fix: it'\''s done'`.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--timeout` | `30` | Seconds each tool call may take |
+| `--timeout` | `30` | Seconds each tool call may take (0 = no limit) |
 | `--no-cache` | false | Discover every time instead of using the cache |
 | `--jobs` | auto | Max concurrent help processes during discovery |
 | `--debug` | false | Debug logging on stderr |

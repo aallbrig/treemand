@@ -149,7 +149,8 @@ treemand git | less -R                               # plain text when piped
   [`NO_COLOR`](https://no-color.org) (to any value) or pass `--no-color` to turn color off on a
   terminal too.
 - **Bounded runs.** `--timeout=SECONDS` limits discovery of a CLI that hangs, and a CLI that prints
-  a flood of help text is read only up to 1MB.
+  a flood of help text is read only up to 1MB. `--timeout=0` removes the overall limit, but each
+  help command keeps its own; a negative value is a usage error.
 
 ### Exit codes
 

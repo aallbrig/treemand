@@ -110,7 +110,7 @@ func init() {
 	rootCmd.Flags().BoolVar(&cfgRefresh, "refresh", false, "Re-discover the CLI even if it is cached, and update the cache")
 	rootCmd.PersistentFlags().IntVar(&cfgJobs, "jobs", 0, "Max concurrent help processes during discovery (0 = auto: 2 x CPUs, between 4 and 16)")
 	rootCmd.PersistentFlags().IntVar(&cfgExpandStubs, "expand-stubs", 0, "Expand undiscovered (stub, marked (…)) nodes N levels deep before output: gets their descriptions and children (slow on huge CLIs; disables cache)")
-	rootCmd.PersistentFlags().IntVar(&cfgTimeout, "timeout", 30, "Discovery timeout in seconds")
+	rootCmd.PersistentFlags().IntVar(&cfgTimeout, "timeout", 30, "Discovery timeout in seconds (0 = no limit; each help command still has its own limit)")
 	rootCmd.PersistentFlags().BoolVar(&cfgDebug, "debug", false, "Enable debug logging")
 	rootCmd.PersistentFlags().StringVar(&cfgIcons, "icons", "", "Icon preset: unicode (default), ascii, nerd")
 	rootCmd.PersistentFlags().IntVar(&cfgLineLength, "line-length", 0, "Max description chars before truncation (default 80)")
@@ -141,6 +141,9 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	if err := checkOutputFormat(cfgOutput); err != nil {
 		return err
 	}
+	if err := checkTimeout(cfgTimeout); err != nil {
+		return err
+	}
 	configureDiscovery()
 
 	// Fail early with a clear message if the binary cannot be found.
@@ -156,7 +159,7 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	}
 	applyPresetDepth(cmd, cfg, preset)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfgTimeout)*time.Second)
+	ctx, cancel := discoveryContext(cfgTimeout)
 	defer cancel()
 
 	rc := openRunCache(cfg, cliName, strategies, cacheKeyExtra(cfg, preset))
@@ -190,6 +193,15 @@ func runRoot(cmd *cobra.Command, args []string) error {
 
 	rc.put(node, versionCh)
 	return output(cmd, node, cfg, rc.saver())
+}
+
+// discoveryContext bounds a run by --timeout seconds. Zero means no overall
+// limit; each help command is still bounded by its own timeout.
+func discoveryContext(seconds int) (context.Context, context.CancelFunc) {
+	if seconds == 0 {
+		return context.WithCancel(context.Background())
+	}
+	return context.WithTimeout(context.Background(), time.Duration(seconds)*time.Second)
 }
 
 // setupLogging sends logs to stderr at warn level, or debug with --debug.
@@ -521,7 +533,7 @@ func NewRootCmd() *cobra.Command {
 	c.PersistentFlags().StringVar(&cfgOutput, "output", "text", "Output format")
 	c.PersistentFlags().BoolVar(&cfgNoColor, "no-color", false, "Disable color")
 	c.PersistentFlags().BoolVar(&cfgNoCache, "no-cache", false, "Disable cache")
-	c.PersistentFlags().IntVar(&cfgTimeout, "timeout", 5, "Discovery timeout")
+	c.PersistentFlags().IntVar(&cfgTimeout, "timeout", 5, "Discovery timeout in seconds (0 = no limit)")
 	c.PersistentFlags().BoolVar(&cfgDebug, "debug", false, "Debug logging")
 	c.PersistentFlags().StringVar(&cfgIcons, "icons", "", "Icon preset")
 	c.PersistentFlags().IntVar(&cfgLineLength, "line-length", 0, "Max description line length")

@@ -106,3 +106,11 @@ func checkOutputFormat(format string) error {
 	}
 	return newUsageError("Choose one of: text, json or yaml.", "unknown output format: %s", format)
 }
+
+// checkTimeout rejects a negative --timeout. Zero is valid: it means no limit.
+func checkTimeout(seconds int) error {
+	if seconds < 0 {
+		return newUsageError("Pass a number of seconds, or 0 for no limit.", "invalid --timeout %d: it cannot be negative", seconds)
+	}
+	return nil
+}

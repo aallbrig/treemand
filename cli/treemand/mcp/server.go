@@ -48,7 +48,8 @@ type Server struct {
 	Name, Version string
 	Discover      Discoverer
 	Expand        Expander
-	// Timeout bounds each tool call; zero means 30 seconds.
+	// Timeout bounds each tool call; zero means 30 seconds and a negative
+	// value means no limit.
 	Timeout time.Duration
 }
 
@@ -198,8 +199,11 @@ func (s *Server) callTool(ctx context.Context, params json.RawMessage) (*toolRes
 	if len(p.Arguments) == 0 || string(p.Arguments) == "null" {
 		p.Arguments = json.RawMessage("{}")
 	}
+	if s.Timeout < 0 {
+		return tool(s, ctx, p.Arguments), nil
+	}
 	timeout := s.Timeout
-	if timeout <= 0 {
+	if timeout == 0 {
 		timeout = 30 * time.Second
 	}
 	cctx, cancel := context.WithTimeout(ctx, timeout)
