@@ -11,6 +11,7 @@ weight: 4
 ```
 treemand <cli> [flags]
 treemand version
+treemand schema
 treemand cache [clear|list]
 ```
 
@@ -46,6 +47,16 @@ treemand version
 # treemand v0.3.0 (abc1234) built 2026-01-01
 ```
 
+### `schema`
+
+Print the JSON Schema that `--output=json` and `--output=yaml` follow (see
+[JSON / YAML Schema](#json--yaml-schema)).
+
+```bash
+treemand schema | jq '.["$defs"] | keys'
+# ["flag", "node", "positional"]
+```
+
 ### `cache`
 
 Manage the discovery cache (`~/.treemand/cache.db`).
@@ -70,32 +81,58 @@ treemand --output=yaml git       # full tree as YAML (same structure)
 
 ### JSON / YAML Schema
 
-Both JSON and YAML output share the same structure:
+JSON and YAML output share one structure, described by a versioned
+[JSON Schema](/schema/tree.v1.json) (draft 2020-12). Print it with:
+
+```bash
+treemand schema > tree.schema.json
+```
+
+A trimmed example:
 
 ```json
 {
+  "schema_version": 1,
   "name": "git",
+  "full_path": ["git"],
   "description": "the stupid content tracker",
   "flags": [
     {"name": "--version", "value_type": "bool", "description": "Print version"}
   ],
-  "positionals": [],
   "children": [
     {
       "name": "commit",
+      "full_path": ["git", "commit"],
       "description": "Record changes to the repository",
       "flags": [
-        {"name": "--message", "value_type": "string", "description": "Commit message"},
-        {"name": "--all", "value_type": "bool", "description": "Stage modified files"}
+        {"name": "--message", "short_name": "-m", "value_type": "string", "description": "Commit message"}
       ],
       "positionals": [
         {"name": "pathspec", "required": false}
       ],
-      "children": []
+      "discovered": true
     }
-  ]
+  ],
+  "discovered": true
 }
 ```
+
+Every node has `name`, `full_path` and `discovered`; every flag has `name`;
+every positional has `name` and `required`. Other properties are omitted when
+empty or false. `schema_version` appears on the root only.
+
+### Compatibility promise
+
+- `schema_version` names the schema the output follows. It is `1` today.
+- Within a version, output only **gains optional properties**. Nothing is
+  removed, renamed or retyped, and a property that is always present stays
+  always present.
+- Anything else is a new version with a new schema file
+  (`tree.v2.json`), announced in the release notes. Old schema files stay
+  published.
+- Consumers should ignore properties they do not recognise.
+- CI enforces this: every corpus CLI's output is validated against the schema,
+  and a test fails when a version-1 property changes without a version bump.
 
 Pipe JSON to `jq` for extraction:
 

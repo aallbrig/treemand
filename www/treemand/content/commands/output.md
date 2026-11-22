@@ -21,26 +21,15 @@ treemand --output=text git          # default colored text tree
 
 ## JSON schema
 
-```json
-{
-  "name": "git",
-  "description": "the stupid content tracker",
-  "flags": [
-    {"name": "--version", "value_type": "bool", "description": "Print version"}
-  ],
-  "positionals": [],
-  "children": [
-    {
-      "name": "commit",
-      "description": "Record changes to the repository",
-      "flags": [
-        {"name": "--message", "short_name": "m", "value_type": "string"}
-      ],
-      "positionals": [],
-      "children": []
-    }
-  ]
-}
+The output follows a versioned JSON Schema, published at
+[/schema/tree.v1.json](/schema/tree.v1.json) and printed by `treemand schema`.
+The root carries `"schema_version": 1`; within a version the output only gains
+optional properties. See the [reference](/reference/#json--yaml-schema) for an
+example and the full compatibility promise.
+
+```bash
+treemand schema > tree.schema.json
+treemand --output=json git > git.json && check-jsonschema --schemafile tree.schema.json git.json
 ```
 
 ## Scripting with jq
