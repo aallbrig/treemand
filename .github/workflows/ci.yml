@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Test & Lint
@@ -15,10 +18,10 @@ jobs:
         working-directory: cli/treemand
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: cli/treemand/go.mod
           cache-dependency-path: cli/treemand/go.sum
@@ -39,7 +42,7 @@ jobs:
         run: go vet ./...
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8.0.0
         with:
           version: latest
           # The prebuilt binary is compiled with an older Go than go.mod targets;
@@ -69,7 +72,7 @@ jobs:
           if [ -n "$dirty" ]; then echo "tests changed the tree:"; echo "$dirty"; exit 1; fi
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4.6.0
         with:
           file: cli/treemand/coverage.out
           fail_ci_if_error: false
@@ -84,9 +87,9 @@ jobs:
     name: Go tests on macOS
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: cli/treemand/go.mod
           cache-dependency-path: cli/treemand/go.sum
@@ -101,16 +104,16 @@ jobs:
     name: Task ci (all gates)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0 # secrets:history scans every commit
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: cli/treemand/go.mod
           cache-dependency-path: cli/treemand/go.sum
 
-      - uses: arduino/setup-task@v2
+      - uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611 # v2.0.0
         with:
           version: 3.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -129,7 +132,7 @@ jobs:
           pipx install ruff==0.17.6
           pipx install mypy==2.4.1
 
-      - uses: peaceiris/actions-hugo@v3
+      - uses: peaceiris/actions-hugo@d1c81a15d4e6dca7086a17b9c2565cb70fd576bf # v3.3.0
         with:
           hugo-version: "0.157.0"
           extended: true
@@ -141,10 +144,10 @@ jobs:
     name: Measurement gate (ratchets)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0 # the complexity probe reads git churn
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: cli/treemand/go.mod
           cache-dependency-path: cli/treemand/go.sum
@@ -180,8 +183,8 @@ jobs:
       run:
         working-directory: cli/treemand
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version-file: cli/treemand/go.mod
       - name: Build ${{ matrix.goos }}/${{ matrix.goarch }}
@@ -242,7 +245,7 @@ jobs:
           - image: alpine:3
             prep: apk add --no-cache curl ca-certificates
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Install the latest release from treemand.dev, then an old one from GitHub
         run: |
           docker run --rm -v "$PWD/www/treemand/static/install.sh:/install.sh:ro" ${{ matrix.image }} sh -c '
@@ -261,7 +264,7 @@ jobs:
     name: install.sh on macOS
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Install the latest release
         run: |
           sh www/treemand/static/install.sh
