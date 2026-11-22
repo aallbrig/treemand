@@ -7,7 +7,7 @@ everything downstream of the release keeps working unchanged.
 
 `release.yml`'s build job used to build, archive, checksum and sign in a shell
 script. GoReleaser v2.19.0 now does that, driven by `cli/treemand/.goreleaser.yaml`,
-and also creates the GitHub Release. Everything around it stays as it was: Auto
+and also creates the GitHub Release as a draft, which `release.yml` publishes after the signature verifies. Everything around it stays as it was: Auto
 Release still plans and tags from `release:*` labels, `dispatch.sh` still starts
 the `Build & Release` job, the signature check after signing is the same step,
 and the Homebrew, mirror and site jobs, the package-manager publish and the
@@ -38,8 +38,10 @@ layout, and `scripts/release/snapshot_test.sh` checks all of them in CI on every
 |---|---|
 | An asset name or layout drifts and breaks installs | The contract test fails the PR. |
 | An SBOM line in `checksums.txt` gives the `grep` consumers two hashes | `checksum.ids` keeps SBOMs out of `checksums.txt`. The contract test requires exactly one line per archive. |
-| The signing identity changes | GoReleaser runs inside `release.yml`, so the certificate still names it. Signing was checked locally with a stand-in `cosign` (same arguments as before). The existing verify step fails the release before any user downloads it. |
-| The man page loses its version | A `before` hook runs `gendocs` with the tag, as the old script did. |
+| The signing identity changes | GoReleaser runs inside `release.yml`, so the certificate still names it. Signing was checked locally with a stand-in `cosign` (same arguments as before). GoReleaser creates the release as a draft. `release.yml` publishes it only after the existing verify step passes, so no user sees an unverifiable release. |
+| A re-run after a partial upload | `use_existing_draft` and `replace_existing_artifacts` let GoReleaser reuse the draft and overwrite its assets, as `action-gh-release` did. |
+| Tests leave files behind and GoReleaser refuses the dirty tree | CI's test job fails when the tests change the tree. |
+| The man page loses its version | A `before` hook runs `gendocs` with the same version, commit and date ldflags as the binaries. |
 | A broken first release | Auto Release's smoke test and `scripts/loop/rollback.sh`, as for any release. |
 | Third-party tool supply chain | GoReleaser, syft and both actions are pinned (actions by commit SHA). |
 

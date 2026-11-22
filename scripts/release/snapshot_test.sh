@@ -72,12 +72,16 @@ for ext in deb rpm apk; do
   [ "$n" -eq 2 ] && pass "two .$ext packages" || fail "found $n .$ext packages, want 2"
 done
 
-# A package installs the binary as plain treemand plus the man page.
+# A package installs the binary as plain treemand plus the man page
+# (read with ar and tar, so it runs on macOS too).
 deb="$(ls "$dist"/treemand_*_amd64.deb 2>/dev/null | head -n 1)"
-if [ -n "$deb" ] && command -v dpkg-deb >/dev/null 2>&1; then
-  files="$(dpkg-deb -c "$deb")"
+if [ -n "$deb" ]; then
+  tmp="$(mktemp -d)"
+  (cd "$tmp" && ar x "$deb")
+  files="$(tar tf "$tmp"/data.tar.* 2>/dev/null || true)"
+  rm -rf "$tmp"
   for f in ./usr/bin/treemand ./usr/share/man/man1/treemand.1; do
-    echo "$files" | grep -q " $f\$" && pass "$(basename "$deb") installs $f" ||
+    echo "$files" | grep -qx "$f" && pass "$(basename "$deb") installs $f" ||
       fail "$(basename "$deb") does not install $f"
   done
 fi

@@ -60,6 +60,14 @@ jobs:
         working-directory: .
         run: sh scripts/check_coverage.sh
 
+      # GoReleaser refuses to release from a dirty tree, and release.yml runs
+      # the tests right before it: tests must not leave files behind.
+      - name: Tests leave the tree clean
+        working-directory: .
+        run: |
+          dirty="$(git status --porcelain)"
+          if [ -n "$dirty" ]; then echo "tests changed the tree:"; echo "$dirty"; exit 1; fi
+
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         with:

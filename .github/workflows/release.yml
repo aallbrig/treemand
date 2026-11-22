@@ -54,7 +54,7 @@ jobs:
           cosign-release: v3.1.4
 
       # Builds, archives, Linux packages, SBOMs, checksums.txt, its keyless
-      # signature and the GitHub Release: cli/treemand/.goreleaser.yaml.
+      # signature and a draft GitHub Release: cli/treemand/.goreleaser.yaml.
       - name: Build, sign and publish with GoReleaser
         uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
         with:
@@ -73,6 +73,12 @@ jobs:
             --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
             dist/checksums.txt
+
+      # GoReleaser leaves the release as a draft; publish it once verified.
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --latest
 
   update-homebrew:
     name: Update Homebrew Tap
