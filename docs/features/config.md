@@ -4,7 +4,7 @@ The `treemand config` command manages treemand's YAML configuration file.
 
 ## Design decisions
 
-See [ADR: Config Subcommand Design](../design/20260512_002317_UTC_adr_config_subcommand_design.md)
+See [ADR: Config Subcommand Design](../adr/0003-config-subcommand-design.md)
 for the rationale behind the subcommand-based interface and Go-based schema
 validation.
 

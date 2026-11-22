@@ -2,7 +2,8 @@
 
 > Human-owned, like the vision. The dev loop scores screenshots and TUI captures
 > from `task visual:check` against this rubric and treats a failing score as a
-> merge blocker for UI-facing changes. Draft: correct it.
+> merge blocker for UI-facing changes. Owned by the maintainer; the loop may
+> propose changes (`loop:proposed`) but never edits it.
 
 Score each item pass / fail with a one-line reason. Any fail blocks the merge
 unless the change is the fix for that failure.
