@@ -18,7 +18,7 @@ Probe: run `treemand` bare, `--help`, bad input, nonexistent CLI, `| cat` (non-T
 NO_COLOR are honoured, completions install in one documented step.
 
 ## 3. TUI experience
-Measured: `task measure -- tui` and `tui-layout` (treemand-tui-responsiveness, treemand-tui-layout).
+Measured: `task measure -- tui`, `tui-layout` and `tui-keymap` (treemand-tui-responsiveness, treemand-tui-layout, treemand-tui-keymap).
 Probe: `task visual:check` and drive `-i` through tmux (`send-keys`, `capture-pane`) at
 80x24, 120x40 and 200x50 on a 500-node CLI (aws) and a small one. Try search, expand all,
 resize, mouse, value entry, copy/run. Score against the newest `docs/design/*_design_rubric.md`.

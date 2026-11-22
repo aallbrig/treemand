@@ -28,6 +28,14 @@
     "truncated_hints.*": {"budget": {"max": 0},  "ratchet": "lower"},
     "blank_pct.*":       {"budget": {"max": 30}, "ratchet": "lower", "min_delta": 5}
   },
+  "tui-keymap": {
+    "conflicts":                       {"budget": {"max": 0}, "ratchet": "lower"},
+    "unreachable_bindings":            {"budget": {"max": 0}, "ratchet": "lower"},
+    "undocumented_bindings.overlay":   {"budget": {"max": 0}, "ratchet": "lower"},
+    "undocumented_bindings.reference": {"budget": {"max": 0}, "ratchet": "lower"},
+    "undocumented_bindings.dialogs":   {"ratchet": "lower"},
+    "documented_unbound.*":            {"budget": {"max": 0}, "ratchet": "lower"}
+  },
   "infra-security": {
     "actions_unpinned":                    {"ratchet": "lower"},
     "workflows_without_permissions":       {"ratchet": "lower"},
