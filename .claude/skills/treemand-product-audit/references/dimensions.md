@@ -52,7 +52,7 @@ issue/PR hygiene.
 3 = matches the checklist of a well-regarded Go CLI (compare with peers in landscape.md).
 
 ## 8. Test adequacy
-Measured: `task measure -- complexity` for where tests matter most (treemand-code-complexity), and `task measure -- fuzz` for parser crashers (treemand-fuzz-campaign).
+Measured: `task measure -- test-effectiveness` (treemand-test-effectiveness): mutation score of the core packages, coverage per package, flaky tests; `task measure -- complexity` for where tests matter most (treemand-code-complexity); and `task measure -- fuzz` for parser crashers (treemand-fuzz-campaign).
 Probe: `cd cli/treemand && go test -cover ./...`; find untested exported functions in
 parsers; check for fuzz tests, golden tests per corpus CLI, an end-to-end test of the built
 binary against hermetic fake CLIs, race and flake runs, coverage enforced in `task ci`.
