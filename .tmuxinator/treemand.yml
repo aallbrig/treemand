@@ -1,7 +1,8 @@
 # yaml-language-server: $schema=https://json.schemastore.org/tmuxinator.json
-# The treemand_dev session. The loops window holds only a dev shell: the agent
-# pane is created by `task loop:start` (scripts/loop/loopctl.sh) and closes when
-# the loop stops.
+# The treemand_dev session. The loops window holds a dev shell: the agent pane is
+# created by `task loop:start` (scripts/loop/loopctl.sh) and closes when the loop
+# stops. When the session starts (e.g. at login) `task loop:resume` brings the
+# agent pane back only if the loop is enabled (.loop/ENABLED in its home worktree).
 name: <%= ENV["TREEMAND_SESSION"] || "treemand_dev" %>
 root: <%= ENV["TREEMAND_ROOT"] || Dir.pwd %>
 enable_pane_titles: true
@@ -49,4 +50,5 @@ windows:
   - loops:
       panes:
         - dev:
+            - task loop:resume
             - task loop:status
