@@ -96,7 +96,7 @@ func TestCorpus_matchesGroundTruth(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		p := discovery.ParseHelpOutputFor(discovery.SanitizeHelp(string(b)), cli)
+		p := discovery.ParseHelpOutputFor(discovery.SanitizeHelp(string(b)), corpusCLIName(cli))
 		misses := e.misses(p)
 		switch {
 		case len(misses) > 0 && len(e.Gaps) > 0:

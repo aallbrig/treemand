@@ -12,6 +12,8 @@ Discovery executes the user's tools with arguments. A stray argument is an actio
 - **Prefer the zoo**: `task zoo:smoke` and `task zoo:capture` run inside the disposable `test/cli-zoo` container. Use it for any sweep across many CLIs.
 - **On the host, from an empty directory** made with `mktemp -d`, never the repo, with `TREEMAND_CACHE_DIR` pointed at a throwaway directory too. `scripts/loop/perf.py` and `scripts/capture_corpus.sh` already do this; a new script must as well.
 
+- **macOS**: `launchctl`, `defaults`, `diskutil` and `security` take an unknown argument as the target of an action (`defaults delete help`, `launchctl bootout ...`); never run full discovery of them on a real machine. BSD tools answer `--help` with an error, and discovery then sends `help` as an argument (#273: `mkdir` creates `./help`).
+
 ## Comparing against main
 
 `task ab -- <cli>...` (`--base REF` to compare another ref) builds origin/main's treemand and the working tree's, runs full discovery of each CLI from an empty scratch directory, and compares the trees: nodes, flags and descriptions gained or lost. It also audits this machine before and after (git branches and status, Docker context, builders, volumes, networks, the scratch directory) and **fails on any side effect**. If it fails, restore what the run created before anything else (timestamps show what is yours).

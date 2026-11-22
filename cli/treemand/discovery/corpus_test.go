@@ -39,6 +39,13 @@ func looksLikeSynopsis(desc string) bool {
 	return strings.HasPrefix(desc, "[") || strings.HasPrefix(l, "usage") || strings.Contains(desc, "[--") || strings.Contains(desc, "[-")
 }
 
+// corpusCLIName is the CLI a fixture stem names: the part before a variant
+// ("tar@bsd" is tar's BSD help).
+func corpusCLIName(stem string) string {
+	name, _, _ := strings.Cut(stem, "@")
+	return name
+}
+
 func corpusFixtures(t *testing.T) []string {
 	t.Helper()
 	files, err := filepath.Glob(corpusDir + "/*.txt")
@@ -61,7 +68,7 @@ func measureCorpus(t *testing.T) map[string]corpusMetrics {
 		if err != nil {
 			t.Fatal(err)
 		}
-		p := discovery.ParseHelpOutputFor(discovery.SanitizeHelp(string(b)), cli)
+		p := discovery.ParseHelpOutputFor(discovery.SanitizeHelp(string(b)), corpusCLIName(cli))
 		got[cli] = corpusMetrics{
 			Subcommands:           len(p.Subcommands),
 			Flags:                 len(p.Flags),
@@ -163,6 +170,17 @@ func TestCorpus_parsingIsDeterministic(t *testing.T) {
 			if again[cli] != m {
 				t.Fatalf("%s parsed differently on repeat %d: %+v then %+v", cli, i, m, again[cli])
 			}
+		}
+	}
+}
+
+// A fixture may carry a variant after "@" (tar@bsd.txt): one tool's GNU and
+// BSD help are different texts, and both belong in the corpus. The variant
+// names the fixture; the parser sees the CLI's own name.
+func TestCorpus_variantFixtureIsParsedAsItsCLI(t *testing.T) {
+	for stem, want := range map[string]string{"tar@bsd": "tar", "tar": "tar", "pre-commit": "pre-commit"} {
+		if got := corpusCLIName(stem); got != want {
+			t.Errorf("corpusCLIName(%q) = %q, want %q", stem, got, want)
 		}
 	}
 }

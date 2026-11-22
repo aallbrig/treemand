@@ -40,7 +40,10 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-		p := discovery.ParseHelpOutputFor(discovery.SanitizeHelp(string(b)), cli)
+		// A fixture may name a variant after "@" (tar@bsd); the parser
+		// sees the CLI's own name.
+		name, _, _ := strings.Cut(cli, "@")
+		p := discovery.ParseHelpOutputFor(discovery.SanitizeHelp(string(b)), name)
 		fmt.Printf("%s\tdesc\t%s\n", cli, p.Description)
 		for _, s := range p.Subcommands {
 			fmt.Printf("%s\tsub\t%s\n", cli, s)

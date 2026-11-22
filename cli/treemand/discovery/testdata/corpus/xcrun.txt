@@ -1,0 +1,25 @@
+Usage: xcrun [options] <tool name> ... arguments ...
+
+Find and execute the named command line tool from the active developer
+directory.
+
+The active developer directory can be set using `xcode-select`, or via the
+DEVELOPER_DIR environment variable. See the xcrun and xcode-select manual
+pages for more information.
+
+Options:
+  -h, --help                  show this help message and exit
+  --version                   show the xcrun version
+  -v, --verbose               show verbose logging output
+  --sdk <sdk name>            find the tool for the given SDK name
+  --toolchain <name>          find the tool for the given toolchain
+  -l, --log                   show commands to be executed (with --run)
+  -f, --find                  only find and print the tool path
+  -r, --run                   find and execute the tool (the default behavior)
+  -n, --no-cache              do not use the lookup cache
+  -k, --kill-cache            invalidate all existing cache entries
+  --show-sdk-path             show selected SDK install path
+  --show-sdk-version          show selected SDK version
+  --show-sdk-build-version    show selected SDK build version
+  --show-sdk-platform-path    show selected SDK platform path
+  --show-sdk-platform-version show selected SDK platform version

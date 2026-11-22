@@ -210,6 +210,8 @@ Covered, by help-text family:
 - **Hand-written C and odd shapes**: `git`, `openssl`, `ffmpeg`, `ip`, `tmux`, `systemctl`,
   `journalctl`, `ssh`, `jq`, `make`, `cmake`, `apt`
 - **Multi-call binaries**: `busybox`
+- **macOS**: `brew`, `xcrun`, `networksetup`, and the BSD tools `tar@bsd`, `ls@bsd`, `sed@bsd`,
+  `find@bsd` (a name after `@` is a variant: the same tool's other help text)
 
 CLIs this machine may not have (terraform, promtool, the clap, click, cleo, yargs, oclif and thor
 tools, Maven) come from the `cli-zoo` container (`test/cli-zoo/`): `task zoo:smoke` runs full discovery
