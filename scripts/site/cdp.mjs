@@ -13,11 +13,11 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-export async function launchChrome(binary, profilePrefix = "cdp-") {
+export async function launchChrome(binary, profilePrefix = "cdp-", extraArgs = []) {
   const profile = mkdtempSync(join(tmpdir(), profilePrefix));
   const chrome = spawn(binary, [
     "--headless=new", "--no-sandbox", "--disable-gpu", "--remote-debugging-port=0",
-    `--user-data-dir=${profile}`, "about:blank",
+    `--user-data-dir=${profile}`, ...extraArgs, "about:blank",
   ], { stdio: ["ignore", "ignore", "pipe"] });
   // Chrome keeps writing into its profile until it has exited, so deleting the
   // directory right after kill() races with it (ENOTEMPTY). Wait for the exit,

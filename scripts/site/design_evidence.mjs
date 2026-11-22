@@ -64,7 +64,12 @@ function readPeers(file) {
     .filter((p) => p.site && p.page && /^https?:/.test(p.url || ""));
 }
 
-const chrome = await launchChrome(CHROME, "design-evidence-");
+// Desktop views render as a mouse user sees them wherever Chrome runs: a
+// headless CI runner otherwise reports (hover: none). Mobile views switch to
+// touch with Emulation.setTouchEmulationEnabled (2 = hover, 4 = fine pointer).
+const chrome = await launchChrome(CHROME, "design-evidence-", [
+  "--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4",
+]);
 
 async function capture(site, page, url, maxTiles) {
   const dir = join(OUT, site);
