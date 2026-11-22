@@ -61,6 +61,12 @@ def cfg_int(key: str) -> int:
     return int(CFG[key])
 
 
+def cap_label(key: str) -> str:
+    """Render a daily cap for status output; 0 or less means no cap."""
+    cap = cfg_int(key)
+    return str(cap) if cap > 0 else "no cap"
+
+
 def today() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%d")
 
@@ -102,8 +108,8 @@ def cmd_summary(state: State) -> int:
     d = day(state)
     print(f"cycle: {state['cycle']}  last outcome: {state['last_outcome'] or '-'}")
     print(
-        f"today: {d['cycles']}/{cfg_int('LOOP_MAX_CYCLES_PER_DAY')} cycles, "
-        f"{d['releases']}/{cfg_int('LOOP_MAX_RELEASES_PER_DAY')} releases"
+        f"today: {d['cycles']}/{cap_label('LOOP_MAX_CYCLES_PER_DAY')} cycles, "
+        f"{d['releases']}/{cap_label('LOOP_MAX_RELEASES_PER_DAY')} releases"
     )
     print(
         f"failure streak: {state['failure_streak']} "
@@ -115,10 +121,13 @@ def cmd_summary(state: State) -> int:
 
 
 def budget_hit(state: State) -> str:
+    """Return why a daily cap is reached, or "". A cap of 0 or less is off."""
     d = day(state)
-    if d["cycles"] >= cfg_int("LOOP_MAX_CYCLES_PER_DAY"):
+    cycles_cap = cfg_int("LOOP_MAX_CYCLES_PER_DAY")
+    if cycles_cap > 0 and d["cycles"] >= cycles_cap:
         return f"daily cycle cap reached ({d['cycles']})"
-    if d["releases"] >= cfg_int("LOOP_MAX_RELEASES_PER_DAY"):
+    releases_cap = cfg_int("LOOP_MAX_RELEASES_PER_DAY")
+    if releases_cap > 0 and d["releases"] >= releases_cap:
         return f"daily release cap reached ({d['releases']})"
     return ""
 

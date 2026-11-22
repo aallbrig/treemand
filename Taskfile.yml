@@ -390,6 +390,7 @@ tasks:
     cmds:
       - task: shell:check
       - python3 -I scripts/loop/state.py summary >/dev/null
+      - python3 -I scripts/loop/state_caps_test.py
       - bash scripts/loop/guard_test.sh
       - dash scripts/loop/hooks/hooks_test.sh
       - test -f .claude/skills/treemand-loop/SKILL.md
