@@ -117,3 +117,6 @@ A versioned JSON Schema (`treemand schema`, served at treemand.dev/schema/tree.v
 
 ### Cycle 38 - 2026-11-22 - released - #214 (open) v0.9.7
 `renderFlagModal` went from cognitive 54 to under 15; `functions_over_30` 3 to 2. A golden file that records each rendered line with %q under a forced TrueColor profile pins styling as well as layout, so a renderer refactor can be checked byte for byte. The loop guard blocks writes to the scratchpad, so put new code straight into a package file. The `fuzz:smoke` gate counted the #338 crasher twice on one run; a re-run counted it once and passed.
+
+### Cycle 39 - 2026-11-22 - released - #214 (open) v0.9.8
+`renderNode` went from cognitive 49 to under 15; `functions_over_30` 2 to 1. Label the PR `release:patch` when you open it: #363 merged without the label, so Auto Release planned `none`; adding the label after the merge and dispatching `auto-release.yml` cut the release, because `plan.sh` counts every PR merged since the last tag. Run `check_note.sh` with the body on stdin, not as an argument.

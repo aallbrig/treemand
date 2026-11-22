@@ -314,63 +314,83 @@ func (h *HelpPaneModel) rebuildNodeLines() {
 		h.lines = nil
 		return
 	}
-
 	var sb strings.Builder
-
 	if h.node.Description != "" {
 		sb.WriteString(h.node.Description + "\n\n")
 	}
-
-	if len(h.node.Flags) > 0 {
-		sb.WriteString("Flags:\n")
-		for _, f := range h.node.Flags {
-			name := f.Name
-			if f.ShortName != "" && !strings.HasPrefix(f.ShortName, "-") {
-				name += ", -" + f.ShortName
-			} else if f.ShortName != "" {
-				name += ", " + f.ShortName
-			}
-			if f.ValueType != "" && f.ValueType != "bool" {
-				name += " <" + f.ValueType + ">"
-			}
-			line := "  " + name
-			if f.Description != "" {
-				line += "\n      " + f.Description
-			}
-			sb.WriteString(line + "\n")
-		}
-		sb.WriteString("\n")
-	}
-
-	if len(h.node.Positionals) > 0 {
-		sb.WriteString("Positionals:\n")
-		for _, p := range h.node.Positionals {
-			if p.Required {
-				sb.WriteString("  <" + p.Name + ">\n")
-			} else {
-				sb.WriteString("  [" + p.Name + "]\n")
-			}
-		}
-		sb.WriteString("\n")
-	}
-
-	if len(h.node.Children) > 0 {
-		sb.WriteString("Subcommands:\n")
-		for _, child := range h.node.Children {
-			line := "  " + child.Name
-			if child.Description != "" {
-				line += "  " + child.Description
-			}
-			sb.WriteString(line + "\n")
-		}
-		sb.WriteString("\n")
-	}
-
+	writeHelpFlags(&sb, h.node.Flags)
+	writeHelpPositionals(&sb, h.node.Positionals)
+	writeHelpSubcommands(&sb, h.node.Children)
 	if h.node.HelpText != "" {
 		sb.WriteString("Raw help:\n")
 		sb.WriteString(h.node.HelpText)
 	}
+	h.lines = strings.Split(strings.TrimRight(sb.String(), "\n"), "\n")
+}
 
-	raw := sb.String()
-	h.lines = strings.Split(strings.TrimRight(raw, "\n"), "\n")
+// writeHelpFlags writes the node view's Flags section, one label per flag
+// with its description indented on the next line.
+func writeHelpFlags(sb *strings.Builder, flags []models.Flag) {
+	if len(flags) == 0 {
+		return
+	}
+	sb.WriteString("Flags:\n")
+	for _, f := range flags {
+		sb.WriteString("  " + helpFlagLabel(f) + "\n")
+		if f.Description != "" {
+			sb.WriteString("      " + f.Description + "\n")
+		}
+	}
+	sb.WriteString("\n")
+}
+
+// helpFlagLabel is a flag's name, its short name (dashed if it is not
+// already) and, for a non-bool value, its type in angle brackets.
+func helpFlagLabel(f models.Flag) string {
+	name := f.Name
+	switch {
+	case f.ShortName == "":
+	case strings.HasPrefix(f.ShortName, "-"):
+		name += ", " + f.ShortName
+	default:
+		name += ", -" + f.ShortName
+	}
+	if f.ValueType != "" && f.ValueType != "bool" {
+		name += " <" + f.ValueType + ">"
+	}
+	return name
+}
+
+// writeHelpPositionals writes the Positionals section: <name> when
+// required, [name] when optional.
+func writeHelpPositionals(sb *strings.Builder, positionals []models.Positional) {
+	if len(positionals) == 0 {
+		return
+	}
+	sb.WriteString("Positionals:\n")
+	for _, p := range positionals {
+		if p.Required {
+			sb.WriteString("  <" + p.Name + ">\n")
+		} else {
+			sb.WriteString("  [" + p.Name + "]\n")
+		}
+	}
+	sb.WriteString("\n")
+}
+
+// writeHelpSubcommands writes the Subcommands section, one child per line
+// with its description after two spaces.
+func writeHelpSubcommands(sb *strings.Builder, children []*models.Node) {
+	if len(children) == 0 {
+		return
+	}
+	sb.WriteString("Subcommands:\n")
+	for _, child := range children {
+		line := "  " + child.Name
+		if child.Description != "" {
+			line += "  " + child.Description
+		}
+		sb.WriteString(line + "\n")
+	}
+	sb.WriteString("\n")
 }
