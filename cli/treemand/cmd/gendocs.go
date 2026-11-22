@@ -93,6 +93,12 @@ func buildDocRoot() *cobra.Command {
 		DisableAutoGenTag: true,
 	})
 	root.AddCommand(&cobra.Command{
+		Use:               schemaCmd.Use,
+		Short:             schemaCmd.Short,
+		Long:              schemaCmd.Long,
+		DisableAutoGenTag: true,
+	})
+	root.AddCommand(&cobra.Command{
 		Use:               cacheCmd.Use,
 		Short:             cacheCmd.Short,
 		Long:              cacheCmd.Long,

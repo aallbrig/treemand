@@ -35,6 +35,7 @@ Machine-readable output for scripting, diffing, and tooling integration.
 ```bash
 treemand --output=json git | head -20
 treemand --output=yaml git | head -20
+treemand schema          # the versioned JSON Schema both formats follow
 ```
 
 ### 5. Icon Presets

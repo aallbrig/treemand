@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://treemand.dev/schema/tree.v1.json",
+  "title": "treemand command tree, version 1",
+  "description": "The tree `treemand --output=json` and `--output=yaml` print: the root command, its flags and positional arguments, and its subcommands, recursively. Consumers should ignore properties they do not know; version 1 only ever gains optional properties.",
+  "$ref": "#/$defs/node",
+  "$defs": {
+    "node": {
+      "type": "object",
+      "description": "A command or subcommand.",
+      "required": ["name", "full_path", "discovered"],
+      "properties": {
+        "schema_version": {
+          "type": "integer",
+          "const": 1,
+          "description": "Version of this schema. Present on the root node only."
+        },
+        "name": {
+          "type": "string",
+          "description": "The command's own name, e.g. \"add\"."
+        },
+        "full_path": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Every token from the root command to this one, e.g. [\"git\", \"remote\", \"add\"]."
+        },
+        "description": {
+          "type": "string",
+          "description": "One-line summary from the help text."
+        },
+        "flags": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/flag" },
+          "description": "Options this command accepts, including inherited ones."
+        },
+        "positionals": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/positional" },
+          "description": "Positional arguments, in order."
+        },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/node" },
+          "description": "Subcommands."
+        },
+        "help_text": {
+          "type": "string",
+          "description": "The raw help output the node was parsed from."
+        },
+        "discovered": {
+          "type": "boolean",
+          "description": "True when the command's help was run and parsed."
+        },
+        "discovery_err": {
+          "type": "string",
+          "description": "Why discovery of this command failed, e.g. a timeout. The rest of the tree is still valid."
+        },
+        "stub": {
+          "type": "boolean",
+          "description": "True for a subcommand that was listed but not discovered (too many siblings or beyond --depth)."
+        },
+        "virtual": {
+          "type": "boolean",
+          "description": "True for a display-only group of flags that is not a command token."
+        }
+      }
+    },
+    "flag": {
+      "type": "object",
+      "description": "A command-line option.",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The long form, e.g. \"--verbose\", or the only form the CLI offers."
+        },
+        "short_name": {
+          "type": "string",
+          "description": "The short alias, e.g. \"-v\"."
+        },
+        "value_type": {
+          "type": "string",
+          "description": "The value the flag takes: \"bool\" for none, otherwise a type or placeholder such as \"string\", \"int\" or \"FILE\"."
+        },
+        "description": {
+          "type": "string",
+          "description": "The flag's help text."
+        },
+        "required": {
+          "type": "boolean",
+          "description": "True when the help marks the flag as required."
+        },
+        "inherited": {
+          "type": "boolean",
+          "description": "True when an ancestor command defines the same flag (e.g. a global flag)."
+        }
+      }
+    },
+    "positional": {
+      "type": "object",
+      "description": "A positional argument.",
+      "required": ["name", "required"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The argument's placeholder, e.g. \"path\"."
+        },
+        "description": {
+          "type": "string",
+          "description": "The argument's help text."
+        },
+        "required": {
+          "type": "boolean",
+          "description": "True when the argument must be given."
+        },
+        "variadic": {
+          "type": "boolean",
+          "description": "True when the argument accepts several values (e.g. \"files...\")."
+        }
+      }
+    }
+  }
+}

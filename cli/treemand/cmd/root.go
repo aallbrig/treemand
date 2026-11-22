@@ -74,6 +74,7 @@ Output formats (--output):
   text          colored tree (default)
   json          machine-readable full tree with flags and descriptions
   yaml          YAML output (same structure as JSON)
+                (treemand schema prints the JSON Schema both follow)
 
 Examples:
   treemand git                        # full git tree
@@ -386,6 +387,7 @@ func Execute() {
 	rootCmd.Version = versionString()
 	rootCmd.SetVersionTemplate("{{.Version}}\n")
 	rootCmd.AddCommand(versionCmd)
+	rootCmd.AddCommand(schemaCmd)
 	rootCmd.AddCommand(cacheCmd)
 	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(genDocsCmd)
@@ -429,6 +431,7 @@ func NewRootCmd() *cobra.Command {
 	c.PersistentFlags().IntVar(&cfgJobs, "jobs", 0, "Max concurrent help processes")
 	c.PersistentFlags().IntVar(&cfgExpandStubs, "expand-stubs", 0, "Expand undiscovered (stub) nodes N levels deep before output")
 	c.AddCommand(versionCmd)
+	c.AddCommand(schemaCmd)
 	c.AddCommand(cacheCmd)
 	c.AddCommand(configCmd)
 	c.AddCommand(genDocsCmd)
