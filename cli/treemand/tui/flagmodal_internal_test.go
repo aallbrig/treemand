@@ -97,12 +97,19 @@ func TestRenderFlagModalGolden(t *testing.T) {
 		}
 	}
 
+	checkFlagModalGolden(t, b.String())
+}
+
+// checkFlagModalGolden compares got with testdata/flag_modal.golden, or
+// rewrites the golden when -update-flag-modal is set.
+func checkFlagModalGolden(t *testing.T, got string) {
+	t.Helper()
 	path := filepath.Join("testdata", "flag_modal.golden")
 	if *updateFlagModalGolden {
 		if err := os.MkdirAll("testdata", 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte(got), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -110,7 +117,7 @@ func TestRenderFlagModalGolden(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read golden (run with -update-flag-modal to create it): %v", err)
 	}
-	if got := b.String(); got != string(want) {
+	if got != string(want) {
 		gotLines, wantLines := strings.Split(got, "\n"), strings.Split(string(want), "\n")
 		for i := 0; i < len(gotLines) && i < len(wantLines); i++ {
 			if gotLines[i] != wantLines[i] {
