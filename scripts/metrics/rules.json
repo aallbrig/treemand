@@ -36,6 +36,12 @@
     "undocumented_bindings.dialogs":   {"ratchet": "lower"},
     "documented_unbound.*":            {"budget": {"max": 0}, "ratchet": "lower"}
   },
+  "tui-contrast": {
+    "pairs_below_4_5.*":             {"budget": {"max": 0}, "ratchet": "lower"},
+    "pairs_below_3.*":               {"budget": {"max": 0}, "ratchet": "lower"},
+    "no_color_env_coloured_states":  {"budget": {"max": 0}, "ratchet": "lower"},
+    "no_color_flag_coloured_states": {"budget": {"max": 0}, "ratchet": "lower"}
+  },
   "infra-security": {
     "actions_unpinned":                    {"ratchet": "lower"},
     "workflows_without_permissions":       {"ratchet": "lower"},

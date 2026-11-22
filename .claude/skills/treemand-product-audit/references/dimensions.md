@@ -18,7 +18,7 @@ Probe: run `treemand` bare, `--help`, bad input, nonexistent CLI, `| cat` (non-T
 NO_COLOR are honoured, completions install in one documented step.
 
 ## 3. TUI experience
-Measured: `task measure -- tui`, `tui-layout` and `tui-keymap` (treemand-tui-responsiveness, treemand-tui-layout, treemand-tui-keymap).
+Measured: `task measure -- tui`, `tui-layout`, `tui-keymap` and `tui-contrast` (treemand-tui-responsiveness, treemand-tui-layout, treemand-tui-keymap, treemand-tui-color-contrast).
 Judged: `task tui:ux` frames of real task flows, scored with treemand-tui-ux.
 Probe: `task visual:check` and drive `-i` through tmux (`send-keys`, `capture-pane`) at
 80x24, 120x40 and 200x50 on a 500-node CLI (aws) and a small one. Try search, expand all,

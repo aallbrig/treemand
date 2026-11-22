@@ -33,9 +33,9 @@ jobs:
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
           PATH="$(go env GOPATH)/bin:$PATH" python3 -I scripts/metrics/measure.py dependency-health --findings >dependency-health.json
-      - name: complexity, parser, tui, tui-layout, tui-keymap
+      - name: complexity, parser, tui, tui-layout, tui-keymap, tui-contrast
         run: |
-          for p in complexity parser tui tui-layout tui-keymap; do
+          for p in complexity parser tui tui-layout tui-keymap tui-contrast; do
             python3 -I scripts/metrics/measure.py "$p" --findings >"$p.json"
           done
       - uses: actions/upload-artifact@v4
