@@ -1,10 +1,10 @@
-# Lint and type-check settings for the repo's Python tooling (scripts/, infra/rules/).
+# Lint and type-check settings for the repo's Python tooling (scripts/, infra/rules/, infra/security_rules/).
 # Not a package: nothing here is built or installed. Run `task py:lint` and `task py:types`.
 
 [tool.ruff]
 target-version = "py312"
 line-length = 120
-include = ["scripts/**/*.py", "infra/rules/*.py"]
+include = ["scripts/**/*.py", "infra/rules/*.py", "infra/security_rules/*.py"]
 
 [tool.ruff.lint]
 select = ["ALL"]
@@ -23,7 +23,7 @@ ignore = [
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["scripts", "infra/rules"]
+files = ["scripts", "infra/rules", "infra/security_rules"]
 explicit_package_bases = true
 
 [[tool.mypy.overrides]]
