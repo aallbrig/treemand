@@ -19,6 +19,6 @@ jobs:
     name: Documented channels are current
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Check channels
         run: sh scripts/channels_check.sh
