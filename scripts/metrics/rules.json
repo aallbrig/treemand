@@ -28,6 +28,28 @@
     "truncated_hints.*": {"budget": {"max": 0},  "ratchet": "lower"},
     "blank_pct.*":       {"budget": {"max": 30}, "ratchet": "lower", "min_delta": 5}
   },
+  "infra-security": {
+    "actions_unpinned":                    {"ratchet": "lower"},
+    "workflows_without_permissions":       {"ratchet": "lower"},
+    "workflow_write_scopes_broad":         {"ratchet": "lower"},
+    "checkov_skipped":                     {"ratchet": "lower"},
+    "cfn_lint_findings":                   {"budget": {"max": 0}, "ratchet": "lower"},
+    "checkov_failed":                      {"budget": {"max": 0}, "ratchet": "lower"},
+    "s3_without_public_access_block":      {"budget": {"max": 0}, "ratchet": "lower"},
+    "cloudfront_without_security_headers": {"budget": {"max": 0}, "ratchet": "lower"},
+    "cloudfront_tls_below_1_2_2021":       {"budget": {"max": 0}, "ratchet": "lower"},
+    "iam_full_service_wildcards":          {"budget": {"max": 0}, "ratchet": "lower"},
+    "live_headers_missing":                {"budget": {"max": 0}, "ratchet": "lower"},
+    "live_headers_recommended_missing":    {"budget": {"max": 0}, "ratchet": "lower"},
+    "live_http_not_redirected":            {"budget": {"max": 0}, "ratchet": "lower"},
+    "live_legacy_tls_accepted":            {"budget": {"max": 0}, "ratchet": "lower"},
+    "live_cert_invalid":                   {"budget": {"max": 0}, "ratchet": "lower"},
+    "live_cert_days_left":                 {"budget": {"min": 21}},
+    "live_buckets_listable":               {"budget": {"max": 0}, "ratchet": "lower"},
+    "live_bucket_objects_public":          {"budget": {"max": 0}, "ratchet": "lower"},
+    "live_cf_tls_below_policy":            {"budget": {"max": 0}, "ratchet": "lower"},
+    "live_cf_without_headers_policy":      {"budget": {"max": 0}, "ratchet": "lower"}
+  },
   "parser": {
     "truth_pass_pct":    {"budget": {"min": 100}, "ratchet": "higher"},
     "unexpected_misses": {"budget": {"max": 0},   "ratchet": "lower"},

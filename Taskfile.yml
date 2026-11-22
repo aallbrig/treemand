@@ -89,6 +89,17 @@ tasks:
     cmds:
       - sh scripts/infra_lint.sh
 
+  infra:security:
+    desc: "Infra and supply-chain security posture through the measurement gate; PROBE_LIVE=1 AWS_PROFILE=treemand-readonly adds read-only live checks (skill treemand-infra-security)"
+    cmds:
+      - python3 -I scripts/metrics/measure.py infra-security --gate {{.CLI_ARGS}}
+
+  infra:security:test:
+    desc: Test the infra-security probe on fixture workflows and templates, and its live checks with fake network tools
+    cmds:
+      - shellcheck --shell=sh scripts/metrics/infra_security_test.sh scripts/metrics/probes/infra-security.sh
+      - sh scripts/metrics/infra_security_test.sh
+
   infra:bootstrap:
     desc: Deploy the bootstrap stack (admin credentials) and wire the GitHub production environment
     cmds:
@@ -470,6 +481,8 @@ tasks:
     cmds:
       - task: secrets:history
       - task: infra:lint
+      - task: infra:security:test
+      - task: infra:security
       - task: py:lint
       - task: py:types
       - task: gates:test
