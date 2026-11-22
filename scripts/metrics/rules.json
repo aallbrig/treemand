@@ -43,6 +43,11 @@
     "undocumented_bindings.dialogs":   {"ratchet": "lower"},
     "documented_unbound.*":            {"budget": {"max": 0}, "ratchet": "lower"}
   },
+  "fuzz": {
+    "crashers":                {"budget": {"max": 0}, "ratchet": "lower"},
+    "new_coverage_per_minute": {"host_bound": true},
+    "corpus_size":             {"host_bound": true}
+  },
   "tui-contrast": {
     "pairs_below_4_5.*":             {"budget": {"max": 0}, "ratchet": "lower"},
     "pairs_below_3.*":               {"budget": {"max": 0}, "ratchet": "lower"},
