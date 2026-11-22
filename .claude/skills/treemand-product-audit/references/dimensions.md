@@ -77,6 +77,7 @@ exit codes for scripts; feasibility notes for an MCP server or `treemand mcp`.
 Measured: `task measure -- perf` (treemand-perf-diagnose).
 Probe: `task perf:show` (trend across releases), `task perf` (now), `task chaos` (hostile CLIs;
 every line in `scripts/loop/chaos.xfail` is an open reliability bug), `task test-race`, odd locales.
+CI reliability: `task measure -- ci-health` (treemand-ci-health): success on main, flaky rate, CI duration.
 Add a new hostile case to `chaos.sh` for every failure mode you can imagine that is not covered.
 3 = cold < 10s for the largest corpus CLI, cached < 300ms, no hangs, no races.
 

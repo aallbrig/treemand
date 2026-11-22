@@ -551,6 +551,7 @@ tasks:
       - task: site:audit
       - task: site:health:test
       - task: site:quality:test
+      - task: ci:health:test
       - task: site:design:test
       - task: install:test
       - task: install:probe:test
@@ -613,6 +614,16 @@ tasks:
     desc: Test the site-quality probe against a fixture site and a stand-in Lighthouse; needs node and Chrome
     cmds:
       - dash scripts/metrics/site_quality_test.sh
+
+  ci:health:
+    desc: "GitHub Actions health from the Actions API: success on main per workflow, CI p50/p90 duration, flaky rate, slowest job, queue p90, startup failures (needs gh): task ci:health [-- --record]"
+    cmds:
+      - python3 -I scripts/metrics/measure.py ci-health {{.CLI_ARGS}}
+
+  ci:health:test:
+    desc: Test the ci-health probe against a fake gh serving a small Actions API world
+    cmds:
+      - dash scripts/metrics/ci_health_test.sh
 
   site:design:
     desc: "Screenshot every page (desktop + mobile, light + dark) and the peer sites' home and install pages into .loop/design/<date>/ for the treemand-site-product-design skill; production by default: task site:design [-- --dir www/treemand/public | --no-peers]"

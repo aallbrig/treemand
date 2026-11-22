@@ -1,4 +1,11 @@
 {
+  "ci-health": {
+    "success_pct.*":     {"budget": {"min": 90}, "ratchet": "higher", "min_delta": 5},
+    "success_pct.ci":    {"budget": {"min": 95}, "ratchet": "higher", "min_delta": 3},
+    "ci_duration_p50_s": {"ratchet": "lower", "tolerance": 0.2, "min_delta": 60},
+    "ci_duration_p90_s": {"ratchet": "lower", "tolerance": 0.2, "min_delta": 90},
+    "flaky_rate_pct":    {"ratchet": "lower", "min_delta": 1}
+  },
   "complexity": {
     "cognitive_max":        {"budget": {"max": 30}, "ratchet": "lower"},
     "cognitive_avg":        {"ratchet": "lower", "tolerance": 0.02},
