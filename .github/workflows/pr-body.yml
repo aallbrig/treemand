@@ -1,0 +1,26 @@
+name: PR Body
+
+# Every pull request carries a "## Release note" section (one user-facing
+# sentence, or "none"); Auto Release builds the release notes and the
+# treemand.dev changelog from it. Re-runs when the body is edited.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  release-note:
+    name: Release note
+    runs-on: ubuntu-latest
+    # Dependabot writes its own bodies; its PRs are listed under the hood.
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Check the release note
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: printf '%s\n' "$BODY" | sh scripts/release/check_note.sh
