@@ -30,7 +30,7 @@ Clients configured with JSON take the same command:
 
 ## Tools
 
-### `discover`
+### `discover` {#tool-discover}
 
 The command tree as JSON, following the schema `treemand schema` prints.
 
@@ -38,7 +38,7 @@ The command tree as JSON, following the schema `treemand schema` prints.
 - `depth`: levels of subcommands, 1 to 5 (default 2)
 - `include_help`: keep each command's raw help text (default false)
 
-### `search`
+### `search` {#tool-search}
 
 Commands, flags and positional arguments that match a query, best first, each
 with its full command path.
@@ -46,7 +46,7 @@ with its full command path.
 - `cli`, `query`
 - `limit`: most results (default 20)
 
-### `assemble`
+### `assemble` {#tool-assemble}
 
 A shell-quoted command line and its `argv`. The path must exist; a flag the
 help does not list is kept, with a warning.
