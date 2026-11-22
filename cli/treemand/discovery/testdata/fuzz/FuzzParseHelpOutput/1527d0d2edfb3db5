@@ -1,0 +1,2 @@
+go test fuzz v1
+string("COMMANDS\n   o a0\n   o a0\n0000000\n   o a0")

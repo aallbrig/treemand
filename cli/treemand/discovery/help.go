@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -1320,7 +1321,9 @@ func (p *helpParser) commandLine(l helpLine) {
 	}
 	// AWS man-page bullet: "       +o subcmd"
 	if m := awsBulletRe.FindStringSubmatch(l.raw); m != nil {
-		p.bulletSubs = append(p.bulletSubs, m[1])
+		if !slices.Contains(p.bulletSubs, m[1]) {
+			p.bulletSubs = append(p.bulletSubs, m[1])
+		}
 		p.addSub(m[1])
 		return
 	}
