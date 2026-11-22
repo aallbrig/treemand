@@ -1,0 +1,33 @@
+# Lint and type-check settings for the repo's Python tooling (scripts/, infra/rules/).
+# Not a package: nothing here is built or installed. Run `task py:lint` and `task py:types`.
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+include = ["scripts/**/*.py", "infra/rules/*.py"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+  "COM812",  # trailing commas: conflicts with `ruff format`
+  "D203",    # blank line before class docstring: incompatible with D211, which we keep
+  "D213",    # summary on the second docstring line: incompatible with D212, which we keep
+  "T201",    # print: these are CLIs, stdout is their interface
+  "S603",    # subprocess without shell: running a command is these scripts' job
+  "S607",    # partial executable path: git, go and bash are resolved from PATH on purpose
+  "INP001",  # implicit namespace package: scripts are run as files, not imported
+  "D1",      # missing docstrings: each module docstring documents its CLI; small helpers need none
+  "CPY001",  # copyright header: the repo's LICENSE covers every file
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["scripts", "infra/rules"]
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+# cfn-lint is a third-party tool (exempt from stdlib-only) and ships no type
+# information; its rule base class is therefore Any.
+module = ["cfnlint", "cfnlint.*"]
+ignore_missing_imports = true

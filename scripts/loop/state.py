@@ -16,11 +16,13 @@ Commands (all print to stdout; exit codes are documented per command):
 """
 
 import json
-import os
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
+
+type State = dict[str, Any]
 
 ROOT = Path(__file__).resolve().parents[2]
 LOOP_DIR = ROOT / ".loop"
@@ -58,16 +60,16 @@ def cfg_int(key: str) -> int:
 
 
 def today() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    return datetime.now(UTC).strftime("%Y-%m-%d")
 
 
 def now() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def load() -> dict:
+def load() -> State:
     LOOP_DIR.mkdir(exist_ok=True)
-    state: dict = {}
+    state: State = {}
     if STATE.exists():
         state = json.loads(STATE.read_text())
     state.setdefault("cycle", 0)
@@ -83,17 +85,18 @@ def load() -> dict:
     return state
 
 
-def save(state: dict) -> None:
+def save(state: State) -> None:
     tmp = STATE.with_suffix(".tmp")
     tmp.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n")
-    os.replace(tmp, STATE)
+    tmp.replace(STATE)
 
 
-def day(state: dict) -> dict:
-    return state["days"].setdefault(today(), {"cycles": 0, "releases": 0})
+def day(state: State) -> dict[str, int]:
+    days: dict[str, dict[str, int]] = state["days"]
+    return days.setdefault(today(), {"cycles": 0, "releases": 0})
 
 
-def cmd_summary(state: dict) -> int:
+def cmd_summary(state: State) -> int:
     d = day(state)
     print(f"cycle: {state['cycle']}  last outcome: {state['last_outcome'] or '-'}")
     print(
@@ -109,7 +112,7 @@ def cmd_summary(state: dict) -> int:
     return 0
 
 
-def budget_hit(state: dict) -> str:
+def budget_hit(state: State) -> str:
     d = day(state)
     if d["cycles"] >= cfg_int("LOOP_MAX_CYCLES_PER_DAY"):
         return f"daily cycle cap reached ({d['cycles']})"
@@ -118,13 +121,13 @@ def budget_hit(state: dict) -> str:
     return ""
 
 
-def breaker_open(state: dict) -> str:
+def breaker_open(state: State) -> str:
     if state["failure_streak"] >= cfg_int("LOOP_BREAKER_THRESHOLD"):
         return f"breaker open: {state['failure_streak']} consecutive failed cycles"
     return ""
 
 
-def cmd_budget(state: dict) -> int:
+def cmd_budget(state: State) -> int:
     why = budget_hit(state)
     if why:
         print(why)
@@ -132,7 +135,7 @@ def cmd_budget(state: dict) -> int:
     return 0
 
 
-def cmd_breaker(state: dict) -> int:
+def cmd_breaker(state: State) -> int:
     why = breaker_open(state)
     if why:
         print(why)
@@ -140,7 +143,7 @@ def cmd_breaker(state: dict) -> int:
     return 0
 
 
-def cmd_begin(state: dict) -> int:
+def cmd_begin(state: State) -> int:
     state["cycle"] += 1
     day(state)["cycles"] += 1
     state["cycle_started"] = now()
@@ -149,7 +152,7 @@ def cmd_begin(state: dict) -> int:
     return 0
 
 
-def cmd_end(state: dict, outcome: str) -> int:
+def cmd_end(state: State, outcome: str) -> int:
     if outcome not in {"released", "idle", "parked", "failed"}:
         print("outcome must be released|idle|parked|failed", file=sys.stderr)
         return 2
@@ -167,13 +170,13 @@ def cmd_end(state: dict, outcome: str) -> int:
     return 0
 
 
-def cmd_pick(state: dict) -> int:
+def cmd_pick(state: State) -> int:
     # Never-touched areas (empty string) sort first; then oldest touch.
-    print(sorted(AREAS, key=lambda a: (state["areas"][a] != "", state["areas"][a]))[0])
+    print(min(AREAS, key=lambda a: (state["areas"][a] != "", state["areas"][a])))
     return 0
 
 
-def cmd_touch(state: dict, area: str) -> int:
+def cmd_touch(state: State, area: str) -> int:
     if area not in AREAS:
         print(f"unknown area {area}; one of: {', '.join(AREAS)}", file=sys.stderr)
         return 2
@@ -182,7 +185,7 @@ def cmd_touch(state: dict, area: str) -> int:
     return 0
 
 
-def cmd_escalation(state: dict) -> int:
+def cmd_escalation(state: State) -> int:
     threshold = cfg_int("LOOP_BREAKER_THRESHOLD")
     streak = state["failure_streak"]
     # Three breaker trips in a row (threshold failures each) means the loop can no longer ship.
@@ -195,24 +198,22 @@ def cmd_escalation(state: dict) -> int:
     return 1
 
 
-def cmd_mark_escalated(state: dict) -> int:
+def cmd_mark_escalated(state: State) -> int:
     state["escalated_at_streak"] = state["failure_streak"]
     state["pending_escalation"] = ""
     save(state)
     return 0
 
 
-def cmd_request(state: dict, msg: str) -> int:
+def cmd_request(state: State, msg: str) -> int:
     state["pending_escalation"] = msg
     save(state)
     return 0
 
 
-def cmd_sleep(state: dict) -> int:
+def cmd_sleep(state: State) -> int:
     idle = cfg_int("LOOP_IDLE_SLEEP_SECONDS")
-    if breaker_open(state) or budget_hit(state):
-        print(idle)
-    elif state["last_outcome"] == "idle":
+    if breaker_open(state) or budget_hit(state) or state["last_outcome"] == "idle":
         print(idle)
     else:
         print(cfg_int("LOOP_COOLDOWN_SECONDS"))
@@ -220,7 +221,7 @@ def cmd_sleep(state: dict) -> int:
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) < 2:
+    if not argv[1:]:
         print(__doc__)
         return 2
     state = load()
