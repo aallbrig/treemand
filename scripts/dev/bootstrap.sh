@@ -11,50 +11,34 @@ site_url="${TREEMAND_SITE_URL:-http://localhost:1313/}"
 prod_url="https://treemand.dev"
 wait_s="${TREEMAND_BOOTSTRAP_WAIT:-60}"
 
-# tool|brew formula|apt package or other install hint ("-" when brew has none)
-tools='task|go-task|see https://taskfile.dev/installation
-go|go|apt install golang-go
-golangci-lint|golangci-lint|see https://golangci-lint.run/welcome/install/
-govulncheck|-|go install golang.org/x/vuln/cmd/govulncheck@latest
-git|git|apt install git
-gh|gh|apt install gh
-jq|jq|apt install jq
-curl|curl|apt install curl
-python3|python@3.12|apt install python3
-shellcheck|shellcheck|apt install shellcheck
-dash|dash|apt install dash
-gitleaks|gitleaks|apt install gitleaks
-cfn-lint|cfn-lint|pipx install cfn-lint
-checkov|checkov|pipx install checkov
-hugo|hugo|apt install hugo (extended edition)
-node|-|nvm install (version pinned in .nvmrc)
-tmux|tmux|apt install tmux
-tmuxinator|tmuxinator|apt install tmuxinator
-watchexec|watchexec|see https://github.com/watchexec/watchexec#install'
+case "$0" in */*) tools_dir="${0%/*}" ;; *) tools_dir=. ;; esac
+tools_dir="$(cd "$tools_dir" && pwd)"
+repo_root="$(cd "$tools_dir/../.." && pwd)"
+# The tool list is shared with setup.sh: scripts/dev/tools.txt.
+# shellcheck source=scripts/dev/tools.sh
+. "$tools_dir/tools.sh"
+
+total=0
+missing=0
+# shellcheck disable=SC2329 # called through tools_each
+report_row() {
+  total=$((total + 1))
+  if tool_present "$1"; then
+    printf '  %-8s %s\n' ok "$1"
+    return 0
+  fi
+  missing=$((missing + 1))
+  hint=""
+  if [ "$3" != - ]; then hint="$(pkg_cmd brew "$3") | "; fi
+  if [ "$4" != - ]; then hint="${hint}apt install $4"; else hint="$hint$(fallback_cmd "$6")"; fi
+  printf '  %-8s %-14s %s\n' missing "$1" "$hint"
+}
 
 report() {
   echo "treemand dev host readiness (tools for task ci and the dev session)"
-  total=0
-  missing=0
-  old_ifs="$IFS"
-  IFS='
-'
-  for row in $tools; do
-    IFS='|' read -r name brew other <<ROW
-$row
-ROW
-    total=$((total + 1))
-    if command -v "$name" >/dev/null 2>&1; then
-      printf '  %-8s %s\n' ok "$name"
-    else
-      missing=$((missing + 1))
-      if [ "$brew" = - ]; then hint="$other"; else hint="brew install $brew | $other"; fi
-      printf '  %-8s %-14s %s\n' missing "$name" "$hint"
-    fi
-  done
-  IFS="$old_ifs"
+  tools_each report_row
   echo "$missing of $total tools missing"
-  if [ "$missing" -gt 0 ]; then echo "(task setup installs the git hooks once the tools are present)"; fi
+  if [ "$missing" -gt 0 ]; then echo "(task setup -- --install installs them and the git hooks)"; fi
 }
 
 site_up() {

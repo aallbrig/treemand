@@ -8,15 +8,39 @@ cd treemand
 task dev:install    # runs tests + installs binary
 ```
 
-Requires Go 1.25+ and [go-task](https://taskfile.dev) (`brew install go-task` or `go install github.com/go-task/task/v3/cmd/task@latest`).
+### Dev host setup (macOS or Linux)
+
+`scripts/dev/setup.sh` checks a host for every tool `task ci` and the dev
+session need (the list is `scripts/dev/tools.txt`) and for the git hooks.
+It is a dry run by default: it prints a table of present and missing tools
+with the command that would install each, and changes nothing.
+
+```bash
+sh scripts/dev/setup.sh            # report only (or: task setup)
+sh scripts/dev/setup.sh --install  # install what is missing, then the hooks (or: task setup -- --install)
+```
+
+`--install` uses the host's package manager (Homebrew, apt or dnf), falls
+back to `go install`, `pipx` or nvm (Node from `.nvmrc`), and lists anything
+that still needs a manual step. It exits non-zero while a required tool is
+missing or the hooks are not active.
 
 ### Git Hooks
 
-Install pre-commit and pre-push hooks that run `task precommit` automatically:
+`setup.sh --install` (or `task hooks`) installs:
 
-```bash
-bash scripts/setup-hooks.sh
-```
+- `pre-commit`: the [pre-commit](https://pre-commit.com) framework
+  (`.pre-commit-config.yaml`: gitleaks, tmuxinator schema, shellcheck), which
+  first runs `pre-commit.legacy`.
+- `pre-commit.legacy`: `task precommit` (gitleaks on staged changes, lint, tests).
+- `pre-push`: `task precommit` before a push to `main` or `develop`.
+
+Hooks live in the shared git dir, so every worktree uses them.
+
+### Host-local files
+
+`.loop/config.env` (loop settings) and `.loop/autostart/` (generated launchd
+plists and systemd units) are host-local and gitignored. They never hold secrets.
 
 ## Development Loop
 

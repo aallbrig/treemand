@@ -289,16 +289,16 @@ task build        # compile local binary
 Make targets mirror the Taskfile and remain available:
 `make dev`, `make test`, `make lint`, `make build`.
 
-### Git Hooks
-
-Install pre-commit and pre-push hooks (run `task precommit` automatically):
+### Dev host setup and git hooks
 
 ```bash
-bash scripts/setup-hooks.sh
+sh scripts/dev/setup.sh            # report missing tools and hook state (changes nothing)
+sh scripts/dev/setup.sh --install  # install them (brew, apt or dnf) and the git hooks
 ```
 
-The pre-commit hook runs the full hygiene suite before every commit.
-The pre-push hook runs the same suite before pushing to `main` or `develop`.
+The pre-commit hook runs the pre-commit framework and `task precommit` before
+every commit; the pre-push hook runs `task precommit` before pushing to `main`
+or `develop`. See [CONTRIBUTING.md](CONTRIBUTING.md#dev-host-setup-macos-or-linux).
 
 ## License
 

@@ -44,5 +44,10 @@ dist/demo.mp4
 
 # Dev loop runtime state, worktrees and screenshots
 /.loop/
+# Host-local loop config and generated autostart units (launchd plists,
+# systemd units) live under .loop/ too; named here so they stay ignored
+# even if the rule above narrows. They never hold secrets.
+/.loop/config.env
+/.loop/autostart/
 
 __pycache__/
