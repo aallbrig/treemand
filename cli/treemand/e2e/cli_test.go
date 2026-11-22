@@ -142,7 +142,6 @@ func TestArgparse_subcommandsAreDiscovered(t *testing.T) {
 }
 
 func TestClap_childDescriptionsComeFromTheSubcommandList(t *testing.T) {
-	t.Skip("known gap #82: clap children get the 'name 1.0' version line as description")
 	r := run(t, limit, nil, "--no-cache", "--output=json", "fakeclap")
 	root := parseJSON(t, r.stdout)
 	if add, ok := root.child("add"); !ok || add.Description != "Add a thing" {

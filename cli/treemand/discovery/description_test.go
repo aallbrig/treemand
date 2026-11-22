@@ -46,3 +46,19 @@ func TestParseHelp_aliasIsNotADescription(t *testing.T) {
 		t.Errorf("the alias became the description")
 	}
 }
+
+// clap prints "name version" before the description (issue #82); the version
+// line is not the description.
+func TestParseHelp_clapVersionLineIsNotADescription(t *testing.T) {
+	cases := []struct{ help, want string }{
+		{"fakeclap-add 1.0\nAdd a thing\n\nUSAGE:\n    fakeclap add [OPTIONS] <NAME>\n", "Add a thing"},
+		{"ripgrep 14.1.0\nAndrew Gallant <jamslam@gmail.com>\n\nripgrep (rg) recursively searches the current directory\n\nUSAGE:\n    rg [OPTIONS] PATTERN\n", "ripgrep (rg) recursively searches the current directory"},
+		{"tool v0.3.2-beta\nDo tool things\n", "Do tool things"},
+		{"fakeclap-list 1.0\n\nUSAGE:\n    fakeclap list\n", ""},
+	}
+	for _, c := range cases {
+		if d := discovery.ParseHelpOutputFor(c.help, "fakeclap").Description; d != c.want {
+			t.Errorf("description = %q, want %q", d, c.want)
+		}
+	}
+}

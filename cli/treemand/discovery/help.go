@@ -1273,6 +1273,7 @@ func (p *helpParser) captureDescription(l helpLine) {
 func (p *helpParser) isProse(l helpLine) bool {
 	return !p.inUsageBlock &&
 		!bannerRe.MatchString(l.trimmed) && !versionRowRe.MatchString(l.raw) &&
+		!nameVersionRe.MatchString(l.trimmed) && !authorLineRe.MatchString(l.trimmed) &&
 		!inNonProseList(p.section, l.raw) &&
 		!strings.HasPrefix(l.trimmed, "{") && // argparse choices: "{init,run,…}"
 		!strings.Contains(l.trimmed, ":= ") && strings.Count(l.trimmed, "|") < 3 && // grammar: "OBJECT := { a | b }"
@@ -1895,6 +1896,13 @@ func splitTopLevelCommas(spec string) []string {
 // bannerRe matches the banner lines some CLIs print before their help: name
 // and version, copyright, licence, build details. They are not a description.
 var bannerRe = regexp.MustCompile(`(?i)\bversion\s+v?\d|\bv\d+\.\d+|copyright|\(c\)\s|licen[cs]ed under|built with|^configuration:|^web site:|no warranty|free software|redistribute it|general public licen|source distribution`)
+
+// nameVersionRe matches clap's first help line, a bare "name version"
+// ("fakeclap-add 1.0", "ripgrep 14.1.0").
+var nameVersionRe = regexp.MustCompile(`^[A-Za-z][\w.+-]*\s+v?\d+(\.\d+)+([-+][\w.+-]*)?$`)
+
+// authorLineRe matches clap's author line ("Andrew Gallant <jam@example.com>").
+var authorLineRe = regexp.MustCompile(`^[^<>]*<[^<>\s]+@[^<>\s]+>$`)
 
 // versionRowRe matches library version rows ("  libavutil      59.  8.100 / …").
 var versionRowRe = regexp.MustCompile(`^\s+[A-Za-z][\w.-]*\s{2,}\d+\.`)
