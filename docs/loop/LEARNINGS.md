@@ -120,3 +120,6 @@ A versioned JSON Schema (`treemand schema`, served at treemand.dev/schema/tree.v
 
 ### Cycle 39 - 2026-11-22 - released - #214 (open) v0.9.8
 `renderNode` went from cognitive 49 to under 15; `functions_over_30` 2 to 1. Label the PR `release:patch` when you open it: #363 merged without the label, so Auto Release planned `none`; adding the label after the merge and dispatching `auto-release.yml` cut the release, because `plan.sh` counts every PR merged since the last tag. Run `check_note.sh` with the body on stdin, not as an argument.
+
+### Cycle 40 - 2026-11-22 - released - #214 v0.9.9
+`rebuildNodeLines` went from cognitive 31 to under 15; `functions_over_30` 1 to 0 closes #214 after eight releases, one function each. Locally, run `task ci` with Node 24 first on PATH (`PATH=~/.nvm/versions/node/v24.*/bin:$PATH`) or `site:audit` fails at the very end. The #335 wall-clock scale test failed the PR's macOS job by 3 ms under `-race`: confirm the failing test from the log, `gh run rerun --failed`, then merge.
