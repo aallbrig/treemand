@@ -58,7 +58,7 @@ disableKinds = ["taxonomy", "term"]
   [[module.mounts]]
     source = "../../cli/treemand/discovery/testdata/corpus"
     target = "data/corpus"
-    includeFiles = "expect.json"
+    files = ["expect.json"]
 
 # /llms.txt (a map of the docs for LLM agents, https://llmstxt.org) and
 # /llms-full.txt (every docs page's Markdown in one file), both generated

@@ -384,7 +384,7 @@ tasks:
     desc: Show what else is running on this machine before touching real infrastructure
     cmds:
       - tmux ls 2>/dev/null || echo "no tmux sessions"
-      - ss -ltnp 2>/dev/null | grep -E ':(1313|18080)\b' || echo "dev ports free"
+      - (lsof -nP -iTCP -sTCP:LISTEN 2>/dev/null || ss -ltnp 2>/dev/null) | grep -E ':(1313|18080)\b' || echo "dev ports free"
       - git worktree list
       - bash scripts/loop/loopctl.sh status
 

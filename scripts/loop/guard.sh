@@ -29,7 +29,8 @@ case "$tool" in
   Edit | Write | NotebookEdit)
     path="$(jq -r '.tool_input.file_path // .tool_input.notebook_path // ""' <<<"$input")"
     [ -n "$path" ] || exit 0
-    abs="$(realpath -m -- "$path")"
+    # Lexical normalization, portable to macOS (BSD realpath has no -m).
+    abs="$(python3 -I -c 'import os, sys; print(os.path.normpath(os.path.abspath(sys.argv[1])))' "$path")"
     case "$abs" in "$root"/*) ;; *) deny "write outside the repo: $abs" ;; esac
     case "$abs" in "$root"/.git/*) deny "write inside .git" ;; esac
     case "$abs" in
