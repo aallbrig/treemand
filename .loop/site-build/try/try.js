@@ -1,6 +1,8 @@
 // In-browser treemand: xterm.js <-> Go/wasm Bubble Tea program.
 (() => {
-  const BASE = window.TREEMAND_BASE || 'try/';
+  // The page passes the base path on the script tag (no inline script; see the CSP
+  // in infra/site.yaml).
+  const BASE = (document.currentScript && document.currentScript.dataset.base) || 'try/';
   const IDEAS = {
     git: ['Press <kbd>Ctrl+F</kbd> and type <code>force push</code> — finds flags by description',
           'Search <code>stash pop</code> or <code>worktree</code>', 'Press <kbd>?</kbd> for every key binding'],
