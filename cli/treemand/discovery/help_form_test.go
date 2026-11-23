@@ -125,6 +125,10 @@ func TestRunHelp_positionalFormsRunOnlyAfterBothFlagsFail(t *testing.T) {
 }
 
 func TestRunHelp_fastPreferredFormStartsNoAlternatives(t *testing.T) {
+	// "Fast" means inside the hedge window; widen it so a loaded machine's
+	// slow fork does not look like a slow CLI.
+	defer func(d time.Duration) { hedgeDelay = d }(hedgeDelay)
+	hedgeDelay = 5 * time.Second
 	bin, logPath := formCLI(t, 0, flagOnly)
 	if _, err := NewHelpDiscoverer(2).Discover(context.Background(), bin, nil); err != nil {
 		t.Fatal(err)
