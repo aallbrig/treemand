@@ -10,23 +10,17 @@ import (
 	"github.com/aallbrig/treemand/savedpresets"
 )
 
-func TestPresets_saveListLoadDelete(t *testing.T) {
+func TestPresets_saveFromTheDialog(t *testing.T) {
 	m, root := newModalModel(t)
 	store := savedpresets.Open(t.TempDir(), "git")
 	m.SetSavedPresets(store)
 
 	selectNode(t, m, root.Children[1])
 	press(m, "enter", "ctrl+o")
-	if !m.pm.active {
-		t.Fatal("ctrl+o should open the presets dialog")
-	}
-	if view := m.View(); !strings.Contains(view, "Saved Presets") || !strings.Contains(view, "No presets saved") {
-		t.Fatalf("empty presets view:\n%s", view)
+	if view := m.View(); !m.pm.active || !strings.Contains(view, "Saved Presets") || !strings.Contains(view, "No presets saved") {
+		t.Fatalf("ctrl+o should open the empty presets dialog:\n%s", view)
 	}
 	press(m, "a")
-	if !m.pm.naming {
-		t.Fatal("a should ask for a name")
-	}
 	typeText(m, "bad name")
 	press(m, "enter")
 	if !m.pm.naming || !strings.Contains(m.View(), "may only use") {
@@ -41,29 +35,32 @@ func TestPresets_saveListLoadDelete(t *testing.T) {
 	if p, ok, _ := store.Get("rem"); !ok || p.Command != "git remote" {
 		t.Fatalf("stored = %+v %v", p, ok)
 	}
+}
+
+func TestPresets_loadAndDelete(t *testing.T) {
+	store := savedpresets.Open(t.TempDir(), "git")
+	_ = store.Save("rem", "git remote")
+	m, _ := newModalModel(t)
+	m.SetSavedPresets(store)
+
+	press(m, "ctrl+o")
 	if view := m.View(); !strings.Contains(view, "rem") || !strings.Contains(view, "git remote") {
 		t.Fatalf("list view:\n%s", view)
 	}
-	press(m, "esc")
-
-	// A fresh session loads it into the assembled command.
-	m2, _ := newModalModel(t)
-	m2.SetSavedPresets(store)
-	press(m2, "ctrl+o", "enter")
-	if m2.pm.active || previewText(m2) != "git remote" || !strings.Contains(m2.statusMsg, "loaded preset rem") {
-		t.Fatalf("after enter: active=%v preview=%q status=%q", m2.pm.active, previewText(m2), m2.statusMsg)
+	press(m, "enter")
+	if m.pm.active || previewText(m) != "git remote" || !strings.Contains(m.statusMsg, "loaded preset rem") {
+		t.Fatalf("after enter: active=%v preview=%q status=%q", m.pm.active, previewText(m), m.statusMsg)
 	}
 
-	// x deletes the selected preset.
-	press(m2, "ctrl+o", "x")
+	press(m, "ctrl+o", "x")
 	if _, ok, _ := store.Get("rem"); ok {
 		t.Fatal("x did not delete the preset")
 	}
-	if !m2.pm.active || !strings.Contains(m2.View(), "deleted preset rem") {
-		t.Fatalf("after delete:\n%s", m2.View())
+	if !m.pm.active || !strings.Contains(m.View(), "deleted preset rem") {
+		t.Fatalf("after delete:\n%s", m.View())
 	}
-	press(m2, "ctrl+o")
-	if m2.pm.active {
+	press(m, "ctrl+o")
+	if m.pm.active {
 		t.Error("a second ctrl+o should close the dialog")
 	}
 }

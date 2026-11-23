@@ -7,21 +7,26 @@ import (
 	"testing"
 )
 
-func TestSaveListGetDelete(t *testing.T) {
+// twoPresets is a store holding amend (saved twice) and log1.
+func twoPresets(t *testing.T) *Store {
+	t.Helper()
 	s := Open(t.TempDir(), "git")
-	if got, err := s.List(); err != nil || len(got) != 0 {
+	for _, p := range []Preset{{"amend", "git commit  --amend --no-edit"}, {"log1", "git log --oneline"}, {"amend", "git commit --amend"}} {
+		if err := s.Save(p.Name, p.Command); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return s
+}
+
+func TestList_emptyStore(t *testing.T) {
+	if got, err := Open(t.TempDir(), "git").List(); err != nil || len(got) != 0 {
 		t.Fatalf("empty store: %v, %v", got, err)
 	}
-	if err := s.Save("amend", "git commit  --amend --no-edit"); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.Save("log1", "git log --oneline"); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.Save("amend", "git commit --amend"); err != nil { // replaces
-		t.Fatal(err)
-	}
-	got, err := s.List()
+}
+
+func TestSave_replacesInPlace(t *testing.T) {
+	got, err := twoPresets(t).List()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,12 +34,20 @@ func TestSaveListGetDelete(t *testing.T) {
 	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
 		t.Fatalf("List = %v, want %v", got, want)
 	}
+}
+
+func TestGet(t *testing.T) {
+	s := twoPresets(t)
 	if p, ok, _ := s.Get("log1"); !ok || p.Command != "git log --oneline" {
 		t.Errorf("Get(log1) = %v %v", p, ok)
 	}
 	if _, ok, _ := s.Get("nope"); ok {
 		t.Error("Get(nope) found something")
 	}
+}
+
+func TestDelete(t *testing.T) {
+	s := twoPresets(t)
 	if ok, err := s.Delete("amend"); !ok || err != nil {
 		t.Fatalf("Delete(amend) = %v %v", ok, err)
 	}
