@@ -1,7 +1,7 @@
 {
   "ansible": {
     "subcommands": 0,
-    "flags": 37,
+    "flags": 40,
     "has_description": true,
     "description_is_synopsis": false
   },
@@ -91,13 +91,13 @@
   },
   "find": {
     "subcommands": 0,
-    "flags": 2,
+    "flags": 6,
     "has_description": true,
     "description_is_synopsis": false
   },
   "find@bsd": {
     "subcommands": 0,
-    "flags": 0,
+    "flags": 1,
     "has_description": false,
     "description_is_synopsis": false
   },
@@ -121,7 +121,7 @@
   },
   "git": {
     "subcommands": 22,
-    "flags": 0,
+    "flags": 1,
     "has_description": false,
     "description_is_synopsis": false
   },
@@ -193,7 +193,7 @@
   },
   "journalctl": {
     "subcommands": 0,
-    "flags": 42,
+    "flags": 62,
     "has_description": true,
     "description_is_synopsis": false
   },
@@ -229,7 +229,7 @@
   },
   "ls@bsd": {
     "subcommands": 0,
-    "flags": 0,
+    "flags": 2,
     "has_description": true,
     "description_is_synopsis": false
   },
@@ -277,7 +277,7 @@
   },
   "pipx": {
     "subcommands": 15,
-    "flags": 4,
+    "flags": 5,
     "has_description": true,
     "description_is_synopsis": false
   },
@@ -337,13 +337,13 @@
   },
   "sed@bsd": {
     "subcommands": 0,
-    "flags": 0,
+    "flags": 1,
     "has_description": false,
     "description_is_synopsis": false
   },
   "ssh": {
     "subcommands": 0,
-    "flags": 0,
+    "flags": 2,
     "has_description": false,
     "description_is_synopsis": false
   },
@@ -385,7 +385,7 @@
   },
   "tmux": {
     "subcommands": 0,
-    "flags": 0,
+    "flags": 3,
     "has_description": false,
     "description_is_synopsis": false
   },
