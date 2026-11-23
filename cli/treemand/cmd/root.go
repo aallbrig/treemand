@@ -153,12 +153,8 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	configureDiscovery()
 
 	// Fail early with a clear message if the binary cannot be found.
-	if err := checkAvailable(cliName); err != nil {
-		var never *discovery.NeverProbeError
-		if errors.As(err, &never) {
-			return err
-		}
-		return fmt.Errorf("%w%s", err, subcommandHint(cmd.Root(), cliName))
+	if err := checkTarget(cmd.Root(), cliName); err != nil {
+		return err
 	}
 
 	cfg := configFromFlags()
@@ -220,6 +216,17 @@ func checkAvailable(cliName string) error {
 		return err
 	}
 	return fmt.Errorf("%w\nHint: check spelling and ensure the command is on your PATH", err)
+}
+
+// checkTarget is checkAvailable for the root's CLI argument: a missing CLI
+// whose name is close to a treemand subcommand also suggests that subcommand.
+func checkTarget(root *cobra.Command, cliName string) error {
+	err := checkAvailable(cliName)
+	var never *discovery.NeverProbeError
+	if err == nil || errors.As(err, &never) {
+		return err
+	}
+	return fmt.Errorf("%w%s", err, subcommandHint(root, cliName))
 }
 
 // discoveryContext bounds a run by --timeout seconds. Zero means no overall
