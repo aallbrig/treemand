@@ -590,6 +590,7 @@ tasks:
       - task: tui:ux:test
       - task: site:check
       - task: site:audit
+      - task: site:csp:test
       - task: site:health:test
       - task: site:quality:test
       - task: ci:health:test
@@ -686,6 +687,11 @@ tasks:
     desc: Test the design-evidence capture against a local fixture site and peer; needs node and Chrome
     cmds:
       - dash scripts/site/design_evidence_test.sh
+
+  site:csp:test:
+    desc: Test the site's Content-Security-Policy and Permissions-Policy (infra/site.yaml) against the production build; needs hugo
+    cmds:
+      - dash scripts/site/csp_test.sh
 
   site:check:
     desc: Fail if the built site links outside its baseURL
