@@ -27,12 +27,20 @@ type presetsModal struct {
 // deletes the presets in s. nil turns them off.
 func (m *Model) SetSavedPresets(s *savedpresets.Store) { m.saved = s }
 
-// LoadCommand puts cmd into the assembled command, as loading the preset
+// loadCommand puts cmd into the assembled command, as loading the preset
 // called name does.
-func (m *Model) LoadCommand(cmd, name string) {
+func (m *Model) loadCommand(cmd, name string) {
 	m.preview.SetCommand(cmd)
 	m.tree.SetCmdTokens(m.preview.Tokens())
 	m.statusMsg = "loaded preset " + name + ": " + cmd
+}
+
+// loadStartPreset loads p when the TUI opens (--preset). It says so with a
+// timed message, which outlives the renders before the first resize.
+func (m *Model) loadStartPreset(p savedpresets.Preset) {
+	m.preview.SetCommand(p.Command)
+	m.tree.SetCmdTokens(m.preview.Tokens())
+	m.setTimedMsg("loaded preset " + p.Name + ": " + p.Command)
 }
 
 // openPresets shows the saved presets.
@@ -69,7 +77,7 @@ func (m *Model) updatePresetsModal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.pm.cursor < len(m.pm.list) {
 			p := m.pm.list[m.pm.cursor]
 			m.pm.active = false
-			m.LoadCommand(p.Command, p.Name)
+			m.loadCommand(p.Command, p.Name)
 		}
 	case "a":
 		return m, m.startPresetName()

@@ -119,10 +119,14 @@ func NewModel(root *models.Node, cfg *config.Config) *Model {
 }
 
 func (m *Model) Init() tea.Cmd {
+	cmds := []tea.Cmd{tea.EnableMouseAllMotion}
 	if m.Crawling() {
-		return tea.Batch(tea.EnableMouseAllMotion, m.crawl.wait())
+		cmds = append(cmds, m.crawl.wait())
 	}
-	return tea.EnableMouseAllMotion
+	if m.timedMsg != "" {
+		cmds = append(cmds, m.timedMsgCmd())
+	}
+	return tea.Batch(cmds...)
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -313,7 +317,7 @@ func RunWithOptions(root *models.Node, cfg *config.Config, opts RunOptions) erro
 	m.SetHistory(opts.History)
 	m.SetSavedPresets(opts.Presets)
 	if opts.Preset != nil {
-		m.LoadCommand(opts.Preset.Command, opts.Preset.Name)
+		m.loadStartPreset(*opts.Preset)
 	}
 	defer func() {
 		if m.crawl != nil {

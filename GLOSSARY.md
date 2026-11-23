@@ -62,6 +62,11 @@ _Avoid_: interactive mode, -i mode.
 **Assembled command**: the command line built by picking a node, flags and
 values in the TUI. _Avoid_: built command, preview.
 
+**Saved preset**: an assembled command a user saved under a name for one
+target CLI (`Ctrl+O` in the TUI, `--preset <name>`), kept as plain text in
+`<config dir>/treemand/presets/<cli>.txt`. Not the built-in per-CLI tuning
+(package `presets`). _Avoid_: bookmark, favourite.
+
 **Try page**: the TUI running in the browser on treemand.dev.
 _Avoid_: demo page, playground.
 

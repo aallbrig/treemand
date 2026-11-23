@@ -121,9 +121,15 @@ func TestPresets_offAndUnreadable(t *testing.T) {
 
 func TestPresets_loadPresetAtStart(t *testing.T) {
 	m, _ := newModalModel(t)
-	m.LoadCommand("git commit --amend", "amend")
-	if previewText(m) != "git commit --amend" || !strings.Contains(m.statusMsg, "loaded preset amend") {
-		t.Fatalf("preview=%q status=%q", previewText(m), m.statusMsg)
+	m.loadStartPreset(savedpresets.Preset{Name: "amend", Command: "git commit --amend"})
+	if previewText(m) != "git commit --amend" || !strings.Contains(m.timedMsg, "loaded preset amend") {
+		t.Fatalf("preview=%q timed=%q", previewText(m), m.timedMsg)
+	}
+	if m.Init() == nil {
+		t.Error("Init should schedule clearing the message")
+	}
+	if view := m.View(); !strings.Contains(view, "loaded preset amend") {
+		t.Errorf("the message should survive a render:\n%s", view)
 	}
 }
 
