@@ -320,6 +320,6 @@ func (r doctorReport) list(b *strings.Builder, label string, items []string) {
 		fmt.Fprintf(b, "    %s\n", it)
 	}
 	if extra := len(items) - doctorListLimit; extra > 0 {
-		fmt.Fprintf(b, "    … and %d more (--output=json lists all)\n", extra)
+		fmt.Fprintf(b, "    ... and %d more (--output=json lists all)\n", extra)
 	}
 }

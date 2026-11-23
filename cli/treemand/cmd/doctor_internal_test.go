@@ -70,7 +70,7 @@ func TestDoctorTextCapsLongLists(t *testing.T) {
 	}
 	r.Error = "boom"
 	txt := r.text()
-	for _, w := range []string{"without flags          13", "x c9\n", "… and 3 more", "none answered", "error                  boom"} {
+	for _, w := range []string{"without flags          13", "x c9\n", "... and 3 more", "none answered", "error                  boom"} {
 		if !strings.Contains(txt, w) {
 			t.Errorf("text is missing %q:\n%s", w, txt)
 		}
