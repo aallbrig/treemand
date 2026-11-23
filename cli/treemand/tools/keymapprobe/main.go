@@ -85,7 +85,7 @@ func DefaultConfig() Config {
 			tree("tree:vim", "vim", "handleVim", "SchemeVim"),
 			tree("tree:wasd", "wasd", "handleWASD", "SchemeWASD"),
 			{Name: "help-pane", Overlay: true, Reference: true,
-				Chain: []SwitchRef{{"updateKeys", 0}, {"updateHelpPaneKeys", 0}},
+				Chain: []SwitchRef{{"updateHelpPaneKeys", 0}, {"updateKeys", 0}},
 				Hints: []HintRef{{Func: "renderStatusBar", Clause: "paneHelp"}}},
 			{Name: "preview", Chain: []SwitchRef{{"updatePreviewInput", 0}},
 				Hints: []HintRef{{Func: "renderStatusBar", Clause: "panePreview"}}},

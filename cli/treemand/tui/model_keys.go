@@ -24,6 +24,12 @@ func (m *Model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Not 'g' — cancel pending and process this key normally.
 	}
 
+	// The focused help pane takes its scroll keys before the global ones, which
+	// would otherwise move the tree behind it.
+	if m.focusedPane == paneHelp && m.updateHelpPaneKeys(key) {
+		return m, nil
+	}
+
 	switch key {
 	case "ctrl+c", "q":
 		m.quitting = true
@@ -185,9 +191,9 @@ func (m *Model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Help pane specific keys.
+	// Tree navigation keys do nothing while the help pane has focus.
 	if m.focusedPane == paneHelp {
-		return m.updateHelpPaneKeys(key)
+		return m, nil
 	}
 
 	// Tree navigation.
@@ -201,7 +207,9 @@ func (m *Model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 }
 
-func (m *Model) updateHelpPaneKeys(key string) (tea.Model, tea.Cmd) {
+// updateHelpPaneKeys scrolls the focused help pane and reports whether key
+// was one of its scroll keys.
+func (m *Model) updateHelpPaneKeys(key string) bool {
 	switch key {
 	case "up", "k":
 		m.helpPane.ScrollUp(1)
@@ -215,8 +223,10 @@ func (m *Model) updateHelpPaneKeys(key string) (tea.Model, tea.Cmd) {
 		m.helpPane.Top()
 	case "G":
 		m.helpPane.Bottom()
+	default:
+		return false
 	}
-	return m, nil
+	return true
 }
 
 func (m *Model) updatePreviewInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
