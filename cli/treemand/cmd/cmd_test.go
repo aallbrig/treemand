@@ -703,3 +703,10 @@ func TestUnknownFlag_noSuggestionWhenNothingIsClose(t *testing.T) {
 		t.Errorf("a far-off flag should get no suggestion:\n%s", msg)
 	}
 }
+
+func TestUnknownFlag_suggestionIgnoresCase(t *testing.T) {
+	_, err := runCmd("--Outpu=json", "git")
+	if err == nil || !strings.Contains(cmd.FormatError(err), "Did you mean --output?") {
+		t.Errorf("want a case-insensitive suggestion, got %v", err)
+	}
+}

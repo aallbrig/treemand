@@ -90,12 +90,16 @@ func flagError(c *cobra.Command, err error) error {
 // one it is a prefix of, or one within two edits, as cobra suggests
 // subcommands. It returns "" when nothing is close.
 func suggestFlag(c *cobra.Command, typed string) string {
+	typed = strings.ToLower(typed)
+	if typed == "" {
+		return ""
+	}
 	best, bestDist := "", 3
 	visit := func(f *pflag.Flag) {
 		if f.Hidden {
 			return
 		}
-		d := levenshtein(strings.ToLower(typed), f.Name)
+		d := levenshtein(typed, f.Name)
 		if strings.HasPrefix(f.Name, typed) {
 			d = 0
 		}
