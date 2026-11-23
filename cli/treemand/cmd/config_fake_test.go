@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/aallbrig/treemand/cmd"
 )
 
 func TestConfigSet_writesTheKeyToTheConfigFile(t *testing.T) {
@@ -52,9 +54,12 @@ func TestConfigSet_unknownKeySuggestsTheNearestAndListsKeys(t *testing.T) {
 		t.Fatal("expected an error")
 	}
 	for _, want := range []string{`unknown config key "icon"`, `did you mean "icons"?`, "Available keys:", "stub_threshold"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Errorf("error missing %q:\n%v", want, err)
+		if !strings.Contains(cmd.FormatError(err), want) {
+			t.Errorf("error missing %q:\n%s", want, cmd.FormatError(err))
 		}
+	}
+	if got := cmd.ExitCodeFor(err); got != cmd.ExitUsage {
+		t.Errorf("exit code = %d, want %d: an unknown key is a usage mistake", got, cmd.ExitUsage)
 	}
 }
 

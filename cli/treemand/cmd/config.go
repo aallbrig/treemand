@@ -43,6 +43,7 @@ var configViewCmd = &cobra.Command{
 	Short: "Display the current effective configuration",
 	Long: `Show the merged configuration with the config file location.
 All values reflect the full precedence chain: flags > env > file > defaults.`,
+	Args: noArgs,
 	RunE: runConfigView,
 }
 
@@ -79,6 +80,7 @@ Warnings are reported for unknown/unsupported keys (the config still loads).
 Errors are reported for invalid values or YAML syntax problems.
 
 Use --strict to promote all warnings to errors (non-zero exit code).`,
+	Args: noArgs,
 	RunE: runConfigValidate,
 }
 
@@ -150,7 +152,7 @@ Examples:
   treemand config set icons nerd
   treemand config set colors.subcmd "#FF5555"
   treemand config set depth 5`,
-	Args: cobra.ExactArgs(2),
+	Args: configSetArgs,
 	RunE: runConfigSet,
 }
 
@@ -165,19 +167,18 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 			msg += fmt.Sprintf(" (did you mean %q?)", suggestion)
 		}
 		// List available keys.
-		msg += "\n\nAvailable keys:\n"
 		w := &strings.Builder{}
+		w.WriteString("Available keys:\n")
 		tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 		for _, e := range config.KnownKeys {
 			fmt.Fprintf(tw, "  %s\t%s\n", e.Key, e.Description)
 		}
 		tw.Flush()
-		msg += w.String()
-		return fmt.Errorf("%s", msg)
+		return newUsageError(strings.TrimRight(w.String(), "\n"), "%s", msg)
 	}
 
 	if err := config.ValidateValue(entry, value); err != nil {
-		return err
+		return newUsageError("Run 'treemand config set --help' for the accepted values.", "%s", err)
 	}
 
 	// Ensure config file exists.
@@ -218,6 +219,7 @@ var configInitCmd = &cobra.Command{
 The file is placed at the preferred config location
 ($XDG_CONFIG_HOME/treemand/config.yaml).
 Refuses to overwrite an existing file unless --force is passed.`,
+	Args: noArgs,
 	RunE: runConfigInit,
 }
 
@@ -241,6 +243,7 @@ If no config file exists, prints the default location where one would be created
 Useful for scripting:
   cat $(treemand config path)
   $EDITOR $(treemand config path)`,
+	Args: noArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfgPath := resolveConfigPath()
 		if cfgPath == "" {
@@ -261,6 +264,7 @@ var configEditCmd = &cobra.Command{
 	Long: `Open the config file in your preferred editor ($EDITOR).
 If no config file exists, one is created with defaults first.
 Falls back to 'vi' if $EDITOR is not set.`,
+	Args: noArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfgPath := resolveConfigPath()
 		if cfgPath == "" {

@@ -17,6 +17,7 @@ var genDocsCmd = &cobra.Command{
 	Use:    "gendocs",
 	Short:  "Generate man page and markdown docs (used during release builds)",
 	Hidden: true,
+	Args:   noArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := os.MkdirAll(genDocsOutputDir, 0o755); err != nil {
 			return fmt.Errorf("create output dir: %w", err)

@@ -15,7 +15,7 @@ output only gains optional properties; a breaking change ships as a new
 version. The schema is also published at https://treemand.dev/schema/tree.v1.json.`,
 	Example: `  treemand schema > tree.schema.json
   treemand --output=json git > git.json && check-jsonschema --schemafile tree.schema.json git.json`,
-	Args: cobra.NoArgs,
+	Args: noArgs,
 	RunE: func(cmd *cobra.Command, _ []string) error {
 		_, err := cmd.OutOrStdout().Write(models.SchemaJSON)
 		return err

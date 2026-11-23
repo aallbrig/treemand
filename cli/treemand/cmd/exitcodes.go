@@ -165,6 +165,62 @@ func suggestSubcommands(c *cobra.Command, typed string) []string {
 	return c.SuggestionsFor(typed)
 }
 
+// commandUsage is the hint of a subcommand's argument error: its usage line,
+// an example when one helps, and where to read more.
+func commandUsage(c *cobra.Command, example string) string {
+	hint := "Usage: " + c.UseLine()
+	if example != "" {
+		hint += "\n  e.g. " + example
+	}
+	return hint + "\nRun '" + c.CommandPath() + " --help' for details."
+}
+
+// noArgs rejects any argument to a command that takes none.
+func noArgs(c *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return nil
+	}
+	return newUsageError(commandUsage(c, ""), "%s takes no arguments, got %q", c.CommandPath(), strings.Join(args, " "))
+}
+
+// oneCLIArg requires exactly one CLI name, as in treemand doctor git.
+func oneCLIArg(c *cobra.Command, args []string) error {
+	hint := commandUsage(c, c.CommandPath()+" git")
+	switch len(args) {
+	case 1:
+		return nil
+	case 0:
+		return newUsageError(hint, "missing CLI name")
+	default:
+		return newUsageError(hint, "expected one CLI name, got %d (%s)", len(args), strings.Join(args, " "))
+	}
+}
+
+// optionalCLIArg accepts at most one CLI name, as in treemand cache clear git.
+func optionalCLIArg(c *cobra.Command, args []string) error {
+	if len(args) <= 1 {
+		return nil
+	}
+	return newUsageError(commandUsage(c, c.CommandPath()+" git"),
+		"expected at most one CLI name, got %d (%s)", len(args), strings.Join(args, " "))
+}
+
+// configSetArgs requires a key and a value.
+func configSetArgs(c *cobra.Command, args []string) error {
+	hint := commandUsage(c, "treemand config set icons nerd")
+	switch len(args) {
+	case 2:
+		return nil
+	case 0:
+		return newUsageError(hint, "missing key and value")
+	case 1:
+		return newUsageError(hint, "missing value for %s", args[0])
+	default:
+		return newUsageError("A value with spaces must be quoted as one argument.\n"+hint,
+			"expected a key and a value, got %d (%s)", len(args), strings.Join(args, " "))
+	}
+}
+
 var shells = []string{"bash", "zsh", "fish", "powershell"}
 
 // completionArgs requires exactly one known shell.

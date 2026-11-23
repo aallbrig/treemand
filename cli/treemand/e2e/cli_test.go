@@ -210,6 +210,18 @@ func TestFailurePaths(t *testing.T) {
 		{"mistyped config subcommand", []string{"config", "veiw"}, 2, []string{`unknown command "veiw"`, "Did you mean 'treemand config view'?"}},
 		{"unknown cache subcommand", []string{"cache", "zzzz"}, 2, []string{`unknown command "zzzz"`, "treemand cache --help"}},
 		{"mistyped treemand subcommand", []string{"confg"}, 1, []string{"not found", "Did you mean 'treemand config'?"}},
+		{"config set without arguments", []string{"config", "set"}, 2, []string{"missing key and value", "Usage: treemand config set <key> <value>", "treemand config set icons nerd"}},
+		{"config set without value", []string{"config", "set", "icons"}, 2, []string{"missing value for icons", "Usage: treemand config set <key> <value>"}},
+		{"config set extra argument", []string{"config", "set", "icons", "nerd", "x"}, 2, []string{"expected a key and a value, got 3", "must be quoted"}},
+		{"config set unknown key", []string{"config", "set", "icns", "nerd"}, 2, []string{`unknown config key "icns"`, `did you mean "icons"?`, "Available keys:"}},
+		{"doctor without CLI", []string{"doctor"}, 2, []string{"missing CLI name", "Usage: treemand doctor <cli>", "treemand doctor git"}},
+		{"doctor extra argument", []string{"doctor", "git", "status"}, 2, []string{"expected one CLI name, got 2", "Usage: treemand doctor <cli>"}},
+		{"cache clear extra argument", []string{"cache", "clear", "git", "gh"}, 2, []string{"expected at most one CLI name, got 2", "Usage: treemand cache clear [cli]"}},
+		{"schema with argument", []string{"schema", "tree"}, 2, []string{`treemand schema takes no arguments, got "tree"`, "Usage: treemand schema"}},
+		{"version with argument", []string{"version", "x"}, 2, []string{`treemand version takes no arguments, got "x"`}},
+		{"config path with argument", []string{"config", "path", "x"}, 2, []string{`treemand config path takes no arguments`, "Usage: treemand config path"}},
+		{"config set bad value", []string{"config", "set", "icons", "sparkles"}, 2, []string{"icons", "sparkles"}},
+		{"mcp with argument", []string{"mcp", "git"}, 2, []string{`treemand mcp takes no arguments, got "git"`, "Usage: treemand mcp"}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

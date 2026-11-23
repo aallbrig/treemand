@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
 	"github.com/aallbrig/treemand/cmd"
@@ -15,12 +16,27 @@ import (
 
 func runCmd(args ...string) (string, error) {
 	c := cmd.NewRootCmd()
+	resetHelpFlags(c)
 	buf := &bytes.Buffer{}
 	c.SetOut(buf)
 	c.SetErr(buf)
 	c.SetArgs(args)
 	err := c.Execute()
 	return buf.String(), err
+}
+
+// resetHelpFlags clears --help on c and its subcommands. The subcommands are
+// package globals shared by every NewRootCmd, and a flag keeps its value
+// between executions: one test's --help would make the next run print help
+// instead of validating its arguments.
+func resetHelpFlags(c *cobra.Command) {
+	if f := c.Flags().Lookup("help"); f != nil {
+		_ = f.Value.Set("false")
+		f.Changed = false
+	}
+	for _, sub := range c.Commands() {
+		resetHelpFlags(sub)
+	}
 }
 
 func TestVersion(t *testing.T) {
@@ -708,5 +724,45 @@ func TestUnknownFlag_suggestionIgnoresCase(t *testing.T) {
 	_, err := runCmd("--Outpu=json", "git")
 	if err == nil || !strings.Contains(cmd.FormatError(err), "Did you mean --output?") {
 		t.Errorf("want a case-insensitive suggestion, got %v", err)
+	}
+}
+
+// Every runnable leaf command declares an Args validator, so a stray argument
+// is a usage error (exit 2) and not silently ignored. A group command's
+// arguments are unknown subcommands, which groupRun reports.
+func TestEveryRunnableCommandValidatesItsArguments(t *testing.T) {
+	var walk func(c *cobra.Command)
+	walk = func(c *cobra.Command) {
+		if c.Runnable() && !c.HasSubCommands() && c.Args == nil {
+			t.Errorf("%q has no Args validator", c.CommandPath())
+		}
+		for _, sub := range c.Commands() {
+			walk(sub)
+		}
+	}
+	walk(cmd.NewRootCmd())
+}
+
+func TestStrayArgumentsAreUsageErrors(t *testing.T) {
+	// Should a validator go missing, config init and edit must not touch the
+	// real config or open an editor.
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("EDITOR", "true")
+	for _, args := range [][]string{
+		{"version", "x"}, {"schema", "x"}, {"mcp", "x"}, {"doctor"}, {"doctor", "a", "b"},
+		{"cache", "list", "x"}, {"cache", "clear", "a", "b"},
+		{"config", "view", "x"}, {"config", "path", "x"}, {"config", "init", "x"},
+		{"config", "validate", "x"}, {"config", "edit", "x"},
+		{"config", "set"}, {"config", "set", "icons"}, {"config", "set", "icons", "nerd", "x"},
+	} {
+		t.Run(strings.Join(args, " "), func(t *testing.T) {
+			_, err := runCmd(args...)
+			if got := cmd.ExitCodeFor(err); got != cmd.ExitUsage {
+				t.Fatalf("exit code = %d, want %d (error: %v)", got, cmd.ExitUsage, err)
+			}
+			if msg := cmd.FormatError(err); !strings.Contains(msg, "Usage: ") {
+				t.Errorf("no usage hint:\n%s", msg)
+			}
+		})
 	}
 }
