@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/charmbracelet/lipgloss"
 
@@ -70,73 +69,87 @@ func key(s string) tea.Msg {
 	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(s)}
 }
 
-// Every key press on an aws-sized tree must feel instant: Update plus View
-// under 50ms. The best of three runs is taken so a busy machine does not fail it.
-func TestKeyPressLatencyOnAwsSizedTree(t *testing.T) {
-	for _, size := range [][2]int{{80, 24}, {120, 40}, {200, 50}} {
-		m := tui.NewModel(scaleTree(422, 0, 0), config.DefaultConfig())
-		m.Update(tea.WindowSizeMsg{Width: size[0], Height: size[1]})
+// allocsPerStep returns the average allocations of one Update plus View of msg.
+// Allocation counts do not depend on how busy the machine is, so they let these
+// tests check how work grows with the tree without timing anything. Absolute
+// latency is judged by the tui benchmark probe (frame_ms) on a calm host.
+func allocsPerStep(m *tui.Model, msg tea.Msg) float64 {
+	return testing.AllocsPerRun(3, func() {
+		m.Update(msg)
 		m.View()
-		steps := []struct {
-			name string
-			msg  tea.Msg
-		}{
-			{"down", key("down")}, {"up", key("up")}, {"pgdown", key("pgdown")}, {"pgup", key("pgup")},
-			{"G", key("G")}, {"right", key("right")}, {"left", key("left")},
-			{"e expand all", key("e")}, {"down after e", key("down")}, {"E collapse all", key("E")},
-			{"S sections", key("S")}, {"S again", key("S")}, {"T style", key("T")},
-			{"H help pane", key("H")}, {"H again", key("H")}, {"? keys", key("?")}, {"esc", key("esc")},
-			{"/ filter", key("/")}, {"type s", key("s")}, {"type v", key("v")}, {"enter", key("enter")},
-			{"esc clears", key("esc")},
-			{"resize", tea.WindowSizeMsg{Width: size[0] + 9, Height: size[1] + 4}},
-			{"resize back", tea.WindowSizeMsg{Width: size[0], Height: size[1]}},
-			{"wheel", tea.MouseMsg{Action: tea.MouseActionPress, Button: tea.MouseButtonWheelDown, X: 5, Y: 5}},
-			{"click", tea.MouseMsg{Action: tea.MouseActionPress, Button: tea.MouseButtonLeft, X: 5, Y: 6}},
-		}
+	})
+}
+
+// Every key press must cost about the same on a big tree as on a small one:
+// the work follows the rows on screen, not the size of the tree. A tree four
+// times larger may cost at most three times the allocations. Filter keystrokes
+// scan every node, so they may grow with the tree but no faster (under six
+// times). A quadratic path would cost sixteen times.
+func TestKeyPressCostOnAwsSizedTreeGrowsLessThanTheTree(t *testing.T) {
+	steps := []struct {
+		name string
+		msg  func(w, h int) tea.Msg
+	}{
+		{"down", fixed(key("down"))}, {"up", fixed(key("up"))}, {"pgdown", fixed(key("pgdown"))}, {"pgup", fixed(key("pgup"))},
+		{"G", fixed(key("G"))}, {"right", fixed(key("right"))}, {"left", fixed(key("left"))},
+		{"e expand all", fixed(key("e"))}, {"down after e", fixed(key("down"))}, {"E collapse all", fixed(key("E"))},
+		{"S sections", fixed(key("S"))}, {"S again", fixed(key("S"))}, {"T style", fixed(key("T"))},
+		{"H help pane", fixed(key("H"))}, {"H again", fixed(key("H"))}, {"? keys", fixed(key("?"))}, {"esc", fixed(key("esc"))},
+		{"/ filter", fixed(key("/"))}, {"type s", fixed(key("s"))}, {"type v", fixed(key("v"))}, {"enter", fixed(key("enter"))},
+		{"esc clears", fixed(key("esc"))},
+		{"resize", func(w, h int) tea.Msg { return tea.WindowSizeMsg{Width: w + 9, Height: h + 4} }},
+		{"resize back", func(w, h int) tea.Msg { return tea.WindowSizeMsg{Width: w, Height: h} }},
+		{"wheel", fixed(tea.MouseMsg{Action: tea.MouseActionPress, Button: tea.MouseButtonWheelDown, X: 5, Y: 5})},
+		{"click", fixed(tea.MouseMsg{Action: tea.MouseActionPress, Button: tea.MouseButtonLeft, X: 5, Y: 6})},
+	}
+	scansTree := map[string]bool{"/ filter": true, "type s": true, "type v": true}
+	for _, size := range [][2]int{{80, 24}, {120, 40}, {200, 50}} {
+		small := newSized(scaleTree(105, 0, 0), size[0], size[1])
+		big := newSized(scaleTree(422, 0, 0), size[0], size[1])
 		for _, st := range steps {
-			best := time.Hour
-			for i := 0; i < 3; i++ {
-				start := time.Now()
-				m.Update(st.msg)
-				m.View()
-				if d := time.Since(start); d < best {
-					best = d
-				}
+			msg := st.msg(size[0], size[1])
+			limit := 3.0
+			if scansTree[st.name] {
+				limit = 6
 			}
-			if best > 50*time.Millisecond {
-				t.Errorf("%dx%d: %q took %v on a 422-node tree, want under 50ms", size[0], size[1], st.name, best)
+			a, b := allocsPerStep(small, msg), allocsPerStep(big, msg)
+			if b > limit*a+100 {
+				t.Errorf("%dx%d: %q made %.0f allocations on a 422-service tree and %.0f on a 105-service one, want under %.0fx",
+					size[0], size[1], st.name, b, a, limit)
 			}
 		}
 	}
 }
 
+func fixed(msg tea.Msg) func(int, int) tea.Msg { return func(int, int) tea.Msg { return msg } }
+
+func newSized(root *models.Node, w, h int) *tui.Model {
+	m := tui.NewModel(root, config.DefaultConfig())
+	m.Update(tea.WindowSizeMsg{Width: w, Height: h})
+	m.View()
+	return m
+}
+
 // Expanding everything on a fully expanded aws snapshot (about 9,000 commands
 // and 42,000 flags) used to take about 300ms; row building now reuses its
-// buffers. The bound is generous so slow CI machines do not flake; it exists to
-// catch a return to quadratic or allocation-heavy rebuilds.
+// buffers. Expand-all must grow at most linearly with the tree (four times the
+// tree, under six times the allocations; quadratic would be sixteen), and a key
+// press after it must not depend on how many rows were expanded.
 func TestExpandAllOnAFullyExpandedAwsTree(t *testing.T) {
-	m := tui.NewModel(scaleTree(422, 20, 5), config.DefaultConfig())
-	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
-	m.View()
-	best := time.Hour
-	for i := 0; i < 3; i++ {
-		m.Update(key("E")) // collapse so the next e does real work
-		start := time.Now()
-		m.Update(key("e"))
-		m.View()
-		if d := time.Since(start); d < best {
-			best = d
-		}
+	small := newSized(scaleTree(105, 20, 5), 120, 40)
+	big := newSized(scaleTree(422, 20, 5), 120, 40)
+	expandAll := func(m *tui.Model) float64 {
+		return testing.AllocsPerRun(3, func() {
+			m.Update(key("E")) // collapse so the next e does real work
+			m.Update(key("e"))
+			m.View()
+		})
 	}
-	if best > 250*time.Millisecond {
-		t.Errorf("expand-all on ~60,000 rows took %v, want under 250ms", best)
+	if a, b := expandAll(small), expandAll(big); b > 6*a {
+		t.Errorf("expand-all made %.0f allocations on ~60,000 rows and %.0f on ~15,000, want under 6x", b, a)
 	}
-	m.Update(key("down"))
-	start := time.Now()
-	m.Update(key("down"))
-	m.View()
-	if d := time.Since(start); d > 50*time.Millisecond {
-		t.Errorf("a key press after expand-all took %v, want under 50ms", d)
+	if a, b := allocsPerStep(small, key("down")), allocsPerStep(big, key("down")); b > 1.5*a+100 {
+		t.Errorf("a key press after expand-all made %.0f allocations on ~60,000 rows and %.0f on ~15,000, want about the same", b, a)
 	}
 }
 
