@@ -144,42 +144,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// Key-bindings help modal intercepts all input when active.
-	if m.kb.active {
+	// An open dialog takes every key; other messages wait until it closes.
+	if dialog := m.activeDialog(); dialog != nil {
 		if km, ok := msg.(tea.KeyMsg); ok {
-			return m.updateKeybindModal(km)
-		}
-		return m, nil
-	}
-
-	// Value input modal intercepts all input when active.
-	if m.vm.active {
-		if km, ok := msg.(tea.KeyMsg); ok {
-			return m.updateValueModal(km)
-		}
-		return m, nil
-	}
-
-	// Flag modal intercepts all input when active.
-	if m.fm.active {
-		if km, ok := msg.(tea.KeyMsg); ok {
-			return m.updateFlagModal(km)
-		}
-		return m, nil
-	}
-
-	// Recent commands list intercepts all input when active.
-	if m.rm.active {
-		if km, ok := msg.(tea.KeyMsg); ok {
-			return m.updateRecentsModal(km)
-		}
-		return m, nil
-	}
-
-	// Execute modal intercepts all input when active.
-	if m.modal.active {
-		if km, ok := msg.(tea.KeyMsg); ok {
-			return m.updateModal(km)
+			return dialog(km)
 		}
 		return m, nil
 	}
@@ -221,6 +189,23 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	return m, nil
+}
+
+// activeDialog returns the key handler of the open dialog, or nil.
+func (m *Model) activeDialog() func(tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch {
+	case m.kb.active:
+		return m.updateKeybindModal
+	case m.vm.active:
+		return m.updateValueModal
+	case m.fm.active:
+		return m.updateFlagModal
+	case m.rm.active:
+		return m.updateRecentsModal
+	case m.modal.active:
+		return m.updateModal
+	}
+	return nil
 }
 
 // ---------- focus management ----------
