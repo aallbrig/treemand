@@ -110,3 +110,6 @@ Main went red on two wall-clock asserts (TUI expand-all 260ms vs 250ms; flood di
 
 ### Cycle 55 - 2026-11-23 - released - #306 v0.15.1
 Preflight named #96, but select.md puts `measure:finding` issues first, so the cycle took #306 (cli-ux `check.unknown_flag_suggests` 0 to 1). `task ci` needs Node 22+ for `site:audit`: run `nvm use` in the shell first, or it fails with exit 2 regardless of the change. `task pr:merge` can outlast the 10-minute Bash limit; poll the PR state instead. Untrusted issues: 1.
+
+### Cycle 56 - 2026-11-23 - released - #307 v0.15.2
+cli-ux `unknown_subcommand_errors` and `unknown_subcommand_suggests` 0 to 1: group commands get `RunE: groupRun`, because cobra prints help for a non-runnable command before it validates Args. `SuggestionsFor` returns nothing until `SuggestionsMinimumDistance` is set. The Measurement gate failed on `runRoot` crossing 15 after one extra `errors.As` branch, and `task ci` passed locally: run `go run github.com/uudashr/gocognit/cmd/gocognit@v1.3.0 -over 15 cli/treemand` (it is not installed) and diff it against main before pushing. Untrusted issues: 0.
