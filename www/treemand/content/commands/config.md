@@ -60,19 +60,24 @@ without waiting for a release. Put a YAML file named after the CLI in
 
 ```yaml
 commands:
-  "":                    # the CLI itself
+  # The CLI itself
+  "":
     description: My tool does things
     hide_flags: [--debug-internal]
-  remote add:            # a command path below the CLI
+  # A command path below the CLI
+  remote add:
     description: Add a remote
     flags:
-      - name: --track    # added, or updates the flag of the same name
+      # Added, or updates the flag
+      - name: --track
         short: -t
         value_type: string
-        description: Track one branch
+        description: Track one
+  # Removed from the tree
   remote prune:
-    hide: true           # removed from the tree
-  config set:            # not in the tree: added, with its parents
+    hide: true
+  # Missing: added with its parents
+  config set:
     description: Set a value
 ```
 
