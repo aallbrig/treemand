@@ -12,10 +12,10 @@ import (
 )
 
 var cacheCmd = &cobra.Command{
-	RunE:                  groupRun,
-	DisableFlagsInUseLine: true,
 	Use:                   "cache",
 	Short:                 "Manage the treemand discovery cache",
+	RunE:                  groupRun,
+	DisableFlagsInUseLine: true,
 }
 
 var cacheClearCmd = &cobra.Command{

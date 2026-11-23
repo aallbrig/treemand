@@ -14,10 +14,8 @@ import (
 )
 
 var configCmd = &cobra.Command{
-	RunE:                  groupRun,
-	DisableFlagsInUseLine: true,
-	Use:                   "config",
-	Short:                 "Manage treemand configuration",
+	Use:   "config",
+	Short: "Manage treemand configuration",
 	Long: `View, validate, and modify the treemand configuration file.
 
 The config file is YAML and is searched in order:
@@ -34,6 +32,8 @@ Examples:
   treemand config init             # create a default config file
   treemand config path             # print config file path
   treemand config edit             # open config in $EDITOR`,
+	RunE:                  groupRun,
+	DisableFlagsInUseLine: true,
 }
 
 // ── config view ───────────────────────────────────────────────────────────────
