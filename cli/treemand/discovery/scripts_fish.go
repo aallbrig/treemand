@@ -200,6 +200,9 @@ func (p *fishPlace) test(words []string, cliName string) bool {
 		p.commandSlot = true
 	case fn == "__fish_seen_subcommand_from" || isFishCommandTest(fn, cliName):
 		if len(args) > 0 {
+			if !scriptCommandNameRe.MatchString(args[0]) {
+				return false
+			}
 			p.path = append(p.path, args[0])
 		}
 	case strings.HasPrefix(fn, "__fish_") || strings.HasPrefix(fn, "_"):

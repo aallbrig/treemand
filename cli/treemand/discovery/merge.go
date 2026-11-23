@@ -31,31 +31,9 @@ func mergeInto(dst, src *models.Node) {
 		dst.HelpText = src.HelpText
 	}
 
-	// Merge flags (deduplicate by name; a short-only "-v" is the same flag
-	// as a "--verbose" whose short name is v)
-	flagSet := map[string]bool{}
-	for _, f := range dst.Flags {
-		flagSet[f.Name] = true
-		if f.ShortName != "" {
-			flagSet["-"+f.ShortName] = true
-		}
-	}
-	for _, f := range src.Flags {
-		if !flagSet[f.Name] {
-			dst.Flags = append(dst.Flags, f)
-		}
-	}
+	dst.Flags = mergeFlags(dst.Flags, src.Flags)
 
-	// Merge positionals (deduplicate by name)
-	posSet := map[string]bool{}
-	for _, p := range dst.Positionals {
-		posSet[p.Name] = true
-	}
-	for _, p := range src.Positionals {
-		if !posSet[p.Name] {
-			dst.Positionals = append(dst.Positionals, p)
-		}
-	}
+	dst.Positionals = mergePositionals(dst.Positionals, src.Positionals)
 
 	// Merge children
 	for _, srcChild := range src.Children {
@@ -71,6 +49,39 @@ func mergeInto(dst, src *models.Node) {
 			dst.Children = append(dst.Children, srcChild.Clone())
 		}
 	}
+}
+
+// mergeFlags appends the flags of src that dst lacks. Flags are the same
+// when their names match, or when a short-only "-v" names the short form of
+// a "--verbose" already in dst.
+func mergeFlags(dst, src []models.Flag) []models.Flag {
+	have := map[string]bool{}
+	for _, f := range dst {
+		have[f.Name] = true
+		if f.ShortName != "" {
+			have["-"+f.ShortName] = true
+		}
+	}
+	for _, f := range src {
+		if !have[f.Name] {
+			dst = append(dst, f)
+		}
+	}
+	return dst
+}
+
+// mergePositionals appends the positionals of src that dst lacks by name.
+func mergePositionals(dst, src []models.Positional) []models.Positional {
+	have := map[string]bool{}
+	for _, p := range dst {
+		have[p.Name] = true
+	}
+	for _, p := range src {
+		if !have[p.Name] {
+			dst = append(dst, p)
+		}
+	}
+	return dst
 }
 
 // Run executes all discoverers and merges their results.

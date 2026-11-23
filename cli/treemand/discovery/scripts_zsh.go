@@ -183,7 +183,13 @@ func zshCommandsFunction(words []string, cliName string) ([]string, bool) {
 	if !strings.HasPrefix(name, "__") {
 		return nil, false
 	}
-	return strings.Split(name[2:], "__"), true
+	path := strings.Split(name[2:], "__")
+	for _, p := range path {
+		if !scriptCommandNameRe.MatchString(p) {
+			return nil, false
+		}
+	}
+	return path, true
 }
 
 // zshArrayStart returns the index of the "name=(" word of an array

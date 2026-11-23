@@ -150,3 +150,37 @@ func FuzzParsePositionals(f *testing.F) {
 		}
 	})
 }
+
+// FuzzParseCompletionScripts feeds each completion-script parser arbitrary
+// text: none may panic, and every node it builds must sit at its parent's
+// path with a valid name.
+func FuzzParseCompletionScripts(f *testing.F) {
+	files, _ := filepath.Glob("testdata/completion-scripts/*")
+	for _, file := range files {
+		if b, err := os.ReadFile(file); err == nil && len(b) < 8<<10 {
+			f.Add(string(b))
+		}
+	}
+	f.Add(`complete -c tool -n '__fish_seen_subcommand_from a; and not __fish_seen_subcommand_from b' -a b -l x`)
+	f.Add("_tool_commands() {\n local commands; commands=('a:b' {c,d}:e)\n}\n_arguments : '(-q)'{-q,--quiet}'[q]'")
+	f.Fuzz(func(t *testing.T, src string) {
+		for _, parse := range []func(string, string) *scriptTree{parseFishScript, parseZshScript, parseBashScript} {
+			if root := parse(src, "tool").node(); root != nil {
+				checkScriptNode(t, root)
+			}
+		}
+	})
+}
+
+func checkScriptNode(t *testing.T, n *models.Node) {
+	t.Helper()
+	for _, c := range n.Children {
+		if !scriptCommandNameRe.MatchString(c.Name) {
+			t.Fatalf("invalid command name %q", c.Name)
+		}
+		if len(c.FullPath) != len(n.FullPath)+1 || c.FullPath[len(c.FullPath)-1] != c.Name {
+			t.Fatalf("child %q has FullPath %q under %q", c.Name, c.FullPath, n.FullPath)
+		}
+		checkScriptNode(t, c)
+	}
+}
