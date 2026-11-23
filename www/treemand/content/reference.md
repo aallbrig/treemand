@@ -66,7 +66,7 @@ Discover a CLI afresh and report how it was parsed: strategy and help form,
 node count, commands without a description or flags, undiscovered stubs,
 commands that failed, probe outcomes and the five slowest probes. Paste the
 text report into a bug report; `--output=json` prints the same report for
-scripts. See [doctor](/commands/doctor/).
+scripts. See [doctor](../commands/doctor/).
 
 ```bash
 treemand doctor git
