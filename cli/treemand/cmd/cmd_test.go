@@ -645,6 +645,8 @@ func TestExitCodes(t *testing.T) {
 		{"no argument", nil, cmd.ExitUsage, []string{"missing CLI name", "treemand git", "--help"}},
 		{"two arguments", []string{"git", "remote"}, cmd.ExitUsage, []string{"one CLI name", "git remote"}},
 		{"unknown flag", []string{"--no-such-flag", "git"}, cmd.ExitUsage, []string{"unknown flag", "--help"}},
+		{"mistyped flag", []string{"--outptu=json", "git"}, cmd.ExitUsage, []string{"unknown flag: --outptu", "Did you mean --output?"}},
+		{"truncated flag", []string{"--no-cach", "git"}, cmd.ExitUsage, []string{"Did you mean --no-cache?"}},
 		{"bad flag value", []string{"--depth=abc", "git"}, cmd.ExitUsage, []string{"--depth"}},
 		{"unknown output format", []string{"--output=xml", "git"}, cmd.ExitUsage, []string{"unknown output format", "text, json or yaml"}},
 		{"negative timeout", []string{"--timeout=-5", "git"}, cmd.ExitUsage, []string{"--timeout", "0 for no limit"}},
@@ -689,5 +691,22 @@ func TestOutputFormatIsValidatedBeforeDiscovery(t *testing.T) {
 	}
 	if time.Since(start) > 2*time.Second {
 		t.Errorf("validation took %v", time.Since(start))
+	}
+}
+
+func TestUnknownFlag_noSuggestionWhenNothingIsClose(t *testing.T) {
+	_, err := runCmd("--no-such-flag", "git")
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	if msg := cmd.FormatError(err); strings.Contains(msg, "Did you mean") {
+		t.Errorf("a far-off flag should get no suggestion:\n%s", msg)
+	}
+}
+
+func TestUnknownFlag_suggestionIgnoresCase(t *testing.T) {
+	_, err := runCmd("--Outpu=json", "git")
+	if err == nil || !strings.Contains(cmd.FormatError(err), "Did you mean --output?") {
+		t.Errorf("want a case-insensitive suggestion, got %v", err)
 	}
 }

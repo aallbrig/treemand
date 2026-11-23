@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 // Exit codes. They are documented in the README; scripts may rely on them.
@@ -73,9 +74,63 @@ func rootArgs(_ *cobra.Command, args []string) error {
 	}
 }
 
-// flagError turns cobra's flag parsing errors into usage errors.
-func flagError(_ *cobra.Command, err error) error {
-	return newUsageError("Run 'treemand --help' for all flags.", "%s", err.Error())
+// flagError turns cobra's flag parsing errors into usage errors. For an
+// unknown long flag it suggests the closest flag the command accepts.
+func flagError(c *cobra.Command, err error) error {
+	hint := "Run 'treemand --help' for all flags."
+	if name, ok := strings.CutPrefix(err.Error(), "unknown flag: --"); ok {
+		if s := suggestFlag(c, name); s != "" {
+			hint = "Did you mean --" + s + "?\n" + hint
+		}
+	}
+	return newUsageError(hint, "%s", err.Error())
+}
+
+// suggestFlag returns the flag of c (local or inherited) nearest to typed:
+// one it is a prefix of, or one within two edits, as cobra suggests
+// subcommands. It returns "" when nothing is close.
+func suggestFlag(c *cobra.Command, typed string) string {
+	typed = strings.ToLower(typed)
+	if typed == "" {
+		return ""
+	}
+	best, bestDist := "", 3
+	visit := func(f *pflag.Flag) {
+		if f.Hidden {
+			return
+		}
+		d := levenshtein(typed, f.Name)
+		if strings.HasPrefix(f.Name, typed) {
+			d = 0
+		}
+		if d < bestDist {
+			best, bestDist = f.Name, d
+		}
+	}
+	c.Flags().VisitAll(visit)
+	c.InheritedFlags().VisitAll(visit)
+	return best
+}
+
+// levenshtein is the edit distance between a and b.
+func levenshtein(a, b string) int {
+	prev := make([]int, len(b)+1)
+	for j := range prev {
+		prev[j] = j
+	}
+	for i := 1; i <= len(a); i++ {
+		cur := make([]int, len(b)+1)
+		cur[0] = i
+		for j := 1; j <= len(b); j++ {
+			cost := 1
+			if a[i-1] == b[j-1] {
+				cost = 0
+			}
+			cur[j] = min(prev[j]+1, cur[j-1]+1, prev[j-1]+cost)
+		}
+		prev = cur
+	}
+	return prev[len(b)]
 }
 
 var shells = []string{"bash", "zsh", "fish", "powershell"}

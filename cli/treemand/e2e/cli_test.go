@@ -201,6 +201,7 @@ func TestFailurePaths(t *testing.T) {
 		{"no argument", nil, 2, []string{"missing CLI name", "treemand git", "--help"}},
 		{"extra argument", []string{"fakecobra", "build"}, 2, []string{"one CLI name", "fakecobra build"}},
 		{"unknown flag", []string{"--no-such-flag", "fakecobra"}, 2, []string{"unknown flag", "--help"}},
+		{"mistyped flag", []string{"--outptu=json", "fakecobra"}, 2, []string{"unknown flag: --outptu", "Did you mean --output?"}},
 		{"bad flag value", []string{"--depth=abc", "fakecobra"}, 2, []string{"--depth"}},
 		{"unknown output format", []string{"--output=xml", "fakecobra"}, 2, []string{"unknown output format", "text, json or yaml"}},
 		{"completion without shell", []string{"completion"}, 2, []string{"missing shell", "powershell"}},
