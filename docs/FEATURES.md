@@ -145,7 +145,7 @@ These flags apply to the root command and control discovery behavior:
 | `--exclude=<regex>` | Hide matching nodes |
 | `--commands-only` | Hide flags and positionals |
 | `--full-path` | Show full command paths |
-| `--output=<format>` | Output format: text, json, yaml |
+| `--output=<format>` | Output format: text, json, yaml, html |
 | `--tree-style=<style>` | Tree style: default, columns, compact, graph |
 | `--icons=<preset>` | Icon set: unicode, ascii, nerd |
 | `--strategy=<list>` | Discovery strategies: help, completions, man |
