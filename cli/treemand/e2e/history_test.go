@@ -41,7 +41,8 @@ func TestHistory_aCommandRunFromTheTUIIsRemembered(t *testing.T) {
 
 	s = startWithEnv(t, cacheEnv, "-i", "--no-cache", "fakecobra")
 	s.waitFor("deploy", 15*time.Second)
-	s.send("\x12") // Ctrl+R
+	s.stepDownUntil("fakecobra --", 6) // the TUI is reading keys
+	s.send("\x12")                     // Ctrl+R
 	s.waitFor("Recent Commands", 5*time.Second)
 	s.send("\r")
 	s.waitFor("loaded: fakecobra build", 5*time.Second)
@@ -66,7 +67,8 @@ func TestHistory_emptyAndOptOut(t *testing.T) {
 	off := []string{cacheEnv[0], "TREEMAND_NO_HISTORY=1"}
 	s := startWithEnv(t, off, "-i", "--no-cache", "fakecobra")
 	s.waitFor("deploy", 15*time.Second)
-	s.send("\x12") // Ctrl+R
+	s.stepDownUntil("fakecobra --", 6) // the TUI is reading keys
+	s.send("\x12")                     // Ctrl+R
 	s.waitFor("history is off", 5*time.Second)
 	s.send("\x05")
 	s.waitFor("Execute Command", 5*time.Second)
