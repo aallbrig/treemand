@@ -4,6 +4,7 @@ import (
 	"context"
 	"os/exec"
 	"sync"
+	"time"
 )
 
 // MaxHelpBytes is the most output read from one help probe (1MB: about ten
@@ -61,9 +62,11 @@ func runCapped(ctx context.Context, name string, args, extraEnv []string, limit 
 	cb := &cappedBuffer{limit: limit, onFull: cancel}
 	cmd.Stdout = cb
 	cmd.Stderr = cb
+	start := time.Now()
 	err = cmd.Run()
 	cb.mu.Lock()
 	defer cb.mu.Unlock()
+	recordProbe(ctx, name, args, start, cb.truncated, err)
 	if cb.truncated && OnOutputTruncated != nil {
 		OnOutputTruncated(name, args, limit)
 	}

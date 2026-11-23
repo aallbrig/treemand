@@ -99,6 +99,13 @@ func buildDocRoot() *cobra.Command {
 		DisableAutoGenTag: true,
 	})
 	root.AddCommand(&cobra.Command{
+		Use:               doctorCmd.Use,
+		Short:             doctorCmd.Short,
+		Long:              doctorCmd.Long,
+		Example:           doctorCmd.Example,
+		DisableAutoGenTag: true,
+	})
+	root.AddCommand(&cobra.Command{
 		Use:               cacheCmd.Use,
 		Short:             cacheCmd.Short,
 		Long:              cacheCmd.Long,

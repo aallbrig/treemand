@@ -161,6 +161,18 @@ esac
 *) printf 'Fakegotool manages source.\n\nUsage:\n\n\tfakegotool <command> [arguments]\n\nThe commands are:\n\n\tbuild       compile packages\n\ttidy        tidy modules\n\nUse "fakegotool help <command>" for more information about a command.\n';;
 esac
 `,
+
+	// A CLI with one subcommand of each kind treemand doctor reports: a good
+	// one, one without flags, one whose help never comes back in time, and
+	// one that answers every help form with an error.
+	"fakedoctor": `case "$1" in
+good) printf 'Good things\n\nUsage:\n  fakedoctor good [flags]\n\nFlags:\n  -h, --help   help for good\n      --fine   all fine\n';;
+bare) printf 'Usage:\n  fakedoctor bare\n';;
+slow) sleep 8; printf 'Slow things\n';;
+broken|help) echo "Error: unknown command \"$1\"" >&2; exit 1;;
+*) printf 'fakedoctor checks things\n\nUsage:\n  fakedoctor [command]\n\nAvailable Commands:\n  good        Good things\n  bare        Bare things\n  slow        Slow things\n  broken      Broken things\n\nFlags:\n  -h, --help   help for fakedoctor\n';;
+esac
+`,
 }
 
 // fakeAptMan is man as it answers for fakeapt. TestApt_* put it first on
