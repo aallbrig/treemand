@@ -108,3 +108,19 @@ func TestParseHelp_flagsFromProseThatNamesThem(t *testing.T) {
 		t.Errorf("flags %v, want only %v", got, want)
 	}
 }
+
+// Flags read from the usage line belong to no flag section.
+func TestParseHelp_usageLineFlagsJoinNoSection(t *testing.T) {
+	help := "usage: tool [-q] [--color <when>]\n\nGeneral options:\n  -a, --all    all\n  -b, --brief  brief\n\nDebug options:\n  -d, --debug  debug\n  -t, --trace  trace\n"
+	p := discovery.ParseHelpOutput(help)
+	if got := flagTypes(p); got["-q"] != "bool" || got["--color"] != "when" {
+		t.Fatalf("usage flags missing: %v", got)
+	}
+	for _, s := range p.Sections {
+		for _, f := range s.Flags {
+			if f.Name == "-q" || f.Name == "--color" {
+				t.Errorf("usage-line flag %s filed under section %q", f.Name, s.Name)
+			}
+		}
+	}
+}

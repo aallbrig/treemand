@@ -1600,7 +1600,9 @@ func (p *helpParser) finish() ParsedHelp {
 		r.Positionals = append(r.Positionals, parsePositionals(ul)...)
 	}
 	// Flags the synopsis names but no row lists ("go mod tidy" documents them
-	// in prose) come after the listed ones, which carry descriptions.
+	// in prose) come after the listed ones, which carry descriptions, and
+	// belong to no flag section.
+	p.currentSectionName = ""
 	for _, ul := range p.usageLines {
 		for _, f := range usageLineFlags(ul) {
 			p.addFlag(f)
