@@ -107,3 +107,6 @@ go subcommands without flags went from 33/33 to 10/33: follow the `Run 'go help 
 
 ### Cycle 53 - 2026-11-23 - released - #93 v0.13.0
 Every probe that starts the target now runs in a throwaway HOME, XDG dirs and TMPDIR, and kill, reboot, shutdown and similar are refused with exit 1. Existing version-manager roots stay pointed at the real home so shims resolve. The complexity ratchet counts test functions too: a new e2e test crossed 15 and failed the Measurement gate, so run `gocognit -over 15 cli/treemand` (whole module, tests included) before pushing. `git commit --no-verify` is denied; fix the lint and commit normally.
+
+### Cycle 54 - 2026-11-23 - idle - #335 (fix main, no release)
+Main went red on two wall-clock asserts (TUI expand-all 260ms vs 250ms; flood discovery 5.37s vs 5s under -race on macOS). Replace timing bounds in unit tests with a deterministic proxy: allocation ratios on a tree 4x larger (`testing.AllocsPerRun`) catch quadratic paths, and an endless flood with a long timeout proves a kill where a finite flood proves nothing. Keep absolute latency in the `tui` probe. `/code-review` skips test hunks, so a test-only diff needs a hand review. Measure timing's `help_calls.go` 38 to 67 is #66's intended trade-off judged against stale history.
