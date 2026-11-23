@@ -365,10 +365,13 @@ func resolveBinaryOrError(cliName string) (string, error) {
 	return cliName, fmt.Errorf("command %q not found in PATH or current directory", cliName)
 }
 
-// CheckAvailable returns an error if cliName cannot be resolved to an
-// executable. Call this before starting discovery to give the user a clear
+// CheckAvailable returns an error if cliName is on the never-probe list
+// (a *NeverProbeError) or cannot be resolved to an executable. Call this before starting discovery to give the user a clear
 // error message instead of a cryptic "no help output" stub node.
 func CheckAvailable(cliName string) error {
+	if err := CheckProbeAllowed(cliName); err != nil {
+		return err
+	}
 	_, err := resolveBinaryOrError(cliName)
 	return err
 }

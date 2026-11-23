@@ -41,6 +41,12 @@ mk chaos-empty      'exit 0'
 # Discovery must never send it a positional "help" (#273).
 mk chaos-bsdoperand "for a in \"\$@\"; do case \"\$a\" in -*) echo \"chaos-bsdoperand: illegal option -- \${a#-}\" >&2; echo 'usage: chaos-bsdoperand [-pv] directory_name ...' >&2; exit 64;; esac; done
 touch \"$work/chaos-bsdoperand.acted\""
+# Writes into HOME on every start, as a tool that creates config on first run
+# does. Probes run in a throwaway home, so the real one (here $work) stays clean (#93).
+mk chaos-homewriter "touch \"\$HOME/chaos-homewriter.acted\"
+cat <<'H'
+$HELP
+H"
 
 fail=0
 printf 'case\tstatus\tsecs\trss_mb\n'
@@ -49,7 +55,7 @@ for c in "$work"/chaos-*; do
   budget=25
   err="$work/$name.err"
   # timed.py: wall seconds and max RSS (KB) on Linux and macOS alike.
-  PATH="$work:$PATH" python3 -I "$LOOP_ROOT/scripts/metrics/timed.py" "$work/$name.cost" "$PWD" -- \
+  HOME="$work" PATH="$work:$PATH" python3 -I "$LOOP_ROOT/scripts/metrics/timed.py" "$work/$name.cost" "$PWD" -- \
     timeout --kill-after=2 "$budget" "$bin" --no-cache --output=json --timeout=5 "$name" >"$work/$name.out" 2>"$err"
   rc=$?
   secs="$(awk '{printf "%.1f", $1}' "$work/$name.cost" 2>/dev/null || echo 0)"

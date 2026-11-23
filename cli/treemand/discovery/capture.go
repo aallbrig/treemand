@@ -46,15 +46,17 @@ func (c *cappedBuffer) Write(p []byte) (int, error) {
 
 // runCapped runs name with args and returns its combined stdout and stderr,
 // at most limit bytes of it. When the cap is hit the process is killed and the
-// prefix read so far is returned with truncated set. extraEnv entries are
-// appended to the environment (nil means inherit as is).
+// prefix read so far is returned with truncated set. The process runs in an
+// isolated home (IsolateProbe) with extraEnv appended to its environment.
 func runCapped(ctx context.Context, name string, args, extraEnv []string, limit int) (out []byte, truncated bool, err error) {
 	cctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	cmd := exec.CommandContext(cctx, name, args...)
-	if extraEnv != nil {
-		cmd.Env = append(cmd.Environ(), extraEnv...)
+	cleanup, err := IsolateProbe(cmd, extraEnv)
+	if err != nil {
+		return nil, false, err
 	}
+	defer cleanup()
 	cmd.WaitDelay = killWaitDelay
 	cb := &cappedBuffer{limit: limit, onFull: cancel}
 	cmd.Stdout = cb

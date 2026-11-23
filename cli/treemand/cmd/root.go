@@ -3,6 +3,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -152,8 +153,8 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	configureDiscovery()
 
 	// Fail early with a clear message if the binary cannot be found.
-	if err := discovery.CheckAvailable(cliName); err != nil {
-		return fmt.Errorf("%w\nHint: check spelling and ensure the command is on your PATH", err)
+	if err := checkAvailable(cliName); err != nil {
+		return err
 	}
 
 	cfg := configFromFlags()
@@ -198,6 +199,17 @@ func runRoot(cmd *cobra.Command, args []string) error {
 
 	rc.put(node, versionCh)
 	return output(cmd, node, cfg, rc.saver())
+}
+
+// checkAvailable reports a CLI treemand must not or cannot run. A missing
+// CLI gets a hint; a refused one already says what to do instead.
+func checkAvailable(cliName string) error {
+	err := discovery.CheckAvailable(cliName)
+	var never *discovery.NeverProbeError
+	if err == nil || errors.As(err, &never) {
+		return err
+	}
+	return fmt.Errorf("%w\nHint: check spelling and ensure the command is on your PATH", err)
 }
 
 // discoveryContext bounds a run by --timeout seconds. Zero means no overall
