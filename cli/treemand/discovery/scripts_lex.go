@@ -43,6 +43,7 @@ type scriptLexer struct {
 	word    strings.Builder
 	inWord  bool
 	braces  int // unquoted brace depth within the current word
+	vars    int // depth of ${...} parameter braces within the current word
 	parens  int // unquoted parenthesis depth
 	words   []string
 	cmds    [][]string
@@ -109,8 +110,13 @@ func (l *scriptLexer) trackParens(c byte) {
 }
 
 // braceMarker swaps an unquoted brace-expansion character for its marker.
+// The braces of a ${name} parameter stay as they are.
 func (l *scriptLexer) braceMarker(c byte) byte {
 	switch {
+	case c == '{' && strings.HasSuffix(l.word.String(), "$"):
+		l.vars++
+	case c == '}' && l.vars > 0 && l.braces == 0:
+		l.vars--
 	case c == '{':
 		l.braces++
 		return braceOpen
@@ -225,6 +231,7 @@ func (l *scriptLexer) endWord() {
 	l.word.Reset()
 	l.inWord = false
 	l.braces = 0
+	l.vars = 0
 }
 
 func (l *scriptLexer) endCommand() {

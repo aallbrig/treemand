@@ -279,7 +279,7 @@ func (t *scriptTree) addFishFlag(e fishEntry, path []string) {
 	if long == "" && short == "" {
 		short = first(e.olds)
 	}
-	takesValue := e.takesValue || (e.args != "" && !strings.HasPrefix(e.args, "("))
+	takesValue := e.takesValue || e.args != "" // a value list, fixed or generated
 	if f, ok := scriptFlag(long, short, e.desc, takesValue); ok {
 		t.addFlag(path, f)
 	}

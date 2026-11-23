@@ -161,6 +161,29 @@ func TestMerge_shortOnlyFlagIsTheLongFlagItAbbreviates(t *testing.T) {
 	}
 }
 
+func TestMerge_shortAndLongFoldWhicheverSideHasThem(t *testing.T) {
+	names := func(n *models.Node) string {
+		var out []string
+		for _, f := range n.Flags {
+			out = append(out, f.Name+"/"+f.ShortName+"/"+f.Description)
+		}
+		return strings.Join(out, " ")
+	}
+	helpShort := &models.Node{Name: "cli", Flags: []models.Flag{{Name: "-v", Description: "from help"}}}
+	scriptLong := &models.Node{Name: "cli", Flags: []models.Flag{{Name: "--verbose", ShortName: "v", Description: "from script"}}}
+	if got := names(discovery.Merge([]*models.Node{helpShort, scriptLong})); got != "--verbose/v/from help" {
+		t.Errorf("short then long = %q, want one --verbose keeping help's description", got)
+	}
+	both := &models.Node{Name: "cli", Flags: []models.Flag{{Name: "--verbose", ShortName: "v"}, {Name: "-v"}}}
+	if got := names(discovery.Merge([]*models.Node{{Name: "cli"}, both})); got != "--verbose/v/" {
+		t.Errorf("long and short from one source = %q, want one --verbose", got)
+	}
+	other := &models.Node{Name: "cli", Flags: []models.Flag{{Name: "--version", ShortName: "v"}}}
+	if got := names(discovery.Merge([]*models.Node{other, scriptLong})); got != "--version/v/" {
+		t.Errorf("a short name owned by another flag = %q, want --version kept alone", got)
+	}
+}
+
 func TestBuildDiscoverers_scripts(t *testing.T) {
 	ds := discovery.BuildDiscoverers([]string{"help", "scripts"}, 2)
 	if len(ds) != 2 || ds[1].Name() != "scripts" {

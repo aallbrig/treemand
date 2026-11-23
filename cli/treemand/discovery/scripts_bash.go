@@ -8,8 +8,12 @@ import (
 )
 
 // bashFirstWordRe matches a test that the word being completed is the first
-// argument: COMP_CWORD -eq 1, cword == 1, or a reference to COMP_WORDS[1].
-var bashFirstWordRe = regexp.MustCompile(`(COMP_CWORD|cword)\}?"?\s*(-eq|==|=)\s*"?1\b|(COMP_WORDS|words)\[1\]`)
+// argument: COMP_CWORD -eq 1, cword == 1.
+var bashFirstWordRe = regexp.MustCompile(`(COMP_CWORD|cword)\}?"?\s*(-eq|==|=)\s*"?1\b`)
+
+// bashFirstWordArgRe matches compgen's word to complete when it is the first
+// argument itself: "${COMP_WORDS[1]}" or $words[1].
+var bashFirstWordArgRe = regexp.MustCompile(`^\$\{?(COMP_WORDS|words)\[1\]\}?$`)
 
 // parseBashScript reads a bash completion script for cliName. Only the first
 // argument's words can be read statically: the opts list in the "<cli>)"
@@ -44,19 +48,36 @@ func bashRootWordLists(cmds [][]string, cliName string) []string {
 	}
 	var lists []string
 	for i, words := range cmds {
-		list, ok := bashCompgenWords(words)
+		list, current, ok := bashCompgenWords(words)
 		if !ok {
 			continue
 		}
-		var context []string
-		for _, near := range cmds[max(0, i-2) : i+1] {
-			context = append(context, strings.Join(near, " "))
-		}
-		if bashFirstWordRe.MatchString(strings.Join(context, " ")) {
+		if bashFirstWordArgRe.MatchString(current) || bashGuardedByFirstWord(cmds, i) {
 			lists = append(lists, list)
 		}
 	}
 	return lists
+}
+
+// bashGuardedByFirstWord reports whether command i, or the if/elif/test
+// command right before it (past a lone "then"), tests that the first argument is being completed.
+func bashGuardedByFirstWord(cmds [][]string, i int) bool {
+	if bashFirstWordRe.MatchString(strings.Join(cmds[i], " ")) {
+		return true
+	}
+	j := i - 1
+	if j >= 0 && len(cmds[j]) == 1 && cmds[j][0] == "then" {
+		j-- // "if ...; then" with the body on the next line
+	}
+	if j < 0 {
+		return false
+	}
+	prev := cmds[j]
+	switch prev[0] {
+	case "if", "elif", "[[", "[", "((":
+		return bashFirstWordRe.MatchString(strings.Join(prev, " "))
+	}
+	return false
 }
 
 // bashClapRootOpts finds `opts="..."` right after the "<cli>" ")" case arm.
@@ -74,14 +95,19 @@ func bashClapRootOpts(cmds [][]string, cliName string) (string, bool) {
 	return "", false
 }
 
-// bashCompgenWords returns the literal list of a `compgen -W "<list>"`.
-func bashCompgenWords(words []string) (string, bool) {
+// bashCompgenWords returns the literal list of a `compgen -W "<list>"` and
+// the word it completes (the one after "--").
+func bashCompgenWords(words []string) (list, current string, ok bool) {
 	for i := 0; i+2 < len(words); i++ {
-		if strings.HasSuffix(words[i], "compgen") && words[i+1] == "-W" && isLiteralWords(words[i+2]) {
-			return words[i+2], true
+		if !strings.HasSuffix(words[i], "compgen") || words[i+1] != "-W" || !isLiteralWords(words[i+2]) {
+			continue
 		}
+		if i+4 < len(words) && words[i+3] == "--" {
+			current = words[i+4]
+		}
+		return words[i+2], current, true
 	}
-	return "", false
+	return "", "", false
 }
 
 // isLiteralWords reports whether s is a fixed word list: no expansion or

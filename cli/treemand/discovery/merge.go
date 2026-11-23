@@ -52,22 +52,47 @@ func mergeInto(dst, src *models.Node) {
 }
 
 // mergeFlags appends the flags of src that dst lacks. Flags are the same
-// when their names match, or when a short-only "-v" names the short form of
-// a "--verbose" already in dst.
+// when their names match, or when a short-only "-v" is the short form of a
+// "--verbose": whichever side has it, the two become one --verbose flag.
 func mergeFlags(dst, src []models.Flag) []models.Flag {
-	have := map[string]bool{}
-	for _, f := range dst {
-		have[f.Name] = true
-		if f.ShortName != "" {
-			have["-"+f.ShortName] = true
+	at := map[string]int{} // a flag's name, and "-" + its short name -> index in dst
+	index := func(i int) {
+		at[dst[i].Name] = i
+		if dst[i].ShortName != "" {
+			at["-"+dst[i].ShortName] = i
 		}
+	}
+	for i := range dst {
+		index(i)
 	}
 	for _, f := range src {
-		if !have[f.Name] {
-			dst = append(dst, f)
+		if _, ok := at[f.Name]; ok {
+			continue
 		}
+		if i, ok := at["-"+f.ShortName]; ok && f.ShortName != "" {
+			dst[i] = foldShort(dst[i], f)
+			index(i)
+			continue
+		}
+		dst = append(dst, f)
+		index(len(dst) - 1)
 	}
 	return dst
+}
+
+// foldShort returns have with long's name when have is the short-only form
+// of long, keeping have's description and value type, which came first.
+func foldShort(have, long models.Flag) models.Flag {
+	if have.Name != "-"+long.ShortName {
+		return have // a different long flag already owns this short name
+	}
+	if have.Description != "" {
+		long.Description = have.Description
+	}
+	if have.ValueType != "" {
+		long.ValueType = have.ValueType
+	}
+	return long
 }
 
 // mergePositionals appends the positionals of src that dst lacks by name.

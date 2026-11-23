@@ -297,3 +297,62 @@ func TestDefaultScriptDirs_followXDG(t *testing.T) {
 		t.Errorf("zsh dirs = %v", d.Zsh)
 	}
 }
+
+func TestParseBashScript_firstWordTests(t *testing.T) {
+	tests := []struct {
+		name, src string
+		want      []string
+	}{
+		{"braced COMP_CWORD test", "if [[ ${COMP_CWORD} -eq 1 ]]; then\n  COMPREPLY=($(compgen -W \"start stop\" -- \"$cur\"))\nfi\n", []string{"start", "stop"}},
+		{"compgen completes COMP_WORDS[1]", "COMPREPLY=($(compgen -W \"start stop\" -- \"${COMP_WORDS[1]}\"))\n", []string{"start", "stop"}},
+		{"a subcommand's case arm", "case \"${COMP_WORDS[1]}\" in\n  start) COMPREPLY=($(compgen -W \"--force --wait\" -- \"$cur\")) ;;\nesac\n", nil},
+		{"an unrelated test nearby", "local first=${words[1]}\nCOMPREPLY=($(compgen -W \"json yaml\" -- \"$cur\"))\n", nil},
+		{"a cword test two commands back", "[[ $cword -eq 1 ]] && echo hi\nlocal x\nCOMPREPLY=($(compgen -W \"json yaml\" -- \"$cur\"))\n", nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			n := parseBashScript(tt.src, "tool").node()
+			var got []string
+			if n != nil {
+				got = childNames(n)
+				for _, f := range n.Flags {
+					got = append(got, f.Name)
+				}
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("root words = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseZshScript_rootFlagsComeFromTheRootFunction(t *testing.T) {
+	src := "#compdef tool\n_tool_sub() {\n  _arguments '-z[zz]'\n}\n_tool() {\n  _arguments '-q[quiet]' '--quiet[quiet]'\n}\n"
+	root := parseZshScript(src, "tool").node()
+	if root == nil || len(root.Flags) != 1 {
+		t.Fatalf("root = %+v, want only --quiet", root)
+	}
+	wantFlag(t, root, models.Flag{Name: "--quiet", ShortName: "q", ValueType: "bool", Description: "quiet"})
+
+	loose := parseZshScript("#compdef tool\n_arguments '--loose[l]'\n", "tool").node()
+	if loose == nil {
+		t.Fatal("a script whose body is the function gave nothing")
+	}
+	wantFlag(t, loose, models.Flag{Name: "--loose", ValueType: "bool", Description: "l"})
+}
+
+func TestParseZshScript_commandItems(t *testing.T) {
+	src := "_tool_commands() {\n  local commands; commands=('run\\:all:Run everything' {c,d}':Letter' 'plain')\n}\n"
+	root := parseZshScript(src, "tool").node()
+	if got := childNames(root); !reflect.DeepEqual(got, []string{"run:all", "c", "d"}) {
+		t.Errorf("children = %v, want [run:all c d]", got)
+	}
+	if d := childByName(t, root, "run:all").Description; d != "Run everything" {
+		t.Errorf("run:all description = %q", d)
+	}
+}
+
+func TestParseFishScript_generatedValuesStillTakeAValue(t *testing.T) {
+	root := parseFishScript(`complete -c tool -l out -a '(__fish_complete_directories)'`, "tool").node()
+	wantFlag(t, root, models.Flag{Name: "--out", ValueType: "string"})
+}

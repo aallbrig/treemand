@@ -18,29 +18,62 @@ var zshOptionNameRe = regexp.MustCompile(`^--?[A-Za-z0-9?][A-Za-z0-9_.?-]*`)
 func parseZshScript(src, cliName string) *scriptTree {
 	t := newScriptTree(cliName)
 	cmds := scriptCommands(src, dialectPOSIX)
-	t.addZshRootFlags(cmds)
+	t.addZshRootFlags(zshRootArguments(cmds, cliName))
 	t.addZshCommandArrays(cmds, cliName)
 	return t
 }
 
-func (t *scriptTree) addZshRootFlags(cmds [][]string) {
-	for _, words := range cmds {
-		if words[0] != "_arguments" {
-			continue
-		}
-		var flags []models.Flag
-		for _, spec := range zshSpecs(words[1:]) {
-			for _, s := range expandBraces(spec) {
-				if f, ok := zshFlag(s); ok {
-					flags = append(flags, f)
-				}
-			}
-		}
-		for _, f := range pairShortLong(flags) {
-			t.addFlag(nil, f)
-		}
+// addZshRootFlags adds the options of the root's _arguments call.
+func (t *scriptTree) addZshRootFlags(words []string) {
+	if len(words) == 0 {
 		return
 	}
+	var flags []models.Flag
+	for _, spec := range zshSpecs(words[1:]) {
+		for _, s := range expandBraces(spec) {
+			if f, ok := zshFlag(s); ok {
+				flags = append(flags, f)
+			}
+		}
+	}
+	for _, f := range pairShortLong(flags) {
+		t.addFlag(nil, f)
+	}
+}
+
+// zshRootArguments returns the first _arguments call in the _<cli> function,
+// or, when the script has none, the first one before any function is
+// defined (a script whose body is the completion function). Calls in other
+// functions describe subcommands or helpers, not the root.
+func zshRootArguments(cmds [][]string, cliName string) []string {
+	fn, sawFunction := "", false
+	var loose []string
+	for _, words := range cmds {
+		if name, ok := zshFunctionName(words); ok {
+			fn, sawFunction = name, true
+			continue
+		}
+		switch {
+		case words[0] != "_arguments":
+		case fn == "_"+cliName:
+			return words
+		case !sawFunction && loose == nil:
+			loose = words
+		}
+	}
+	return loose
+}
+
+// zshFunctionName reads a function header: "name() {" (lexed as "name(",
+// ")") or "function name {".
+func zshFunctionName(words []string) (string, bool) {
+	if words[0] == "function" && len(words) > 1 {
+		return strings.TrimSuffix(words[1], "()"), true
+	}
+	if len(words) > 1 && words[1] == ")" && len(words[0]) > 1 && strings.HasSuffix(words[0], "(") && !strings.HasPrefix(words[0], "(") {
+		return strings.TrimSuffix(words[0], "("), true
+	}
+	return "", false
 }
 
 // zshSpecs returns the spec words of an _arguments call: those after a lone
@@ -150,8 +183,8 @@ func (t *scriptTree) addZshCommandArrays(cmds [][]string, cliName string) {
 		}
 		if inCommands && zshArrayStart(words) >= 0 {
 			for _, item := range zshArrayItems(words) {
-				name, desc, _ := strings.Cut(item, ":")
-				t.addCommand(path, strings.ReplaceAll(name, `\`, ""), desc)
+				name, desc := zshItem(item)
+				t.addCommand(path, name, desc)
 			}
 			inCommands = false
 		}
@@ -203,6 +236,20 @@ func zshArrayStart(words []string) int {
 	return -1
 }
 
+// zshItem splits a 'name:description' item on its first unescaped colon, so
+// 'run\:all:Run everything' names run:all.
+func zshItem(item string) (name, desc string) {
+	for i := 0; i < len(item); i++ {
+		switch item[i] {
+		case '\\':
+			i++
+		case ':':
+			return strings.ReplaceAll(item[:i], `\`, ""), item[i+1:]
+		}
+	}
+	return strings.ReplaceAll(item, `\`, ""), ""
+}
+
 // zshArrayItems returns the 'name:description' items of an array assignment.
 func zshArrayItems(words []string) []string {
 	var items []string
@@ -210,8 +257,10 @@ func zshArrayItems(words []string) []string {
 		if w == ")" {
 			break
 		}
-		if strings.Contains(w, ":") {
-			items = append(items, w)
+		for _, item := range expandBraces(w) {
+			if strings.Contains(item, ":") {
+				items = append(items, item)
+			}
 		}
 	}
 	return items
