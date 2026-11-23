@@ -1732,10 +1732,10 @@ func parseFlag(line string) (models.Flag, bool) {
 
 // singleDashRe matches single-dash options (#156), as Go's flag package
 // ("  -cpuprofile string" with the description on the next line, "  -d<TAB>…"),
-// "go help <cmd>" ("<TAB>-C dir", #66) and mitchellh/cli ("  -chdir=DIR
-// Switch …") print them. After the name and
-// an optional " type" or "=VALUE" comes a tab, a 2+ space gap or the end of
-// the line, so "-v verbose output" (prose after one space) never matches.
+// "go help <cmd>" ("<TAB>-C dir", #66) and mitchellh/cli ("  -chdir=DIR    Switch …")
+// print them. After the name and an optional " type" or "=VALUE" comes a tab,
+// a 2+ space gap or the end of the line, so "-v verbose output" (prose after
+// one space) never matches.
 var singleDashRe = regexp.MustCompile(`^(?: {2,4}|\t)(-[A-Za-z][A-Za-z0-9_.-]*)(?:[ =]([A-Za-z<][^\s]*))?(?:\t+| {2,}|$)(.*)$`)
 
 func parseSingleDashOption(line string) (models.Flag, bool) {
@@ -1890,6 +1890,8 @@ var bracketOptionRe = regexp.MustCompile(`\[-[^\]]+\]`)
 // or nested optional values ("[--exec-path[=<path>]]") do not match.
 var usageOptionRe = regexp.MustCompile(`\[(--?[A-Za-z][A-Za-z0-9_-]*)(?:[ =](<[A-Za-z][^<>\[\]|]*>|[A-Za-z][A-Za-z0-9_.,-]*))?\]`)
 
+// wordOptionRe matches a single-dash word option, which is lowercase
+// ("-json", "-testcache"); "[-Olevel]" (GNU find) is -O with a value.
 var wordOptionRe = regexp.MustCompile(`^-[a-z][a-z0-9-]+$`)
 
 // usageLineFlags reads the options a usage line names one per bracket (#66):
@@ -1899,8 +1901,6 @@ var wordOptionRe = regexp.MustCompile(`^-[a-z][a-z0-9-]+$`)
 // line also lists a single letter alone ("[-e]"), which a clustering tool
 // would have merged.
 func usageLineFlags(line string) []models.Flag {
-	// A word option is lowercase ("-json", "-testcache"); "[-Olevel]" (GNU
-	// find) is -O with an attached value.
 	ms := usageOptionRe.FindAllStringSubmatch(line, -1)
 	lonePerLetter := false
 	for _, m := range ms {
