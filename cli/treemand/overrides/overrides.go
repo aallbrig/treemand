@@ -74,6 +74,12 @@ func Parse(data []byte) (*Override, error) {
 	if err := dec.Decode(o); err != nil && !errors.Is(err, io.EOF) {
 		return nil, err
 	}
+	// One spelling per path, so "remote  add" and "remote add" are one command.
+	normal := make(map[string]Command, len(o.Commands))
+	for path, c := range o.Commands {
+		normal[strings.Join(strings.Fields(path), " ")] = c
+	}
+	o.Commands = normal
 	for path, c := range o.Commands {
 		for _, f := range c.Flags {
 			if strings.TrimSpace(f.Name) == "" {
@@ -123,15 +129,32 @@ func (o *Override) Apply(root *models.Node) int {
 	slices.Sort(paths) // parents before children, and a stable order
 	changes := 0
 	for _, p := range paths {
-		changes += applyCommand(root, strings.Fields(p), o.Commands[p])
+		if c := o.Commands[p]; !c.Hide && !o.hiddenBelow(p) {
+			changes += applyCommand(root, strings.Fields(p), c)
+		}
+	}
+	// Hides last, so no other entry can add a hidden command back.
+	for _, p := range paths {
+		if o.Commands[p].Hide {
+			changes += hide(root, strings.Fields(p))
+		}
 	}
 	return changes
 }
 
-func applyCommand(root *models.Node, path []string, c Command) int {
-	if c.Hide {
-		return hide(root, path)
+// hiddenBelow reports whether path is below a hidden command, where an entry
+// would only add back what the hide removes.
+func (o *Override) hiddenBelow(path string) bool {
+	fields := strings.Fields(path)
+	for i := 1; i < len(fields); i++ {
+		if o.Commands[strings.Join(fields[:i], " ")].Hide {
+			return true
+		}
 	}
+	return false
+}
+
+func applyCommand(root *models.Node, path []string, c Command) int {
 	n, changes := ensure(root, path)
 	if c.Description != "" && n.Description != c.Description {
 		n.Description = c.Description

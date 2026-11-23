@@ -239,3 +239,26 @@ func TestApplyOnANilOverrideOrTreeIsANoOp(t *testing.T) {
 		t.Error("nil tree reported changes")
 	}
 }
+
+// Hiding a command wins over an entry for a command below it: the child entry
+// must not bring the hidden parent back.
+func TestApplyHideWinsOverAChildEntry(t *testing.T) {
+	root := tree()
+	mustParse(t, `
+commands:
+  remote:
+    hide: true
+  remote add:
+    description: Add a remote
+`).Apply(root)
+	if find(root, "remote") != nil {
+		t.Error("remote came back through the remote add entry")
+	}
+}
+
+func TestParseNormalisesCommandPaths(t *testing.T) {
+	o := mustParse(t, "commands:\n  \" remote   add \":\n    description: x\n")
+	if _, ok := o.Commands["remote add"]; !ok {
+		t.Errorf("commands = %v, want key \"remote add\"", o.Commands)
+	}
+}
