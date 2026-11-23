@@ -15,6 +15,7 @@ import (
 
 	_ "modernc.org/sqlite" // pure-Go sqlite driver (works with CGO_ENABLED=0)
 
+	"github.com/aallbrig/treemand/discovery"
 	"github.com/aallbrig/treemand/models"
 )
 
@@ -213,6 +214,11 @@ func CLIVersion(cli string) string {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, cli, "--version")
 	cmd.WaitDelay = time.Second // don't wait on pipes held open by orphaned children
+	cleanup, err := discovery.IsolateProbe(cmd, nil)
+	if err != nil {
+		return "unknown"
+	}
+	defer cleanup()
 	out, err := cmd.CombinedOutput()
 	if err != nil || len(out) == 0 {
 		return "unknown"

@@ -3,6 +3,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -153,6 +154,10 @@ func runRoot(cmd *cobra.Command, args []string) error {
 
 	// Fail early with a clear message if the binary cannot be found.
 	if err := discovery.CheckAvailable(cliName); err != nil {
+		var never *discovery.NeverProbeError
+		if errors.As(err, &never) {
+			return err
+		}
 		return fmt.Errorf("%w\nHint: check spelling and ensure the command is on your PATH", err)
 	}
 

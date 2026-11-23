@@ -164,7 +164,7 @@ docker --help | treemand --stdin docker              # parse a help text, run no
 | Code | Meaning | Examples |
 |------|---------|----------|
 | `0` | Success | the tree was printed |
-| `1` | Runtime failure | the CLI is not on `PATH`; discovery could not run; the CLI's own help timed out, even after one retry |
+| `1` | Runtime failure | the CLI is not on `PATH` or is on the never-run list; discovery could not run; the CLI's own help timed out, even after one retry |
 | `2` | Usage error | no CLI name, more than one, an unknown flag, a bad flag value, an unknown `--output` format or shell |
 
 A usage error prints what was wrong plus a hint, for example `treemand` alone prints
@@ -244,6 +244,24 @@ and [te-cli](https://docs.rs/te-cli/0.1.0) (Rust). A fair summary, from their pu
 
 Each of those gaps is a tracked issue. The full comparison with sources is in
 [docs/research](docs/research/20261110_002254_UTC_landscape.md).
+
+## What treemand runs
+
+Discovery starts the target CLI only to read its help: `--help`, `-h`, `help <command>`, `--version`,
+a cobra CLI's `__complete`, and `list-commands` only for a CLI whose help documents it. It never runs
+a discovered command unless you assemble one in the TUI and confirm it (`Ctrl+E`).
+
+- **A throwaway home for every probe.** Each run of the CLI gets a fresh directory for `HOME`, the
+  XDG config, cache, data and state directories and `TMPDIR` (`USERPROFILE`, `APPDATA` and
+  `LOCALAPPDATA` on Windows), removed when it exits, so a tool that writes config or caches on start
+  leaves nothing in yours. Stdin is closed. Version-manager roots that already exist under your home
+  (pyenv, rbenv, nvm, asdf, mise, rustup and cargo, `GOPATH` and similar) stay pointed at it so shims
+  still resolve. Commands a tool reads from your home, such as git aliases or gh extensions, do not
+  appear in the tree.
+- **Tools it never runs.** `kill`, `pkill`, `killall`, `killall5`, `skill`, `xkill`, `reboot`,
+  `shutdown`, `halt`, `poweroff`, `init`, `telinit`, `taskkill`, `tskill` and `logoff` are refused
+  with exit code 1, by name or through a link to one, since some versions act on arguments they do
+  not understand. To browse one, pipe its help in instead: `man kill | treemand --stdin kill`.
 
 ## Cache
 

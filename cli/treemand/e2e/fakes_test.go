@@ -25,6 +25,18 @@ alpha|beta|gamma) printf '%s things\n\nUsage:\n  fakecache %s [command]\n\nAvail
 esac
 `,
 
+	// Writes into HOME, XDG_CONFIG_HOME and TMPDIR on every start, like a tool
+	// that creates config or caches on first run, and logs the HOME and TMPDIR
+	// it saw to $FAKE_LOG.
+	"fakewriter": `[ -n "$FAKE_LOG" ] && echo "$HOME $TMPDIR" >>"$FAKE_LOG"
+touch "$HOME/.fakewriter-state" "${TMPDIR:-/tmp}/fakewriter-tmp"
+mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/fakewriter" && touch "${XDG_CONFIG_HOME:-$HOME/.config}/fakewriter/config"
+case "$1" in
+sync) printf 'Sync things\n\nUsage:\n  fakewriter sync [flags]\n\nFlags:\n  -h, --help   help for sync\n';;
+*) printf 'fakewriter writes state\n\nUsage:\n  fakewriter [command]\n\nAvailable Commands:\n  sync        Sync things\n\nFlags:\n  -h, --help   help for fakewriter\n';;
+esac
+`,
+
 	// cobra (Go): "Available Commands:" and "Flags:" sections.
 	"fakecobra": `case "$1" in
 build) cat <<'H'
