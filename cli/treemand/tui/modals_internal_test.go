@@ -409,6 +409,47 @@ func TestHelpPaneFocus_scrollKeys(t *testing.T) {
 	}
 }
 
+func TestHelpPaneFocus_pageAndJumpKeysScrollThePane(t *testing.T) {
+	m, root := newModalModel(t)
+	long := root.Children[0]
+	long.HelpText = strings.Repeat("a help line\n", 200)
+	selectNode(t, m, long)
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 20})
+	if !m.showHelpPane {
+		press(m, "H")
+	}
+	for m.focusedPane != paneHelp {
+		press(m, "tab")
+	}
+
+	for _, key := range []string{"pgdown", "ctrl+d"} {
+		m.helpPane.Top()
+		press(m, key)
+		if m.helpPane.scrollOffset == 0 {
+			t.Errorf("%s should page the help pane down", key)
+		}
+	}
+	for _, key := range []string{"pgup", "ctrl+u"} {
+		m.helpPane.Bottom()
+		bottom := m.helpPane.scrollOffset
+		press(m, key)
+		if m.helpPane.scrollOffset >= bottom {
+			t.Errorf("%s should page the help pane up: offset %d, was %d", key, m.helpPane.scrollOffset, bottom)
+		}
+	}
+	press(m, "G")
+	if m.helpPane.scrollOffset == 0 {
+		t.Error("G should jump the help pane to the bottom")
+	}
+	press(m, "g")
+	if m.helpPane.scrollOffset != 0 {
+		t.Errorf("g should jump the help pane to the top: offset = %d", m.helpPane.scrollOffset)
+	}
+	if m.tree.Selected() != long {
+		t.Error("help pane page and jump keys must not move the tree cursor")
+	}
+}
+
 func TestPreviewFocus_editAndOpenModal(t *testing.T) {
 	m, root := newModalModel(t)
 	selectNode(t, m, root.Children[0])
