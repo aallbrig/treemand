@@ -192,4 +192,5 @@ treemand cache clear git                       # clear one entry
 treemand -s help git          # default: --help recursion
 treemand -s man git           # man page parser (richer descriptions)
 treemand -s help,man git      # combine strategies, merge results
+treemand -s help,scripts ruff  # fill gaps from the installed completion script
 ```

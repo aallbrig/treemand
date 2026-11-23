@@ -148,7 +148,7 @@ These flags apply to the root command and control discovery behavior:
 | `--output=<format>` | Output format: text, json, yaml, html |
 | `--tree-style=<style>` | Tree style: default, columns, compact, graph |
 | `--icons=<preset>` | Icon set: unicode, ascii, nerd |
-| `--strategy=<list>` | Discovery strategies: help, completions, man |
+| `--strategy=<list>` | Discovery strategies: help, completions, man, scripts |
 | `--no-color` | Disable colored output |
 | `--no-cache` | Bypass discovery cache |
 | `--timeout=<secs>` | Discovery timeout (default 30) |

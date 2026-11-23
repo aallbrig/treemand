@@ -41,7 +41,7 @@ no_history: false
 cache_ttl_hours: 720
 
 # Discovery strategies, comma-separated (default: help)
-# Available: help, completions, man
+# Available: help, completions, man, scripts
 strategies: help
 
 # Color scheme (hex colors, all optional)

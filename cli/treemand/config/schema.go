@@ -62,7 +62,7 @@ func buildKnownKeys() []SchemaEntry {
 		{Key: "no_cache", Type: TypeBool, Default: "false", Description: "Disable discovery cache"},
 		{Key: "no_history", Type: TypeBool, Default: "false", Description: "Do not remember commands copied or run from the TUI"},
 		{Key: "cache_ttl_hours", Type: TypeInt, Default: "720", MinInt: 0, MaxInt: 87600, Description: "Hours a cached tree is trusted (0 = until the CLI binary changes)"},
-		{Key: "strategies", Type: TypeString, Default: "help", Description: "Comma-separated discovery strategies (help, completions, man)"},
+		{Key: "strategies", Type: TypeString, Default: "help", Description: "Comma-separated discovery strategies (help, completions, man, scripts)"},
 	}
 
 	for _, c := range colorKeys {

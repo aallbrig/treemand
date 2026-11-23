@@ -134,6 +134,40 @@ func TestRun_withMock(t *testing.T) {
 	}
 }
 
+func TestRun_aStrategyThatFindsNothingIsSkipped(t *testing.T) {
+	empty := &MockDiscoverer{name: "scripts"}
+	help := &MockDiscoverer{name: "help", node: &models.Node{Name: "testcli", Description: "from help"}}
+	for _, order := range [][]discovery.Discoverer{{empty, help}, {help, empty}} {
+		node, err := discovery.Run(context.Background(), order, "testcli")
+		if err != nil || node == nil || node.Description != "from help" {
+			t.Errorf("Run(%s,%s) = %+v, %v; want help's tree", order[0].Name(), order[1].Name(), node, err)
+		}
+	}
+	if node, err := discovery.Run(context.Background(), []discovery.Discoverer{empty}, "testcli"); node != nil || err != nil {
+		t.Errorf("Run(nothing found) = %+v, %v; want nil, nil", node, err)
+	}
+}
+
+func TestMerge_shortOnlyFlagIsTheLongFlagItAbbreviates(t *testing.T) {
+	help := &models.Node{Name: "cli", Flags: []models.Flag{{Name: "--verbose", ShortName: "v"}}}
+	script := &models.Node{Name: "cli", Flags: []models.Flag{{Name: "-v"}, {Name: "--verbose", ShortName: "v"}, {Name: "-x"}}}
+	got := discovery.Merge([]*models.Node{help, script})
+	var names []string
+	for _, f := range got.Flags {
+		names = append(names, f.Name)
+	}
+	if strings.Join(names, " ") != "--verbose -x" {
+		t.Errorf("merged flags = %v, want [--verbose -x]", names)
+	}
+}
+
+func TestBuildDiscoverers_scripts(t *testing.T) {
+	ds := discovery.BuildDiscoverers([]string{"help", "scripts"}, 2)
+	if len(ds) != 2 || ds[1].Name() != "scripts" {
+		t.Errorf("discoverers = %v, want help then scripts", ds)
+	}
+}
+
 func TestParseHelpOutput_flags(t *testing.T) {
 	helpText := `Usage: git [options] <command>
 

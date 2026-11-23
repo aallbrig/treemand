@@ -22,7 +22,7 @@ treemand cache [clear|list]
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--interactive` | `-i` | false | Launch interactive TUI explorer |
-| `--strategy` | `-s` | `help` | Discovery strategies: `help`, `man`, `completions` (comma-separated) |
+| `--strategy` | `-s` | `help` | Discovery strategies: `help`, `man`, `completions`, `scripts` (comma-separated) |
 | `--depth` | | `3` | Max tree depth (default 3; -1 = unlimited) |
 | `--filter` | | | Only show nodes whose name matches pattern |
 | `--exclude` | | | Exclude nodes whose name matches pattern |
@@ -373,10 +373,24 @@ top-level subcommands without executing `--help` for every node. Results are
 stub nodes expanded lazily on demand. Falls back gracefully when the CLI does
 not support `__complete`.
 
+### `scripts`
+
+Reads the shell completion script the CLI installed (fish, then zsh, then
+bash) from the standard directories: `fish/vendor_completions.d`,
+`zsh/site-functions` and `bash-completion/completions` under your data
+directory, `$XDG_DATA_DIRS` and the Homebrew and system prefixes, plus
+`bash_completion.d`. The script is only read, never sourced, and the CLI is
+never run. fish scripts give nested subcommands and flags with descriptions;
+zsh scripts give subcommands and root flags; bash scripts give the first
+argument's words. Scripts that ask the CLI at completion time (cobra,
+argcomplete) hold nothing to read. Put it after `help` so help output stays
+authoritative and the script fills the gaps.
+
 ```bash
 treemand -s help git          # default
 treemand -s man git           # man page parser
 treemand -s help,man git      # combine strategies, merge results
+treemand -s help,scripts ruff  # fill gaps from the installed completion script
 ```
 
 ## Configuration

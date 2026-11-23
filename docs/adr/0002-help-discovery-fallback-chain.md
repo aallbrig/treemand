@@ -140,3 +140,42 @@ help text. A CLI that answers a flag with its usage takes operands, not a
   `help` subcommand", would have dropped the go and aws-style fallbacks.
 - Marker test: `TestRunHelp_usageAfterAnIllegalOptionIsHelpAndNoPositionalFormRuns`;
   chaos case `chaos-bsdoperand` fails as `SIDE-EFFECT` if the fake creates a file.
+
+## Addendum 2026-11-23: installed completion scripts as a strategy
+
+Many CLIs ship fish, zsh or bash completion files that list subcommands and
+flags even when their `--help` is thin or slow (#99).
+
+**Decision.** A `scripts` strategy (`-s help,scripts`) reads the CLI's
+installed completion script and parses it statically. It is a separate
+strategy, not a step of the help chain: it never runs the CLI, so it adds no
+fork to discovery and cannot trigger side effects.
+
+- **Read, never run.** The file is read (regular files up to 4 MiB) and
+  tokenised; it is never sourced, and no `$(...)` in it is evaluated. The
+  strategy is safe for any CLI, which the help chain cannot promise.
+- **Where.** fish's `completions` and `vendor_completions.d`, zsh's
+  `site-functions` and `vendor-completions`, and `bash-completion/completions`
+  under the user's data directory, `$XDG_DATA_DIRS`, Homebrew and the system
+  prefixes; fish's per-user directory; and the `bash_completion.d` directories.
+  fish is tried first, then zsh, then bash; the first script that yields a
+  tree is used.
+- **What each shell gives.** fish: subcommands, nested levels and flags,
+  placed by `-n` conditions it recognises (`__fish_seen_subcommand_from`,
+  `__fish_use_subcommand`, clap's `__fish_<cli>_needs_command` and
+  `_using_subcommand`). An entry whose condition it cannot place (an `or`, or
+  an unknown helper function) is skipped rather than guessed. zsh: root flags
+  from the first `_arguments` call, subcommands from the `'name:desc'` arrays
+  of `_<cli>_commands` and `_<cli>__<sub>_commands`. bash: only the first
+  argument's words, from clap's root `opts` list or a literal `compgen -W`
+  guarded by a first-argument test.
+- **Merged after help.** Help output stays authoritative; the script fills
+  missing subcommands, flags and descriptions. Merge now treats a short-only
+  flag (`-v`) as the long flag it abbreviates, and `Run` skips a strategy
+  that found nothing instead of failing the merge.
+- **Not covered.** Generated wrappers that call the CLI at completion time
+  (cobra's `__complete`, argcomplete) contain no static data and yield
+  nothing; cobra CLIs have the `completions` strategy for that.
+- Marker tests: `TestParseFishScript_clapNestedSubcommands`,
+  `TestParseFishScript_skipsWhatItCannotPlace`, and the e2e
+  `TestScripts_completionScriptFillsWhatHelpMisses`.
