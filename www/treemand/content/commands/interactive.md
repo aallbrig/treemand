@@ -69,6 +69,7 @@ Toggle navigation scheme with **Ctrl+S** (arrows → vim → WASD).
 | `Ctrl+K` | Clear the entire preview bar |
 | `Ctrl+E` | Copy or execute the assembled command |
 | `Ctrl+R` | Recent commands; `Enter` loads one into the preview |
+| `Ctrl+O` | Saved presets: `Enter` loads one, `a` saves the assembled command under a name, `x` deletes one |
 
 ### View
 

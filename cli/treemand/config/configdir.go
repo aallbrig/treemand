@@ -53,3 +53,13 @@ func OverridesDir() (string, error) {
 	}
 	return filepath.Join(home, "treemand", "overrides"), nil
 }
+
+// PresetsDir is where saved presets live, one plain-text file per CLI:
+// <config dir>/treemand/presets (see package savedpresets).
+func PresetsDir() (string, error) {
+	home, err := configHome()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, "treemand", "presets"), nil
+}

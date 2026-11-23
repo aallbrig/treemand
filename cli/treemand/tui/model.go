@@ -15,6 +15,7 @@ import (
 	"github.com/aallbrig/treemand/history"
 	"github.com/aallbrig/treemand/models"
 	"github.com/aallbrig/treemand/render"
+	"github.com/aallbrig/treemand/savedpresets"
 )
 
 // NavScheme is the keyboard navigation scheme.
@@ -80,13 +81,15 @@ type Model struct {
 	commandToRun string // set when user picks "Run" in the modal
 	fm           flagModal
 	vm           valueInputModal
-	kb           keybindModal   // ? key overlay
-	sm           searchModal    // Ctrl+F fuzzy finder
-	pendingG     bool           // true after first 'g' press, waiting for second 'g'
-	lastSearch   string         // last filter/search term for n/N cycling
-	crawl        *crawler       // background discovery, when enabled
-	hist         *history.Store // command history; nil when off
-	rm           recentsModal   // Ctrl+R recent commands
+	kb           keybindModal        // ? key overlay
+	sm           searchModal         // Ctrl+F fuzzy finder
+	pendingG     bool                // true after first 'g' press, waiting for second 'g'
+	lastSearch   string              // last filter/search term for n/N cycling
+	crawl        *crawler            // background discovery, when enabled
+	hist         *history.Store      // command history; nil when off
+	rm           recentsModal        // Ctrl+R recent commands
+	saved        *savedpresets.Store // saved presets; nil when unavailable
+	pm           presetsModal        // Ctrl+O saved presets
 }
 
 // clearTimedMsgMsg is fired by a tea.Tick to clear a timed status message.
@@ -202,6 +205,8 @@ func (m *Model) activeDialog() func(tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.updateFlagModal
 	case m.rm.active:
 		return m.updateRecentsModal
+	case m.pm.active:
+		return m.updatePresetsModal
 	case m.modal.active:
 		return m.updateModal
 	}
@@ -291,6 +296,11 @@ type RunOptions struct {
 	// History, when set, records commands copied or run from the execute
 	// dialog and lists them on Ctrl+R.
 	History *history.Store
+	// Presets, when set, are the saved presets Ctrl+O lists, loads, saves
+	// and deletes.
+	Presets *savedpresets.Store
+	// Preset, when set, is loaded into the assembled command at start.
+	Preset *savedpresets.Preset
 }
 
 // RunWithOptions starts the TUI with the given options.
@@ -301,6 +311,10 @@ func RunWithOptions(root *models.Node, cfg *config.Config, opts RunOptions) erro
 		m.EnableCrawl(*opts.Crawl)
 	}
 	m.SetHistory(opts.History)
+	m.SetSavedPresets(opts.Presets)
+	if opts.Preset != nil {
+		m.LoadCommand(opts.Preset.Command, opts.Preset.Name)
+	}
 	defer func() {
 		if m.crawl != nil {
 			m.crawl.stop()

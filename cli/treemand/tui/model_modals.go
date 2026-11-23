@@ -48,6 +48,7 @@ Building Commands
   Ctrl+K   Clear entire preview bar
   Ctrl+E   Copy or execute the assembled command
   Ctrl+R   Recent commands (Enter loads one into the preview)
+  Ctrl+O   Saved presets: load, save (a) or delete (x) named commands
 
 View
   H / Ctrl+P   Toggle help pane

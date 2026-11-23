@@ -91,3 +91,13 @@ func TestOverridesDir_isBesideTheConfigFile(t *testing.T) {
 		t.Errorf("OverridesDir() = %q, %v; want %q", got, err, want)
 	}
 }
+
+// Saved presets sit beside config.yaml, in treemand/presets.
+func TestPresetsDir_isBesideTheConfigFile(t *testing.T) {
+	xdg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", xdg)
+	got, err := config.PresetsDir()
+	if want := filepath.Join(xdg, "treemand", "presets"); err != nil || got != want {
+		t.Errorf("PresetsDir() = %q, %v; want %q", got, err, want)
+	}
+}

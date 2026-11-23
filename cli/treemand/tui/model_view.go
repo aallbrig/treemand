@@ -54,6 +54,9 @@ func (m *Model) View() string {
 	if m.rm.active {
 		return m.renderRecentsModal()
 	}
+	if m.pm.active {
+		return m.renderPresetsModal()
+	}
 	if m.modal.active {
 		return m.renderModal()
 	}

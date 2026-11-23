@@ -111,6 +111,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&cfgNoCache, "no-cache", false, "Disable caching")
 	rootCmd.Flags().BoolVar(&cfgRefresh, "refresh", false, "Re-discover the CLI even if it is cached, and update the cache")
 	rootCmd.Flags().BoolVar(&cfgStdin, "stdin", false, "Read the CLI's help text from stdin instead of running it (subcommands stay undiscovered)")
+	rootCmd.Flags().StringVar(&cfgPreset, "preset", "", "Open the TUI with this saved preset loaded (see treemand presets)")
 	rootCmd.PersistentFlags().IntVar(&cfgJobs, "jobs", 0, "Max concurrent help processes during discovery (0 = auto: 2 x CPUs, between 4 and 16)")
 	rootCmd.PersistentFlags().IntVar(&cfgExpandStubs, "expand-stubs", 0, "Expand undiscovered (stub, marked (…)) nodes N levels deep before output: gets their descriptions and children (slow on huge CLIs; disables cache)")
 	rootCmd.PersistentFlags().IntVar(&cfgTimeout, "timeout", 30, "Discovery timeout in seconds (0 = no limit; each help command still has its own limit)")
@@ -145,6 +146,9 @@ func runRoot(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	if err := checkTimeout(cfgTimeout); err != nil {
+		return err
+	}
+	if err := resolvePreset(cliName); err != nil {
 		return err
 	}
 	if cfgStdin {
@@ -481,7 +485,10 @@ func output(cmd *cobra.Command, node *models.Node, cfg *config.Config, save func
 		if !tui.Offline {
 			crawl = &tui.CrawlOptions{MaxDepth: crawlDepth(cfg), StubThreshold: cfg.StubThreshold}
 		}
-		return tui.RunWithOptions(node, cfg, tui.RunOptions{Save: save, Crawl: crawl, History: historyStore(cfg, node.Name)})
+		return tui.RunWithOptions(node, cfg, tui.RunOptions{
+			Save: save, Crawl: crawl, History: historyStore(cfg, node.Name),
+			Presets: tuiPresets(node.Name), Preset: startPreset,
+		})
 	}
 	opts := render.Options{
 		MaxDepth:       cfgDepth,
@@ -546,6 +553,7 @@ func Execute() {
 	rootCmd.AddCommand(completionCmd)
 	rootCmd.AddCommand(doctorCmd)
 	rootCmd.AddCommand(historyCmd)
+	rootCmd.AddCommand(presetsCmd)
 	rootCmd.ValidArgsFunction = completeCLIName
 	rootCmd.SetFlagErrorFunc(flagError)
 	if err := rootCmd.Execute(); err != nil {
@@ -586,6 +594,7 @@ func NewRootCmd() *cobra.Command {
 	c.PersistentFlags().IntVar(&cfgExpandStubs, "expand-stubs", 0, "Expand undiscovered (stub) nodes N levels deep before output")
 	c.Flags().BoolVar(&cfgRefresh, "refresh", false, "Re-discover even if cached")
 	c.Flags().BoolVar(&cfgStdin, "stdin", false, "Read the CLI's help text from stdin")
+	c.Flags().StringVar(&cfgPreset, "preset", "", "Open the TUI with this saved preset loaded")
 	c.PersistentFlags().StringVar(&cfgTreeStyle, "tree-style", "default", "TUI tree style")
 	c.AddCommand(versionCmd)
 	c.AddCommand(schemaCmd)
@@ -596,6 +605,7 @@ func NewRootCmd() *cobra.Command {
 	c.AddCommand(completionCmd)
 	c.AddCommand(doctorCmd)
 	c.AddCommand(historyCmd)
+	c.AddCommand(presetsCmd)
 	c.ValidArgsFunction = completeCLIName
 	return c
 }
