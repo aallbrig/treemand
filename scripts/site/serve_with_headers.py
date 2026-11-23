@@ -22,45 +22,55 @@ import http.server
 import pathlib
 import re
 import sys
+from typing import ClassVar
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+MIN_ARGS = 2  # PORT (or a mode) and DIR
+CSP_RE = re.compile(
+    r"ContentSecurityPolicy:\s*\n\s+ContentSecurityPolicy:\s*(?:>-)?\s*(.+?)\n\s+Override:",
+    re.DOTALL,
+)
+CUSTOM_RE = re.compile(r"- Header:\s*(\S+)\s*\n\s*Value:\s*(.+?)\n\s*Override:", re.DOTALL)
+INLINE_RE = re.compile(r"<script(?![^>]*\bsrc=)([^>]*)>(.*?)</script>", re.DOTALL | re.IGNORECASE)
+TYPE_RE = re.compile(r"\btype=[\"']?([^\"' >]+)")
+
+Headers = list[tuple[str, str]]
 
 
-def _scalar(raw):
-    """A YAML scalar's text: whitespace folded, one pair of enclosing quotes removed."""
+def _scalar(raw: str) -> str:
+    """Fold a YAML scalar's whitespace and remove one pair of enclosing quotes."""
     value = " ".join(raw.split())
     if len(value) > 1 and value[0] == value[-1] and value[0] in "'\"":
         value = value[1:-1]
     return value
 
 
-def policy_headers(site_yaml):
+def policy_headers(site_yaml: pathlib.Path) -> Headers:
     """Return [(name, value)] for the CSP and custom headers in site_yaml."""
-    text = pathlib.Path(site_yaml).read_text()
+    text = site_yaml.read_text()
     start = text.find("SecurityHeaders:\n")
     if start < 0:
-        raise SystemExit("serve_with_headers: no SecurityHeaders resource in " + str(site_yaml))
+        msg = f"serve_with_headers: no SecurityHeaders resource in {site_yaml}"
+        raise SystemExit(msg)
     # The resource ends at the next top-level resource (two-space indent).
-    end = re.search(r"\n  [A-Za-z]+:\n", text[start + 1:])
-    block = text[start:start + 1 + end.start()] if end else text[start:]
-    headers = []
-    csp = re.search(r"ContentSecurityPolicy:\s*\n\s+ContentSecurityPolicy:\s*(?:>-)?\s*(.+?)\n\s+Override:", block, re.S)
+    end = re.search(r"\n  [A-Za-z]+:\n", text[start + 1 :])
+    block = text[start : start + 1 + end.start()] if end else text[start:]
+    headers: Headers = []
+    csp = CSP_RE.search(block)
     if csp:
         headers.append(("Content-Security-Policy", _scalar(csp.group(1))))
-    for name, value in re.findall(r"- Header:\s*(\S+)\s*\n\s*Value:\s*(.+?)\n\s*Override:", block, re.S):
-        headers.append((name, _scalar(value)))
+    headers += [(name, _scalar(value)) for name, value in CUSTOM_RE.findall(block)]
     return headers
 
 
-def unhashed_inline_scripts(site_dir, csp):
+def unhashed_inline_scripts(site_dir: pathlib.Path, csp: str) -> list[tuple[str, str]]:
     """Return [(page, hash)] for inline scripts in site_dir that csp does not allow."""
     allowed = set(re.findall(r"'(sha256-[A-Za-z0-9+/=]+)'", csp))
     missing = []
-    for page in sorted(pathlib.Path(site_dir).rglob("*.html")):
-        html = page.read_text(errors="replace")
-        for m in re.finditer(r"<script(?![^>]*\bsrc=)([^>]*)>(.*?)</script>", html, re.S | re.I):
-            kind = re.search(r"\btype=[\"']?([^\"' >]+)", m.group(1))
-            if kind and kind.group(1).lower() not in ("module", "text/javascript"):
+    for page in sorted(site_dir.rglob("*.html")):
+        for m in INLINE_RE.finditer(page.read_text(errors="replace")):
+            kind = TYPE_RE.search(m.group(1))
+            if kind and kind.group(1).lower() not in {"module", "text/javascript"}:
                 continue  # a data block (JSON-LD and the like) never runs
             digest = "sha256-" + base64.b64encode(hashlib.sha256(m.group(2).encode()).digest()).decode()
             if digest not in allowed:
@@ -69,25 +79,29 @@ def unhashed_inline_scripts(site_dir, csp):
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
-    extra = []
+    """Static files plus the policy headers on every response."""
 
-    def end_headers(self):
+    extra: ClassVar[Headers] = []
+
+    def end_headers(self) -> None:
+        """Add the policy headers before the blank line."""
         for name, value in self.extra:
             self.send_header(name, value)
         super().end_headers()
 
-    def log_message(self, *args):
-        pass
+    def log_message(self, *_args: object) -> None:
+        """Stay quiet: the audit reports what matters."""
 
 
-def main(argv):
-    if len(argv) < 2:
+def main(argv: list[str]) -> None:
+    """Serve, print or check, per the module docstring."""
+    if len(argv) < MIN_ARGS:
         raise SystemExit(__doc__)
-    site_yaml = argv[2] if len(argv) > 2 else ROOT / "infra" / "site.yaml"
+    site_yaml = pathlib.Path(argv[2]) if len(argv) > MIN_ARGS else ROOT / "infra" / "site.yaml"
     headers = policy_headers(site_yaml)
     if argv[0] == "--check":
         csp = dict(headers).get("Content-Security-Policy", "")
-        missing = unhashed_inline_scripts(argv[1], csp)
+        missing = unhashed_inline_scripts(pathlib.Path(argv[1]), csp)
         for page, digest in missing:
             print(f"serve_with_headers: {page}: inline script '{digest}' is not in the CSP script-src in {site_yaml}")
         sys.exit(1 if missing else 0)
