@@ -34,7 +34,7 @@ Register it with an MCP client by giving the command 'treemand mcp'.`,
 	Example: `  claude mcp add treemand -- treemand mcp
   # or in a client's JSON config:
   #   "treemand": {"command": "treemand", "args": ["mcp"]}`,
-	Args: cobra.NoArgs,
+	Args: noArgs,
 	RunE: runMCP,
 }
 

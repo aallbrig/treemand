@@ -35,7 +35,7 @@ shown as ~. --output=json (or yaml) prints the same report for scripts.
 Exits 0 whenever a report is printed, even when some commands could not be read.`,
 	Example: `  treemand doctor git
   treemand doctor --output=json kubectl | jq .slowest_probes`,
-	Args:              cobra.ExactArgs(1),
+	Args:              oneCLIArg,
 	ValidArgsFunction: completeCLIName,
 	RunE:              runDoctor,
 }

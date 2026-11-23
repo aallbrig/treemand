@@ -29,7 +29,7 @@ With a CLI name, clears only entries for that CLI.
 Examples:
   treemand cache clear          # clear all cached entries
   treemand cache clear git      # clear only git's cached entries`,
-	Args: cobra.MaximumNArgs(1),
+	Args: optionalCLIArg,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg := config.DefaultConfig()
 		c, err := cache.Open(cfg.CacheDir)
@@ -58,6 +58,7 @@ Examples:
 var cacheListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List CLIs with cached discovery results",
+	Args:  noArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg := config.DefaultConfig()
 		c, err := cache.Open(cfg.CacheDir)
