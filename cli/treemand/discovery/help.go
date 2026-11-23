@@ -691,14 +691,19 @@ func (h *HelpDiscoverer) tryForm(ctx context.Context, resolved string, args []st
 		}
 		return ""
 	}
-	// Truncated help (curl) points at a complete form; prefer it.
+	return h.fullerHelp(ctx, resolved, args, f, s, at)
+}
+
+// fullerHelp returns the complete help a flag-form answer s points at, or s.
+// Truncated help (curl) points at "--help all". A short answer that names
+// "<cli> help <path>" as the details (the go command, #66) points at that
+// form, which is the CLI's own, so it is safe to ask.
+func (h *HelpDiscoverer) fullerHelp(ctx context.Context, resolved string, args []string, f helpForm, s string, at *formAttempts) string {
 	if f == formFlag && truncatedHelpRe.MatchString(s) {
 		if all := h.runOne(ctx, resolved, append(append([]string{}, args...), "--help", "all"), &at.timedOut); all != "" {
 			return all
 		}
 	}
-	// A short answer that names "<cli> help <path>" as the details (the go
-	// command, #66) is a pointer: that form is the CLI's own, so ask it.
 	if (f == formFlag || f == formShort) && pointsToHelpPrefix(s, resolved, args) {
 		if full := h.runOne(ctx, resolved, append([]string{"help"}, args...), &at.timedOut); full != "" && !isErrorOutput(full) {
 			return full
@@ -1906,27 +1911,33 @@ func usageLineFlags(line string) []models.Flag {
 	ms := usageOptionRe.FindAllStringSubmatch(line, -1)
 	lonePerLetter := false
 	for _, m := range ms {
-		if len(m[1]) == 2 && m[2] == "" {
-			lonePerLetter = true
-		}
+		lonePerLetter = lonePerLetter || (len(m[1]) == 2 && m[2] == "")
 	}
 	var flags []models.Flag
 	for _, m := range ms {
-		name, value := m[1], strings.Trim(m[2], "<>")
-		long := strings.HasPrefix(name, "--")
-		if !long && len(name) > 2 && (!lonePerLetter || !wordOptionRe.MatchString(name)) && value == "" {
-			continue
+		if f, ok := usageOptionFlag(m[1], strings.Trim(m[2], "<>"), lonePerLetter); ok {
+			flags = append(flags, f)
 		}
-		f := models.Flag{Name: name, ValueType: value}
-		if f.ValueType == "" {
-			f.ValueType = "bool"
-		}
-		if !long && len(name) == 2 {
-			f.ShortName = name[1:]
-		}
-		flags = append(flags, f)
 	}
 	return flags
+}
+
+// usageOptionFlag turns one bracketed usage option into a flag, or reports
+// false for a possible BSD letter cluster (see usageLineFlags).
+func usageOptionFlag(name, value string, lonePerLetter bool) (models.Flag, bool) {
+	long := strings.HasPrefix(name, "--")
+	word := len(name) > 2 && !long
+	if word && value == "" && (!lonePerLetter || !wordOptionRe.MatchString(name)) {
+		return models.Flag{}, false
+	}
+	f := models.Flag{Name: name, ValueType: value}
+	if f.ValueType == "" {
+		f.ValueType = "bool"
+	}
+	if len(name) == 2 {
+		f.ShortName = name[1:]
+	}
+	return f, true
 }
 
 // parsePositionals extracts positional args from a usage line.
