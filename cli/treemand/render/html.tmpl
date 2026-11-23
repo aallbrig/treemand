@@ -67,7 +67,7 @@ footer{color:var(--dim);font-size:.875em}
     if(!term){items.forEach(function(li){li.hidden=false;li.classList.remove("hit");});opened.forEach(function(o,d){d.open=o;});status.textContent="";return;}
     items.forEach(function(li){li.hidden=true;li.classList.remove("hit");});
     var n=0;
-    items.forEach(function(li){if(li.getAttribute("data-text").indexOf(term)>=0){li.classList.add("hit");show(li);n++;}});
+    items.forEach(function(li){if(li.getAttribute("data-text").toLowerCase().indexOf(term)>=0){li.classList.add("hit");show(li);n++;}});
     status.textContent=n===1?"1 match":n+" matches";
   });
 })();
