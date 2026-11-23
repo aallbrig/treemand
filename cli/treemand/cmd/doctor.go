@@ -18,6 +18,7 @@ import (
 	"github.com/aallbrig/treemand/config"
 	"github.com/aallbrig/treemand/discovery"
 	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/overrides"
 	"github.com/aallbrig/treemand/presets"
 )
 
@@ -51,6 +52,8 @@ type doctorReport struct {
 	Strategies      []string        `json:"strategies" yaml:"strategies"`
 	HelpForm        string          `json:"help_form,omitempty" yaml:"help_form,omitempty"`
 	Preset          string          `json:"preset,omitempty" yaml:"preset,omitempty"`
+	Override        string          `json:"override,omitempty" yaml:"override,omitempty"`
+	OverrideChanges int             `json:"override_changes,omitempty" yaml:"override_changes,omitempty"`
 	Depth           int             `json:"depth" yaml:"depth"`
 	ElapsedMS       int64           `json:"elapsed_ms" yaml:"elapsed_ms"`
 	Error           string          `json:"error,omitempty" yaml:"error,omitempty"`
@@ -100,13 +103,17 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 	cfg := configFromFlags()
 	preset, _ := presets.Lookup(cliName)
 	applyPresetDepth(cmd, cfg, preset)
+	ov, err := loadOverride(cliName)
+	if err != nil {
+		return err
+	}
 
-	rep := diagnose(cliName, cfg, config.ParseStrategies(cfgStrategy), preset)
+	rep := diagnose(cliName, cfg, config.ParseStrategies(cfgStrategy), preset, ov)
 	return writeDoctorReport(cmd.OutOrStdout(), rep, cfgOutput)
 }
 
 // diagnose discovers cliName with every probe recorded and builds the report.
-func diagnose(cliName string, cfg *config.Config, strategies []string, preset *presets.Preset) doctorReport {
+func diagnose(cliName string, cfg *config.Config, strategies []string, preset *presets.Preset, ov *overrides.Override) doctorReport {
 	ctx, cancel := discoveryContext(cfgTimeout)
 	defer cancel()
 	var probes discovery.ProbeLog
@@ -124,6 +131,7 @@ func diagnose(cliName string, cfg *config.Config, strategies []string, preset *p
 			seedPreset(ctx, node, cliName, preset)
 		}
 	})
+	changes := applyOverride(ov, node)
 
 	rep := doctorReport{
 		CLI:             cliName,
@@ -137,6 +145,10 @@ func diagnose(cliName string, cfg *config.Config, strategies []string, preset *p
 	}
 	if preset != nil {
 		rep.Preset = preset.Name
+	}
+	if ov != nil {
+		rep.Override = homeRelative(ov.Path)
+		rep.OverrideChanges = changes
 	}
 	if err != nil {
 		rep.Error = err.Error()
@@ -287,6 +299,9 @@ func (r doctorReport) text() string {
 	row("help form", cmp.Or(r.HelpForm, "none answered"))
 	if r.Preset != "" {
 		row("preset", r.Preset)
+	}
+	if r.Override != "" {
+		row("override", fmt.Sprintf("%s (%d changes)", r.Override, r.OverrideChanges))
 	}
 	row("depth", fmt.Sprint(r.Depth))
 	row("elapsed", (time.Duration(r.ElapsedMS) * time.Millisecond).String())

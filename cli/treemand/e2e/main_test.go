@@ -81,10 +81,17 @@ func env(t *testing.T, extra ...string) []string {
 // run executes treemand with args and a hard limit, capturing both streams.
 func run(t *testing.T, limit time.Duration, extraEnv []string, args ...string) result {
 	t.Helper()
+	return runIn(t, limit, extraEnv, "", args...)
+}
+
+// runIn is run with stdin.
+func runIn(t *testing.T, limit time.Duration, extraEnv []string, stdin string, args ...string) result {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), limit)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, binPath, args...)
 	cmd.Env = env(t, extraEnv...)
+	cmd.Stdin = strings.NewReader(stdin)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	start := time.Now()

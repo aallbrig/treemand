@@ -52,7 +52,12 @@ func runFromStdin(cmd *cobra.Command, cliName string) error {
 	if strings.TrimSpace(text) == "" {
 		return errNoStdinHelp
 	}
+	ov, err := loadOverride(cliName)
+	if err != nil {
+		return err
+	}
 	node := discovery.FromHelpText(cliName, text)
+	applyOverride(ov, node)
 	return output(cmd, node, configFromFlags(), nil)
 }
 

@@ -392,6 +392,14 @@ colors:
 
 Precedence: **CLI flags > environment variables > config file > defaults**.
 
+### Overrides
+
+A file at `~/.config/treemand/overrides/<cli>.yaml` corrects how treemand reads
+one CLI: it replaces descriptions, adds commands and flags, and hides commands
+or flags, with no new release. See
+[overrides](../commands/config/#overrides-for-clis-treemand-misreads) for the
+format.
+
 ### Color Scheme
 
 | Element | Default |

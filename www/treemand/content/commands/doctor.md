@@ -15,6 +15,9 @@ and reports:
 - how many commands were found, and which have no description, no flags, or
   were left undiscovered (stubs)
 - commands whose help could not be read, and why
+- the [override file](../config/#overrides-for-clis-treemand-misreads), if you
+  have one for the CLI, and how many changes it made (the counts above include
+  them)
 - every help probe by outcome (ok, non-zero exit, timed out, cancelled, failed,
   truncated) and the five slowest
 

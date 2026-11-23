@@ -74,7 +74,11 @@ func mcpDiscover(ctx context.Context, cli string, depth int) (*models.Node, erro
 	if !ok {
 		preset = nil
 	}
-	rc := openRunCache(cfg, cli, strategies, cacheKeyExtra(cfg, preset))
+	ov, err := loadOverride(cli)
+	if err != nil {
+		return nil, err
+	}
+	rc := openRunCache(cfg, cli, strategies, cacheKeyExtra(cfg, preset)+overrideKey(ov))
 	if rc != nil {
 		defer rc.c.Close()
 	}
@@ -82,6 +86,7 @@ func mcpDiscover(ctx context.Context, cli string, depth int) (*models.Node, erro
 		if save := rc.saver(); save != nil {
 			finishPartialTree(ctx, node, cli, cfg, save)
 		}
+		applyOverride(ov, node)
 		return node, nil
 	}
 	versionCh := rc.readVersion()
@@ -95,6 +100,7 @@ func mcpDiscover(ctx context.Context, cli string, depth int) (*models.Node, erro
 	if preset != nil && preset.Seed != nil {
 		seedFromPreset(ctx, node, cli, preset)
 	}
+	applyOverride(ov, node)
 	rc.put(node, versionCh)
 	return node, nil
 }

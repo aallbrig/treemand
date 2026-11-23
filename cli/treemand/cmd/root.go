@@ -164,11 +164,15 @@ func runRoot(cmd *cobra.Command, args []string) error {
 		preset = nil
 	}
 	applyPresetDepth(cmd, cfg, preset)
+	ov, err := loadOverride(cliName)
+	if err != nil {
+		return err
+	}
 
 	ctx, cancel := discoveryContext(cfgTimeout)
 	defer cancel()
 
-	rc := openRunCache(cfg, cliName, strategies, cacheKeyExtra(cfg, preset))
+	rc := openRunCache(cfg, cliName, strategies, cacheKeyExtra(cfg, preset)+overrideKey(ov))
 	if rc != nil {
 		defer rc.c.Close()
 	}
@@ -177,6 +181,7 @@ func runRoot(cmd *cobra.Command, args []string) error {
 		if !cfgInteractive {
 			finishPartialTree(ctx, node, cliName, cfg, save)
 		}
+		applyOverride(ov, node)
 		return output(cmd, node, cfg, save)
 	}
 
@@ -196,6 +201,7 @@ func runRoot(cmd *cobra.Command, args []string) error {
 			discovery.ExpandStubs(ctx, node, cliName, cfgExpandStubs, 16, 30*time.Second, nil)
 		})
 	}
+	applyOverride(ov, node)
 
 	rc.put(node, versionCh)
 	return output(cmd, node, cfg, rc.saver())
