@@ -534,10 +534,12 @@ func TestHelpDiscoverer_capsConcurrentProcesses(t *testing.T) {
 
 // A CLI that floods stdout must neither exhaust memory nor outlive the
 // timeout: output is read through a hard cap and the process is stopped once
-// it is reached.
+// it is reached. The flood never ends on its own and the command timeout is a
+// minute, so only the cap can finish this well inside half of it; parsing the
+// capped prefix under -race takes a few seconds on a busy runner.
 func TestHelpDiscoverer_capsHugeOutput(t *testing.T) {
 	dir := t.TempDir()
-	script := "#!/bin/sh\nyes 'Commands: lots of text that goes on and on and on' | head -c 50000000\n"
+	script := "#!/bin/sh\nexec yes 'Commands: lots of text that goes on and on and on'\n"
 	if err := os.WriteFile(filepath.Join(dir, "floodcli"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -548,13 +550,15 @@ func TestHelpDiscoverer_capsHugeOutput(t *testing.T) {
 	discovery.MaxHelpBytes = 256 << 10
 
 	start := time.Now()
-	node, err := discovery.NewHelpDiscoverer(1).Discover(context.Background(), "floodcli", nil)
+	d := discovery.NewHelpDiscoverer(1)
+	d.Timeout = time.Minute
+	node, err := d.Discover(context.Background(), "floodcli", nil)
 	elapsed := time.Since(start)
 	if err != nil {
 		t.Fatalf("Discover() error: %v", err)
 	}
-	if elapsed > 5*time.Second {
-		t.Errorf("Discover took %v on a 50MB flood, want well under the 5s command timeout", elapsed)
+	if elapsed > 30*time.Second {
+		t.Errorf("Discover took %v on an endless flood, want well under the 1m command timeout", elapsed)
 	}
 	if limit := discovery.MaxHelpBytes + 1024; len(node.HelpText) > limit {
 		t.Errorf("kept %d bytes of help text, want at most %d", len(node.HelpText), limit)
