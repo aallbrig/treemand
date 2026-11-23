@@ -81,7 +81,7 @@ func buildDocRoot() *cobra.Command {
 	root.PersistentFlags().String("exclude", "", "Exclude nodes matching pattern")
 	root.PersistentFlags().Bool("commands-only", false, "Hide flags and positionals")
 	root.PersistentFlags().Bool("full-path", false, "Show full command paths")
-	root.PersistentFlags().String("output", "text", "Output format: text, json")
+	root.PersistentFlags().String("output", "text", "Output format: text, json, yaml, html")
 	root.PersistentFlags().Bool("no-color", false, "Disable color output")
 	root.PersistentFlags().Bool("no-cache", false, "Disable caching")
 	root.PersistentFlags().Int("timeout", 30, "Discovery timeout in seconds (0 = no limit; each help command still has its own limit)")

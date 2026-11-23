@@ -244,10 +244,10 @@ func completionArgs(_ *cobra.Command, args []string) error {
 // checkOutputFormat rejects an unknown --output before any discovery runs.
 func checkOutputFormat(format string) error {
 	switch format {
-	case "", "text", "json", "yaml":
+	case "", "text", "json", "yaml", "html":
 		return nil
 	}
-	return newUsageError("Choose one of: text, json or yaml.", "unknown output format: %s", format)
+	return newUsageError("Choose one of: text, json, yaml or html.", "unknown output format: %s", format)
 }
 
 // checkTimeout rejects a negative --timeout. Zero is valid: it means no limit.

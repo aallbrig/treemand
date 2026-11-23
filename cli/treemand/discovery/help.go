@@ -642,8 +642,9 @@ func (h *HelpDiscoverer) formsInTurn(ctx context.Context, resolved string, args 
 }
 
 // hedgeDelay is how long the preferred flag form runs alone before the other
-// is started alongside it.
-const hedgeDelay = 250 * time.Millisecond
+// is started alongside it. A var so a test can widen it: a forked shell script
+// can take longer than 250ms when the whole suite runs under -cover.
+var hedgeDelay = 250 * time.Millisecond
 
 // formAttempts is what the help forms tried for one node learned besides
 // their answers. Racing forms share it.

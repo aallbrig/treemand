@@ -203,7 +203,7 @@ func TestFailurePaths(t *testing.T) {
 		{"unknown flag", []string{"--no-such-flag", "fakecobra"}, 2, []string{"unknown flag", "--help"}},
 		{"mistyped flag", []string{"--outptu=json", "fakecobra"}, 2, []string{"unknown flag: --outptu", "Did you mean --output?"}},
 		{"bad flag value", []string{"--depth=abc", "fakecobra"}, 2, []string{"--depth"}},
-		{"unknown output format", []string{"--output=xml", "fakecobra"}, 2, []string{"unknown output format", "text, json or yaml"}},
+		{"unknown output format", []string{"--output=xml", "fakecobra"}, 2, []string{"unknown output format", "text, json, yaml or html"}},
 		{"completion without shell", []string{"completion"}, 2, []string{"missing shell", "powershell"}},
 		{"completion unknown shell", []string{"completion", "tcsh"}, 2, []string{"unknown shell", "tcsh"}},
 		{"mistyped cache subcommand", []string{"cache", "lst"}, 2, []string{`unknown command "lst" for "treemand cache"`, "Did you mean 'treemand cache list'?"}},

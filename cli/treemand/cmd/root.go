@@ -76,6 +76,8 @@ Output formats (--output):
   json          machine-readable full tree with flags and descriptions
   yaml          YAML output (same structure as JSON)
                 (treemand schema prints the JSON Schema both follow)
+  html          one self-contained page: collapsible tree, search box,
+                no network (share it in a wiki or PR)
 
 Examples:
   treemand git                        # full git tree
@@ -83,6 +85,7 @@ Examples:
   treemand --depth=2 kubectl          # kubectl tree, 2 levels deep
   treemand --commands-only docker     # subcommands only, no flags
   treemand --output=json gh | jq .    # pipe JSON to jq
+  treemand --output=html git > git.html  # shareable tree page
   treemand --filter=remote git        # only show nodes matching "remote"
   docker --help | treemand --stdin docker  # parse a help text, run nothing
   treemand treemand                   # introspect treemand itself
@@ -106,7 +109,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgExclude, "exclude", "", "Exclude nodes matching pattern")
 	rootCmd.PersistentFlags().BoolVar(&cfgCommandsOnly, "commands-only", false, "Hide flags and positionals")
 	rootCmd.PersistentFlags().BoolVar(&cfgFullPath, "full-path", false, "Show full command paths")
-	rootCmd.PersistentFlags().StringVar(&cfgOutput, "output", "text", "Output format: text, json, yaml")
+	rootCmd.PersistentFlags().StringVar(&cfgOutput, "output", "text", "Output format: text, json, yaml, html")
 	rootCmd.PersistentFlags().BoolVar(&cfgNoColor, "no-color", false, "Disable color output")
 	rootCmd.PersistentFlags().BoolVar(&cfgNoCache, "no-cache", false, "Disable caching")
 	rootCmd.Flags().BoolVar(&cfgRefresh, "refresh", false, "Re-discover the CLI even if it is cached, and update the cache")

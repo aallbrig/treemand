@@ -28,7 +28,7 @@ treemand cache [clear|list]
 | `--exclude` | | | Exclude nodes whose name matches pattern |
 | `--commands-only` | | false | Hide flags and positional arguments |
 | `--full-path` | | false | Show full command paths in tree |
-| `--output` | | `text` | Output format: `text`, `json`, or `yaml` |
+| `--output` | | `text` | Output format: `text`, `json`, `yaml`, or `html` (a self-contained page) |
 | `--tree-style` | | `default` | Tree presentation: `default`, `columns`, `compact`, `graph` |
 | `--icons` | | `unicode` | Icon preset: `unicode`, `ascii`, `nerd` |
 | `--line-length` | | `80` | Max description chars before truncation |
@@ -93,6 +93,7 @@ integration.
 treemand git                     # colored text tree (default)
 treemand --output=json git       # full tree as JSON
 treemand --output=yaml git       # full tree as YAML (same structure)
+treemand --output=html git > git.html  # one shareable page: collapsible tree, search
 ```
 
 ### JSON / YAML Schema

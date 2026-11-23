@@ -46,13 +46,14 @@ treemand --tree-style=graph git    # classic ├──/└── connectors
 
 ## Output Formats
 
-treemand supports three output formats — a human-readable tree, plus JSON and
-YAML for scripting and tooling integration:
+treemand supports four output formats: a human-readable tree, JSON and YAML
+for scripting and tooling integration, and a self-contained HTML page to share:
 
 ```bash
 treemand git                       # default colored tree
 treemand --output=json git         # JSON — pipe to jq, store, diff
 treemand --output=yaml git         # YAML — same structure, friendlier to read
+treemand --output=html git > git.html  # one page: collapsible tree, search, no network
 ```
 
 JSON/YAML output includes the full tree: subcommand names, descriptions, flags

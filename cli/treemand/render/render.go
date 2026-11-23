@@ -22,7 +22,7 @@ type Options struct {
 	CommandsOnly   bool
 	FullPath       bool
 	NoColor        bool
-	Output         string // text, json, yaml
+	Output         string // text, json, yaml, html
 	Colors         config.ColorScheme
 	Icons          config.IconSet
 	DescLineLength int // max runes in a description before truncation
@@ -105,6 +105,8 @@ func (r *Renderer) Render(w io.Writer, root *models.Node) error {
 		enc := yaml.NewEncoder(w)
 		enc.SetIndent(2)
 		return enc.Encode(versioned(root))
+	case "html":
+		return r.renderHTML(w, root)
 	case "text", "":
 		r.renderNode(w, root, "", true, 0)
 		return nil
