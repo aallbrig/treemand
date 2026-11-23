@@ -540,6 +540,8 @@ func NewRootCmd() *cobra.Command {
 	c.PersistentFlags().IntVar(&cfgStubThreshold, "stub-threshold", 0, "Stub threshold")
 	c.PersistentFlags().IntVar(&cfgJobs, "jobs", 0, "Max concurrent help processes")
 	c.PersistentFlags().IntVar(&cfgExpandStubs, "expand-stubs", 0, "Expand undiscovered (stub) nodes N levels deep before output")
+	c.Flags().BoolVar(&cfgRefresh, "refresh", false, "Re-discover even if cached")
+	c.PersistentFlags().StringVar(&cfgTreeStyle, "tree-style", "default", "TUI tree style")
 	c.AddCommand(versionCmd)
 	c.AddCommand(schemaCmd)
 	c.AddCommand(mcpCmd)
