@@ -251,10 +251,13 @@ func probeOutcomeLabel(p discovery.ProbeRecord) string {
 // pasted report does not carry the user's name.
 func homeRelative(path string) string {
 	home, err := os.UserHomeDir()
-	if err != nil || home == "" || !strings.HasPrefix(path, home) {
+	if err != nil || home == "" {
 		return path
 	}
-	return "~" + strings.TrimPrefix(path, home)
+	if path == home || strings.HasPrefix(path, home+string(os.PathSeparator)) {
+		return "~" + strings.TrimPrefix(path, home)
+	}
+	return path
 }
 
 func writeDoctorReport(w io.Writer, rep doctorReport, format string) error {

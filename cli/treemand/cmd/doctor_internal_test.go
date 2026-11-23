@@ -95,6 +95,9 @@ func TestDoctorYAMLAndHomeRelative(t *testing.T) {
 	if got := homeRelative(filepath.Join(home, "bin", "x")); got != "~"+string(filepath.Separator)+filepath.Join("bin", "x") {
 		t.Errorf("homeRelative = %q", got)
 	}
+	if sibling := home + "ice" + string(filepath.Separator) + "x"; homeRelative(sibling) != sibling {
+		t.Errorf("homeRelative shortened a sibling of home: %q", homeRelative(sibling))
+	}
 	if got := homeRelative("/usr/bin/x"); got != "/usr/bin/x" {
 		t.Errorf("homeRelative outside home = %q", got)
 	}
