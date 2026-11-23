@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
@@ -151,14 +150,6 @@ func (t *TreeModel) Selected() *models.Node {
 		return sel.Owner
 	}
 	return nil
-}
-
-// SelectedDepth returns the depth of the currently selected row.
-func (t *TreeModel) SelectedDepth() int {
-	if t.cursor >= len(t.rows) {
-		return 0
-	}
-	return t.rows[t.cursor].depth
 }
 
 // SelectedOrOwner returns the command node at or owning the current cursor
@@ -660,15 +651,6 @@ func (t *TreeModel) ToggleSections() {
 // SectionsHidden reports whether section headers are currently hidden.
 func (t *TreeModel) SectionsHidden() bool { return t.hideSections }
 
-// IsAtRoot reports whether the cursor is currently on the root command row.
-func (t *TreeModel) IsAtRoot() bool {
-	if t.cursor >= len(t.rows) {
-		return true
-	}
-	row := t.rows[t.cursor]
-	return row.kind == rowKindCommand && row.depth == 0
-}
-
 // CollapseSubtree recursively collapses a node and all its descendants.
 // Call Rebuild() afterward to refresh the visible rows.
 func (t *TreeModel) CollapseSubtree(node *models.Node, depth int) {
@@ -754,9 +736,7 @@ func (t *TreeModel) findNodeKey(target *models.Node) string {
 	return ""
 }
 
-func (t *TreeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { return t, nil }
-func (t *TreeModel) Init() tea.Cmd                           { return nil }
-func (t *TreeModel) View() string                            { return t.ViewSized(t.width, t.height) }
+func (t *TreeModel) View() string { return t.ViewSized(t.width, t.height) }
 
 // RowCount returns the number of tree rows currently visible (after filtering).
 // Exported for testing.

@@ -177,10 +177,3 @@ func buildColoredFromTokens(tokens []string, cfg *config.Config) string {
 	}
 	return strings.Join(parts, " ")
 }
-
-// BuildPreviewFromNode is exported for render package use.
-func BuildPreviewFromNode(node *models.Node, cfg *config.Config) string {
-	p := NewPreviewModel(cfg)
-	p.SetNode(node)
-	return p.buildColoredPreview()
-}

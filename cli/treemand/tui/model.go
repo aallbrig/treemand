@@ -285,19 +285,6 @@ func max(a, b int) int {
 	return b
 }
 
-// Run starts the interactive TUI. If the user chose "Run" in the Ctrl+E modal,
-// it executes the command after the TUI exits.
-func Run(root *models.Node, cfg *config.Config) error {
-	return RunWithSave(root, cfg, nil)
-}
-
-// RunWithSave is Run, and when the session discovered anything (stubs expanded
-// on demand, background indexing) it passes the grown tree to save before
-// returning, so the next run starts from it instead of re-crawling.
-func RunWithSave(root *models.Node, cfg *config.Config, save func(*models.Node) error) error {
-	return RunWithOptions(root, cfg, RunOptions{Save: save})
-}
-
 // RunOptions configures RunWithOptions.
 type RunOptions struct {
 	// Save receives the tree on exit when the session discovered anything.
