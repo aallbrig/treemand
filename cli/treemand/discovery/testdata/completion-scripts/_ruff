@@ -1,0 +1,61 @@
+#compdef ruff
+
+autoload -U is-at-least
+
+_ruff() {
+    typeset -A opt_args
+    typeset -a _arguments_options
+    local ret=1
+
+    if is-at-least 5.2; then
+        _arguments_options=(-s -S -C)
+    else
+        _arguments_options=(-s -C)
+    fi
+
+    local context curcontext="$curcontext" state line
+    _arguments "${_arguments_options[@]}" : \
+'*--config=[Either a path to a TOML configuration file (\`pyproject.toml\` or \`ruff.toml\`), or a TOML \`<KEY> = <VALUE>\` pair (such as you might find in a \`ruff.toml\` configuration file) overriding a specific configuration option (e.g., \`--config "line-length = 100"\` or \`--config "format.quote-style = '\''single'\''"\`). Overrides of individual settings using this option always take precedence over all configuration files, including configuration files that were also specified using \`--config\`]:CONFIG_OPTION:_default' \
+'--color=[Control when colored output is used]:WHEN:((auto\:"Use color when writing to a terminal, unless overridden by the environment"
+always\:"Always display colors"
+never\:"Never display colors"))' \
+'-v[Enable verbose logging]' \
+'--verbose[Enable verbose logging]' \
+'-q[Print diagnostics, but nothing else]' \
+'--quiet[Print diagnostics, but nothing else]' \
+'-s[Disable all logging (but still exit with status code "1" upon detecting diagnostics)]' \
+'--silent[Disable all logging (but still exit with status code "1" upon detecting diagnostics)]' \
+'--isolated[Ignore all configuration files]' \
+'-h[Print help (see more with '\''--help'\'')]' \
+'--help[Print help (see more with '\''--help'\'')]' \
+'-V[Print version]' \
+'--version[Print version]' \
+":: :_ruff_commands" \
+"*::: :->ruff" \
+&& ret=0
+}
+
+_ruff_commands() {
+    local commands; commands=(
+'check:Run Ruff on the given files or directories' \
+'rule:Explain a rule (or all rules)' \
+'config:List or describe the available configuration options' \
+'linter:List all supported upstream linters' \
+'clean:Clear any caches in the current directory and any subdirectories' \
+'generate-shell-completion:Generate shell completion' \
+'format:Run the Ruff formatter on the given files or directories' \
+'server:Run the language server' \
+'analyze:Run analysis over Python source code' \
+'version:Display Ruff'\''s version' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'ruff commands' commands "$@"
+}
+(( $+functions[_ruff__analyze_commands] )) ||
+_ruff__analyze_commands() {
+    local commands; commands=(
+'graph:Generate a map of Python file dependencies or dependents' \
+'help:Print this message or the help of the given subcommand(s)' \
+    )
+    _describe -t commands 'ruff analyze commands' commands "$@"
+}

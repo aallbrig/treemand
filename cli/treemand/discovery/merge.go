@@ -31,10 +31,14 @@ func mergeInto(dst, src *models.Node) {
 		dst.HelpText = src.HelpText
 	}
 
-	// Merge flags (deduplicate by name)
+	// Merge flags (deduplicate by name; a short-only "-v" is the same flag
+	// as a "--verbose" whose short name is v)
 	flagSet := map[string]bool{}
 	for _, f := range dst.Flags {
 		flagSet[f.Name] = true
+		if f.ShortName != "" {
+			flagSet["-"+f.ShortName] = true
+		}
 	}
 	for _, f := range src.Flags {
 		if !flagSet[f.Name] {
@@ -84,7 +88,9 @@ func Run(ctx context.Context, discoverers []Discoverer, cliName string) (*models
 			lastErr = err
 			continue
 		}
-		trees = append(trees, tree)
+		if tree != nil {
+			trees = append(trees, tree)
+		}
 	}
 	if len(trees) == 0 {
 		return nil, lastErr
@@ -112,6 +118,8 @@ func BuildDiscoverersWithThreshold(strategies []string, maxDepth, stubThreshold 
 			result = append(result, NewManDiscoverer())
 		case "completions":
 			result = append(result, NewCompletionsDiscoverer())
+		case "scripts":
+			result = append(result, NewScriptsDiscoverer())
 		}
 	}
 	if len(result) == 0 {
