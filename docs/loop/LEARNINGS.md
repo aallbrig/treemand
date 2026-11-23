@@ -12,19 +12,11 @@ into the `## Summary` section by the loop.
 - Cycle 15 (#35, v0.4.2): a global slot pool caps concurrent help processes (`--jobs`). Take the slot before the per-command timeout starts. Under heavy host load, compare A/B in the same minute and repeat three times.
 - Cycle 16 (#36, v0.4.3): a committed help-fixture corpus caught nondeterminism at once (detectSection ranged over a map). Run any new parse path many times. After a good release, a transient smoke failure needs only a re-run of smoke.sh, not a rollback.
 - Cycle 17 (#37, v0.4.4): a coverage floor must hold on GitHub CI as well as locally (cmd measured lower on the runner because some tests use CLIs installed on a dev box), so floors are the lower of the two. After a push, checks take a moment to register, so `pr:merge` run too early reports none.
+- Cycles 18-20 (#53 v0.4.5, #38 v0.4.6, #39 v0.5.0): help probes read through a 1MB cap and kill the process when it is hit; run any new slow-path test under -race before pushing (regexes are about 20x slower there). The e2e package (built binary, fake CLIs, real pty) finds parser bugs on its first run, and a pty harness must answer cursor and color queries or every start waits about 5s. Usage errors exit 2 and runtime failures exit 1. Walk the real paths with the built binary before writing docs. apt time and memory follow the state of the host, not the code, so judge them with a main-vs-branch A/B.
 
 ## Recent cycles
 
 <!-- Retro appends below: ### Cycle N — YYYY-MM-DD — outcome — #issue vX.Y.Z -->
-
-### Cycle 18 - 2026-11-10 - released - #53 v0.4.5
-Help, completion and list-commands probes now read through a 1MB cap and kill the process when it is hit: chaos-huge went from 1898MB and 25s to 21MB and 2.4s, and its xfail line is gone. The cap size mattered: sanitize+parse of 2MB is 0.9s normally but 18s under -race (instrumented regexes), so the default is 1MB and the flood test uses 256KB; always run a new slow-path test under -race before pushing. Largest real help seen is 14KB, so 1MB is generous.
-
-### Cycle 19 - 2026-11-10 - released - #38 v0.4.6
-Added an e2e package (built binary, fake cobra/argparse/clap CLIs, real pty). It found a parser bug on its first run: detectSection read flag lines of 30 chars or less whose description ends in a section keyword (output, cache, config) as a header, so the flag and the rest of its section vanished (curl +20 flags, systemctl +8 recovered). Fake CLIs also exposed two gaps, filed as #81 (argparse subcommands) and #82 (clap child descriptions) with skipped, linked tests. A pty harness must answer cursor and color queries or every start waits about 5s. apt cold time flagged again (5s to 17s) but main measures the same on this host: apt speed tracks machine state, not code.
-
-### Cycle 20 - 2026-11-10 - released - #39 v0.5.0
-First-run audit: usage errors now exit 2 (runtime failures 1), with a hint on every usage error; README gained Scripting, Exit codes, Shell completion and Man page sections, each claim backed by a unit or e2e test (including NO_COLOR on a real pty). Minor bump because the exit code of usage errors changed. Walk the real paths with the built binary before writing docs: the audit found only 3 real defects and 5 undocumented behaviours that already worked. perf:compare apt memory flaps 17-118MB between runs (child process), so judge it by a main-vs-branch A/B, not one reading. Filed #85 (--timeout=0).
 
 ### Cycle 21 - 2026-11-10 - merged, no release - #54
 The nondeterminism in #54 was already fixed by v0.4.1 (per-command timeout) and v0.4.3 (map-order section detection); this cycle proved it (10 cold runs each of npm, gh, docker identical) and guarded it with a jitter test plus tighter perf thresholds for the deterministic metrics (nodes, no_desc, no_flags), validated by replaying the recorded history. No release: a test and a loop script do not change the binary, and a no-op tag only burns the daily cap. When an issue is already fixed, verify with the issue acceptance command first and spend the cycle on the guard.
@@ -109,3 +101,6 @@ presets coverage went from 76.9% to 100% (floor raised to 100). The stripe seed 
 
 ### Cycle 49 - 2026-11-22 - merged, no release - #75
 tui coverage went from 82.4% to 88.3% (floor 76 to 88) with internal key-driven tests on `Model`. The PR's Measurement gate counts test functions in the `complexity` ratchet (`functions_over_15`), so run `gocognit -over 15` on new test files before pushing and split long scenario tests. With help-pane focus, `G`, `g`, PgUp/PgDn and Ctrl+D/U are taken by the tree's global keys first, so those `updateHelpPaneKeys` branches never run (noted in #433, not filed).
+
+### Cycle 50 - 2026-11-22 - merged, no release - #74
+cmd coverage went from 66.8% to 87.0% (floor 64 to 85) with hermetic tests: the test binary, copied under a CLI's name (`stripe`, `faketool`) and re-run with an env var, serves as the fake CLI and fake `$EDITOR`, so coverage is the same with only `/usr/bin:/bin` on PATH. Subcommand flags such as `--help` and `--force` stay set between `runCmd` calls on the shared cobra commands, so pass `--help=false` explicitly, and `NewRootCmd` lacked `--refresh` until this cycle. `task ci`'s `site:audit` needs Node 22+ (`nvm use`), and `TestRunHelp_fastPreferredFormStartsNoAlternatives` still flakes under the load of a full `task ci` (#288, #322).
