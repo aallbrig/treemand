@@ -141,6 +141,7 @@ func ToYAML(cfg *Config) (string, error) {
 		"no_color":         cfg.NoColor,
 		"depth":            cfg.Depth,
 		"no_cache":         cfg.NoCache,
+		"no_history":       cfg.NoHistory,
 		"cache_ttl_hours":  int(cfg.CacheTTL / time.Hour),
 		"strategies":       strings.Join(cfg.Strategies, ","),
 		"colors": map[string]interface{}{

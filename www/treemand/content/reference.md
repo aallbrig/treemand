@@ -296,6 +296,7 @@ Toggle navigation scheme with **Ctrl+S** (cycles: arrows → vim → WASD).
 | `Backspace` | Remove last token from the preview |
 | `Ctrl+K` | Clear the entire preview bar |
 | `Ctrl+E` | **Copy** the assembled command to your clipboard, or **run** it (confirmation prompt) |
+| `Ctrl+R` | Recent commands you copied or ran for this CLI; `Enter` loads one into the preview (see [`treemand history`](../commands/history/)) |
 | `Esc` / `q` | Quit |
 
 #### View Controls

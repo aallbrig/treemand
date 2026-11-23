@@ -68,6 +68,7 @@ Toggle navigation scheme with **Ctrl+S** (arrows → vim → WASD).
 | `Backspace` | Remove last token from preview |
 | `Ctrl+K` | Clear the entire preview bar |
 | `Ctrl+E` | Copy or execute the assembled command |
+| `Ctrl+R` | Recent commands; `Enter` loads one into the preview |
 
 ### View
 

@@ -47,6 +47,7 @@ Building Commands
   Backspace / Delete  Remove last token from preview
   Ctrl+K   Clear entire preview bar
   Ctrl+E   Copy or execute the assembled command
+  Ctrl+R   Recent commands (Enter loads one into the preview)
 
 View
   H / Ctrl+P   Toggle help pane
@@ -323,6 +324,7 @@ func (m *Model) updateModal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.statusMsg = "cancelled"
 	case "enter", "r", "R":
 		m.commandToRun = m.modal.command
+		m.recordHistory(m.modal.command)
 		m.modal.active = false
 		m.quitting = true
 		return m, tea.Quit
@@ -331,6 +333,7 @@ func (m *Model) updateModal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.statusMsg = "copy failed: " + err.Error()
 		} else {
 			m.statusMsg = "copied: " + m.modal.command
+			m.recordHistory(m.modal.command)
 		}
 		m.modal.active = false
 	}
@@ -363,6 +366,11 @@ func (m *Model) renderModal() string {
 		Width(modalW - 2).
 		Render(inner)
 
+	return m.centerBox(box)
+}
+
+// centerBox places a dialog box in the middle of the screen.
+func (m *Model) centerBox(box string) string {
 	// Center horizontally; place in the middle of the screen vertically.
 	padLeft := (m.width - lipgloss.Width(box)) / 2
 	if padLeft < 0 {

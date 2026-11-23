@@ -481,7 +481,7 @@ func output(cmd *cobra.Command, node *models.Node, cfg *config.Config, save func
 		if !tui.Offline {
 			crawl = &tui.CrawlOptions{MaxDepth: crawlDepth(cfg), StubThreshold: cfg.StubThreshold}
 		}
-		return tui.RunWithOptions(node, cfg, tui.RunOptions{Save: save, Crawl: crawl})
+		return tui.RunWithOptions(node, cfg, tui.RunOptions{Save: save, Crawl: crawl, History: historyStore(cfg, node.Name)})
 	}
 	opts := render.Options{
 		MaxDepth:       cfgDepth,
@@ -545,6 +545,7 @@ func Execute() {
 	rootCmd.AddCommand(genDocsCmd)
 	rootCmd.AddCommand(completionCmd)
 	rootCmd.AddCommand(doctorCmd)
+	rootCmd.AddCommand(historyCmd)
 	rootCmd.ValidArgsFunction = completeCLIName
 	rootCmd.SetFlagErrorFunc(flagError)
 	if err := rootCmd.Execute(); err != nil {
@@ -594,6 +595,7 @@ func NewRootCmd() *cobra.Command {
 	c.AddCommand(genDocsCmd)
 	c.AddCommand(completionCmd)
 	c.AddCommand(doctorCmd)
+	c.AddCommand(historyCmd)
 	c.ValidArgsFunction = completeCLIName
 	return c
 }

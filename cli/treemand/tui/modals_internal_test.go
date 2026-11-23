@@ -51,7 +51,7 @@ func key(s string) tea.KeyMsg {
 		"up": tea.KeyUp, "down": tea.KeyDown, "pgup": tea.KeyPgUp, "pgdown": tea.KeyPgDown,
 		"ctrl+c": tea.KeyCtrlC, "ctrl+e": tea.KeyCtrlE, "ctrl+f": tea.KeyCtrlF,
 		"ctrl+d": tea.KeyCtrlD, "ctrl+u": tea.KeyCtrlU, "ctrl+n": tea.KeyCtrlN,
-		"ctrl+p": tea.KeyCtrlP, "backspace": tea.KeyBackspace, " ": tea.KeySpace,
+		"ctrl+p": tea.KeyCtrlP, "ctrl+r": tea.KeyCtrlR, "backspace": tea.KeyBackspace, " ": tea.KeySpace,
 		"shift+right": tea.KeyShiftRight, "shift+left": tea.KeyShiftLeft,
 	}
 	if t, ok := named[s]; ok {

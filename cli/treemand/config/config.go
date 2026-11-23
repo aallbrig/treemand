@@ -151,6 +151,7 @@ type Config struct {
 	Depth            int
 	NoCache          bool
 	CacheDir         string
+	NoHistory        bool          // do not remember commands copied or run from the TUI
 	CacheTTL         time.Duration // how long a cached tree is trusted; 0 = until the CLI changes
 	Strategies       []string
 	TreeStyle        DisplayStyle  // controls TUI tree presentation variant
@@ -180,6 +181,7 @@ func DefaultConfig() *Config {
 		Depth:            -1, // unlimited
 		NoCache:          false,
 		CacheDir:         cacheDir,
+		NoHistory:        false,
 		CacheTTL:         DefaultCacheTTL,
 		Strategies:       defaultStrategies(),
 		TreeStyle:        StyleDefault,

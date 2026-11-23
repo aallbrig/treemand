@@ -12,6 +12,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/aallbrig/treemand/config"
+	"github.com/aallbrig/treemand/history"
 	"github.com/aallbrig/treemand/models"
 	"github.com/aallbrig/treemand/render"
 )
@@ -79,11 +80,13 @@ type Model struct {
 	commandToRun string // set when user picks "Run" in the modal
 	fm           flagModal
 	vm           valueInputModal
-	kb           keybindModal // ? key overlay
-	sm           searchModal  // Ctrl+F fuzzy finder
-	pendingG     bool         // true after first 'g' press, waiting for second 'g'
-	lastSearch   string       // last filter/search term for n/N cycling
-	crawl        *crawler     // background discovery, when enabled
+	kb           keybindModal   // ? key overlay
+	sm           searchModal    // Ctrl+F fuzzy finder
+	pendingG     bool           // true after first 'g' press, waiting for second 'g'
+	lastSearch   string         // last filter/search term for n/N cycling
+	crawl        *crawler       // background discovery, when enabled
+	hist         *history.Store // command history; nil when off
+	rm           recentsModal   // Ctrl+R recent commands
 }
 
 // clearTimedMsgMsg is fired by a tea.Tick to clear a timed status message.
@@ -141,34 +144,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// Key-bindings help modal intercepts all input when active.
-	if m.kb.active {
+	// An open dialog takes every key; other messages wait until it closes.
+	if dialog := m.activeDialog(); dialog != nil {
 		if km, ok := msg.(tea.KeyMsg); ok {
-			return m.updateKeybindModal(km)
-		}
-		return m, nil
-	}
-
-	// Value input modal intercepts all input when active.
-	if m.vm.active {
-		if km, ok := msg.(tea.KeyMsg); ok {
-			return m.updateValueModal(km)
-		}
-		return m, nil
-	}
-
-	// Flag modal intercepts all input when active.
-	if m.fm.active {
-		if km, ok := msg.(tea.KeyMsg); ok {
-			return m.updateFlagModal(km)
-		}
-		return m, nil
-	}
-
-	// Execute modal intercepts all input when active.
-	if m.modal.active {
-		if km, ok := msg.(tea.KeyMsg); ok {
-			return m.updateModal(km)
+			return dialog(km)
 		}
 		return m, nil
 	}
@@ -210,6 +189,23 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	return m, nil
+}
+
+// activeDialog returns the key handler of the open dialog, or nil.
+func (m *Model) activeDialog() func(tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch {
+	case m.kb.active:
+		return m.updateKeybindModal
+	case m.vm.active:
+		return m.updateValueModal
+	case m.fm.active:
+		return m.updateFlagModal
+	case m.rm.active:
+		return m.updateRecentsModal
+	case m.modal.active:
+		return m.updateModal
+	}
+	return nil
 }
 
 // ---------- focus management ----------
@@ -292,6 +288,9 @@ type RunOptions struct {
 	// Crawl, when set, discovers pending stubs in the background while the
 	// TUI is open (see EnableCrawl).
 	Crawl *CrawlOptions
+	// History, when set, records commands copied or run from the execute
+	// dialog and lists them on Ctrl+R.
+	History *history.Store
 }
 
 // RunWithOptions starts the TUI with the given options.
@@ -301,6 +300,7 @@ func RunWithOptions(root *models.Node, cfg *config.Config, opts RunOptions) erro
 	if opts.Crawl != nil {
 		m.EnableCrawl(*opts.Crawl)
 	}
+	m.SetHistory(opts.History)
 	defer func() {
 		if m.crawl != nil {
 			m.crawl.stop()
