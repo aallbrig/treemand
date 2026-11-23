@@ -21,9 +21,6 @@ into the `## Summary` section by the loop.
 
 <!-- Retro appends below: ### Cycle N — YYYY-MM-DD — outcome — #issue vX.Y.Z -->
 
-### Cycle 24 - 2026-11-10 - released - #55 v0.6.1
-Warm runs were slow because the cache key ran `<cli> --version` (aws 2.5s, pip 0.9s start an interpreter), not because of the cache read (4.9ms). Keyed on the executable on disk (resolved path, size, mtime) instead: warm aws 2.9s to 0.03s, pip 0.98s to 0.03s. It also fixed a latent staleness bug (a CLI without --version never invalidated). Profile by timing each phase before assuming where the time goes: the obvious suspect (sqlite and JSON decode) cost 4ms. The version string is now display-only and read concurrently with discovery.
-
 ### Cycle 25 - 2026-11-10 - merged and deployed, no release - #43
 Lighthouse could not be run (third-party download denied), so no scores were claimed (#106, blocked). Built `task site:audit` instead: a dependency-free Node script that drives the installed Chrome over CDP against the production-path build and fails on the rule families Lighthouse scores; in task ci, and the GitHub runner has Chrome so it gates there too. It found missing meta/canonical/OG/favicon, 138 contrast failures that were one Monokai comment color, 17px nav targets, 8 h1 on a list page, unsized images. Third-party fetch failures (shields.io 408 mid-run) must be warnings, not failures. Lazy-loaded images look blank in full-page screenshots unless you wait. The site deploys from main via Pages (gh-pages then GitHub pages-build), so no tag needed; verify production with a cache-busting URL after the second build finishes. Before polling a command in a loop, run it once: I spent minutes polling a workflow name gh could not resolve. The audit then flaked once on the GitHub runner (PASS printed, then ENOTEMPTY exit 1): cleanup deleted Chrome's profile while Chrome was still writing; fixed by waiting for the exit and making cleanup unable to change the verdict (PR #110). Check a script's real exit status, not the status of a pipe (`| tail` hid it for me).
 
@@ -110,3 +107,6 @@ Every probe that starts the target now runs in a throwaway HOME, XDG dirs and TM
 
 ### Cycle 54 - 2026-11-23 - idle - #335 (fix main, no release)
 Main went red on two wall-clock asserts (TUI expand-all 260ms vs 250ms; flood discovery 5.37s vs 5s under -race on macOS). Replace timing bounds in unit tests with a deterministic proxy: allocation ratios on a tree 4x larger (`testing.AllocsPerRun`) catch quadratic paths, and an endless flood with a long timeout proves a kill where a finite flood proves nothing. Keep absolute latency in the `tui` probe. `/code-review` skips test hunks, so a test-only diff needs a hand review. Measure timing's `help_calls.go` 38 to 67 is #66's intended trade-off judged against stale history.
+
+### Cycle 55 - 2026-11-23 - released - #306 v0.15.1
+Preflight named #96, but select.md puts `measure:finding` issues first, so the cycle took #306 (cli-ux `check.unknown_flag_suggests` 0 to 1). `task ci` needs Node 22+ for `site:audit`: run `nvm use` in the shell first, or it fails with exit 2 regardless of the change. `task pr:merge` can outlast the 10-minute Bash limit; poll the PR state instead. Untrusted issues: 1.
