@@ -192,15 +192,22 @@ func TestSearchModal_tabIndexesStubsUnlessOffline(t *testing.T) {
 	}
 }
 
-func TestFlagModal_boolAndValueFlags(t *testing.T) {
+// openCommitFlags selects "git commit" and opens its flag picker.
+func openCommitFlags(t *testing.T) *Model {
+	t.Helper()
 	m, root := newModalModel(t)
-	commit := root.Children[0]
-	selectNode(t, m, commit)
-
+	selectNode(t, m, root.Children[0])
 	press(m, "f")
 	if !m.fm.active {
 		t.Fatal("f should open the flag picker")
 	}
+	return m
+}
+
+func previewText(m *Model) string { return strings.Join(m.preview.Tokens(), " ") }
+
+func TestFlagModal_listsCommandFlagsThenGlobals(t *testing.T) {
+	m := openCommitFlags(t)
 	var names []string
 	for _, e := range m.fm.entries {
 		names = append(names, e.flag.Name)
@@ -211,10 +218,13 @@ func TestFlagModal_boolAndValueFlags(t *testing.T) {
 	if got := strings.Join(names, " "); got != "--message --all --version --paginate" {
 		t.Errorf("entries = %q, want the command's flags then the root's", got)
 	}
+}
 
+func TestFlagModal_boolFlagIsAddedOnce(t *testing.T) {
+	m := openCommitFlags(t)
 	// A bool flag is added straight away, on the command it belongs to.
 	press(m, "down", "enter")
-	if got := strings.Join(m.preview.Tokens(), " "); got != "git commit --all" {
+	if got := previewText(m); got != "git commit --all" {
 		t.Errorf("preview = %q, want \"git commit --all\"", got)
 	}
 	if !m.fm.entries[1].added {
@@ -222,15 +232,13 @@ func TestFlagModal_boolAndValueFlags(t *testing.T) {
 	}
 	// Choosing it again adds nothing.
 	press(m, " ")
-	if got := strings.Join(m.preview.Tokens(), " "); got != "git commit --all" {
+	if got := previewText(m); got != "git commit --all" {
 		t.Errorf("re-adding a flag changed the preview to %q", got)
 	}
+}
 
-	// A value flag asks for its value; Esc cancels without adding anything.
-	press(m, "up", "k")
-	if m.fm.cursor != 0 {
-		t.Fatalf("cursor = %d, want 0", m.fm.cursor)
-	}
+func TestFlagModal_valueFlagPromptsAndEscCancels(t *testing.T) {
+	m := openCommitFlags(t)
 	press(m, "enter")
 	if !m.fm.awaitingValue || !strings.Contains(m.fm.valueInput.Placeholder, "--message") {
 		t.Fatalf("value prompt not shown: awaiting=%v placeholder=%q", m.fm.awaitingValue, m.fm.valueInput.Placeholder)
@@ -240,30 +248,42 @@ func TestFlagModal_boolAndValueFlags(t *testing.T) {
 	if m.fm.awaitingValue || m.fm.valueInput.Value() != "" || !m.fm.active {
 		t.Error("esc in the value prompt should cancel the prompt but keep the picker open")
 	}
+	if got := previewText(m); got != "git" {
+		t.Errorf("a cancelled value must add nothing, preview = %q", got)
+	}
 
 	press(m, "enter")
 	typeText(m, "fix")
 	press(m, "enter")
-	if got := strings.Join(m.preview.Tokens(), " "); got != "git commit --all --message=fix" {
-		t.Errorf("preview = %q, want \"git commit --all --message=fix\"", got)
+	if got := previewText(m); got != "git commit --message=fix" {
+		t.Errorf("preview = %q, want \"git commit --message=fix\"", got)
 	}
 	if m.statusMsg != "added: --message=fix" {
 		t.Errorf("status = %q", m.statusMsg)
 	}
+}
 
+func TestFlagModal_cursorBoundsCloseAndReopen(t *testing.T) {
+	m := openCommitFlags(t)
+	press(m, "up", "k")
+	if m.fm.cursor != 0 {
+		t.Errorf("up at the top: cursor = %d", m.fm.cursor)
+	}
 	press(m, "j", "j", "j", "j", "j")
 	if m.fm.cursor != len(m.fm.entries)-1 {
 		t.Errorf("cursor should stop at the last entry, got %d", m.fm.cursor)
 	}
+	press(m, "enter") // --paginate, a global bool flag
 	press(m, "q")
 	if m.fm.active {
 		t.Error("q should close the picker")
 	}
-
 	// Reopening marks the flags already in the command.
 	press(m, "f")
-	if !m.fm.entries[0].added || !m.fm.entries[1].added || m.fm.entries[2].added {
-		t.Errorf("added marks on reopen = %v %v %v", m.fm.entries[0].added, m.fm.entries[1].added, m.fm.entries[2].added)
+	for _, e := range m.fm.entries {
+		if e.added != (e.flag.Name == "--paginate") {
+			t.Errorf("%s: added = %v on reopen", e.flag.Name, e.added)
+		}
 	}
 }
 
