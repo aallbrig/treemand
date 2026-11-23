@@ -12,6 +12,7 @@ weight: 4
 treemand <cli> [flags]
 treemand version
 treemand schema
+treemand doctor <cli>
 treemand mcp
 treemand cache [clear|list]
 ```
@@ -57,6 +58,19 @@ Print the JSON Schema that `--output=json` and `--output=yaml` follow (see
 ```bash
 treemand schema | jq '.["$defs"] | keys'
 # ["flag", "node", "positional"]
+```
+
+### `doctor`
+
+Discover a CLI afresh and report how it was parsed: strategy and help form,
+node count, commands without a description or flags, undiscovered stubs,
+commands that failed, probe outcomes and the five slowest probes. Paste the
+text report into a bug report; `--output=json` prints the same report for
+scripts. See [doctor](../commands/doctor/).
+
+```bash
+treemand doctor git
+treemand doctor --output=json kubectl | jq .slowest_probes
 ```
 
 ### `cache`

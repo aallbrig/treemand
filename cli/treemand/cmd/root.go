@@ -527,6 +527,7 @@ func Execute() {
 	rootCmd.AddCommand(configCmd)
 	rootCmd.AddCommand(genDocsCmd)
 	rootCmd.AddCommand(completionCmd)
+	rootCmd.AddCommand(doctorCmd)
 	rootCmd.ValidArgsFunction = completeCLIName
 	rootCmd.SetFlagErrorFunc(flagError)
 	if err := rootCmd.Execute(); err != nil {
@@ -575,6 +576,7 @@ func NewRootCmd() *cobra.Command {
 	c.AddCommand(configCmd)
 	c.AddCommand(genDocsCmd)
 	c.AddCommand(completionCmd)
+	c.AddCommand(doctorCmd)
 	c.ValidArgsFunction = completeCLIName
 	return c
 }

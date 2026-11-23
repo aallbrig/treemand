@@ -484,6 +484,18 @@ const (
 // formUnknown before any.
 func (h *HelpDiscoverer) learnedForm() helpForm { return helpForm(h.form.Load()) }
 
+// HelpForm names the flag form the CLI answered help with ("--help" or
+// "-h"), or "" when no flag form has answered.
+func (h *HelpDiscoverer) HelpForm() string {
+	switch h.learnedForm() {
+	case formFlag:
+		return "--help"
+	case formShort:
+		return "-h"
+	}
+	return ""
+}
+
 // runHelp gets help text for args under cliName.
 //
 // Flag forms (--help, -h) only ever print help, so they may race: the

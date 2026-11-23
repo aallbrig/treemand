@@ -278,6 +278,18 @@ treemand cache clear git           # clear one entry
 treemand cache clear               # clear all entries
 ```
 
+## Doctor
+
+When a tree looks wrong or a run is slow, `treemand doctor <cli>` discovers the CLI afresh and reports
+how it went: strategy and help form, node count, commands without a description or flags, undiscovered
+stubs, commands whose help failed, and the slowest help probes. Paste the text into a bug report, or
+use `--output=json` in scripts.
+
+```bash
+treemand doctor git
+treemand doctor --output=json kubectl | jq .slowest_probes
+```
+
 ## Configuration
 
 treemand uses an optional YAML config file. Settings cascade:
