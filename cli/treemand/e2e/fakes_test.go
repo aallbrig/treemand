@@ -138,6 +138,17 @@ H
 ;;
 esac
 `,
+
+	// The go command (#66): "<cmd> --help" prints a usage line and a pointer
+	// to "help <cmd>", whose long text documents the flags as tab-indented
+	// rows, one-per-bracket usage options and "The -x flag" prose.
+	"fakegotool": `case "$1 $2" in
+"help build") printf 'usage: fakegotool build [-o output] [packages]\n\nBuild compiles packages.\n\n\t-race\n\t\tenable data race detection.\n';;
+"help tidy") printf 'usage: fakegotool tidy [-e] [-v] [-diff]\n\nTidy tidies.\n\nThe -compat=version flag keeps checksums.\n';;
+"build --help"|"tidy --help") printf "usage: fakegotool $1 ...\nRun 'fakegotool help $1' for details.\n"; exit 2;;
+*) printf 'Fakegotool manages source.\n\nUsage:\n\n\tfakegotool <command> [arguments]\n\nThe commands are:\n\n\tbuild       compile packages\n\ttidy        tidy modules\n\nUse "fakegotool help <command>" for more information about a command.\n';;
+esac
+`,
 }
 
 // fakeAptMan is man as it answers for fakeapt. TestApt_* put it first on

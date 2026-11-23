@@ -691,13 +691,49 @@ func (h *HelpDiscoverer) tryForm(ctx context.Context, resolved string, args []st
 		}
 		return ""
 	}
-	// Truncated help (curl) points at a complete form; prefer it.
+	return h.fullerHelp(ctx, resolved, args, f, s, at)
+}
+
+// fullerHelp returns the complete help a flag-form answer s points at, or s.
+// Truncated help (curl) points at "--help all". A short answer that names
+// "<cli> help <path>" as the details (the go command, #66) points at that
+// form, which is the CLI's own, so it is safe to ask.
+func (h *HelpDiscoverer) fullerHelp(ctx context.Context, resolved string, args []string, f helpForm, s string, at *formAttempts) string {
 	if f == formFlag && truncatedHelpRe.MatchString(s) {
 		if all := h.runOne(ctx, resolved, append(append([]string{}, args...), "--help", "all"), &at.timedOut); all != "" {
 			return all
 		}
 	}
+	if (f == formFlag || f == formShort) && pointsToHelpPrefix(s, resolved, args) {
+		if full := h.runOne(ctx, resolved, append([]string{"help"}, args...), &at.timedOut); full != "" && !isErrorOutput(full) {
+			return full
+		}
+	}
 	return s
+}
+
+// helpPointerRes match a pointer to fuller help; the first group is the
+// command: "Run 'go help build' for details." (with "and 'go help testflag'"
+// variants) and "For more information run\n\tgo help doc".
+var helpPointerRes = []*regexp.Regexp{
+	regexp.MustCompile(`(?m)^Run '([^']+)'(?: and '[^']+')* for (?:details|more information)\.?\s*$`),
+	regexp.MustCompile(`(?m)^For more information,? run:?\s*\n[ \t]+(\S[^\n]*?)\s*$`),
+}
+
+// pointsToHelpPrefix reports whether s is a short help (a usage line and a
+// pointer) that names exactly "<cli> help <args...>". Only that command is
+// followed: a pointer to anything else is never run.
+func pointsToHelpPrefix(s, resolved string, args []string) bool {
+	if len(args) == 0 || strings.Count(strings.TrimSpace(s), "\n") > 12 {
+		return false
+	}
+	want := strings.Join(append([]string{strings.TrimSuffix(filepath.Base(resolved), ".exe"), "help"}, args...), " ")
+	for _, re := range helpPointerRes {
+		if m := re.FindStringSubmatch(s); m != nil {
+			return strings.Join(strings.Fields(m[1]), " ") == want
+		}
+	}
+	return false
 }
 
 // runOne runs a single help command with the pager variables set and returns
@@ -1081,14 +1117,25 @@ func (p *helpParser) line(l helpLine) {
 	case secFlags:
 		p.flagLine(l)
 	case secCommands:
+		// No command name starts with "-": a described option row here is a
+		// flag. "go help build" wraps "...shared by the build, clean, get,
+		// install, list, run,\nand test commands:" over its flag list (#66).
+		// An undescribed one is a wrapped example ("    --lint=none").
+		if f, ok := parseFlag(l.raw); ok && strings.HasPrefix(l.trimmed, "-") {
+			if f = p.withNextLineDescription(l, f); f.Description != "" {
+				p.addFlag(f)
+			}
+			return
+		}
 		p.commandLine(l)
 	case secExamples, secAliases, secDesc, secValues:
 		// Narrative text, examples or aliases: example usage may reference
 		// flags worth surfacing, but these never list subcommands.
-		p.addParsedFlag(l.raw)
+		p.addParsedFlag(l)
 	case secNone, secUsage:
 		// Outside named sections: flags, and subcommands with stricter checks.
-		p.addParsedFlag(l.raw)
+		p.addParsedFlag(l)
+		p.proseFlags(l)
 		p.freeFormSubcommand(l.raw)
 	}
 }
@@ -1323,7 +1370,7 @@ func (p *helpParser) flagLine(l helpLine) {
 		p.pendingFlag = &f
 		return
 	}
-	p.addFlag(f)
+	p.addFlag(p.withNextLineDescription(l, f))
 }
 
 // commandLine reads one row of a commands section; the first shape that
@@ -1417,10 +1464,71 @@ func (p *helpParser) freeFormSubcommand(raw string) {
 	p.addSub(m[1])
 }
 
-func (p *helpParser) addParsedFlag(raw string) {
-	if f, ok := parseFlag(raw); ok {
+func (p *helpParser) addParsedFlag(l helpLine) {
+	if f, ok := parseFlag(l.raw); ok {
+		p.addFlag(p.withNextLineDescription(l, f))
+	}
+}
+
+// proseFlagRe matches a paragraph that opens by naming flags, as "go help
+// <cmd>" documents them (#66): "The -fmt flag reformats ...", "The
+// -require=path@version and -droprequire=path flags ...".
+var (
+	proseFlagRe      = regexp.MustCompile(`^The (-{1,2}[A-Za-z][A-Za-z0-9_-]*(?:=\S+)?(?:(?:,? (?:and|or) |, )-{1,2}[A-Za-z][A-Za-z0-9_-]*(?:=\S+)?)*) flags?\b`)
+	proseFlagTokenRe = regexp.MustCompile(`(-{1,2}[A-Za-z][A-Za-z0-9_-]*)(?:=(\S+))?`)
+)
+
+// proseFlags adds the flags a "The -x flag ..." paragraph opens with. The
+// sentence must start the line, so a mention mid-paragraph ("Note that
+// -require overrides ...") is never a flag.
+func (p *helpParser) proseFlags(l helpLine) {
+	m := proseFlagRe.FindStringSubmatch(l.raw)
+	if m == nil {
+		return
+	}
+	for _, t := range proseFlagTokenRe.FindAllStringSubmatch(m[1], -1) {
+		f := models.Flag{Name: t[1], ValueType: strings.TrimRight(t[2], ",")}
+		if f.ValueType == "" {
+			f.ValueType = "bool"
+		}
+		if len(f.Name) == 2 {
+			f.ShortName = f.Name[1:]
+		}
 		p.addFlag(f)
 	}
+}
+
+// withNextLineDescription gives a flag row with no description of its own the
+// next line's text when that line is indented deeper and is not another flag:
+// Go's flag package ("  -cpuprofile string" over "    \twrite cpu profile")
+// and "go help <cmd>" ("\t-race" over "\t\tenable data race detection.").
+func (p *helpParser) withNextLineDescription(l helpLine, f models.Flag) models.Flag {
+	if f.Description != "" || l.i+1 >= len(p.lines) {
+		return f
+	}
+	next := p.lines[l.i+1]
+	t := strings.TrimSpace(next)
+	if t == "" || strings.HasPrefix(t, "-") || leadingWidth(next) <= leadingWidth(l.raw) {
+		return f
+	}
+	f.Description = t
+	return f
+}
+
+// leadingWidth is a line's indentation with a tab counted as eight columns.
+func leadingWidth(s string) int {
+	w := 0
+	for _, r := range s {
+		switch r {
+		case ' ':
+			w++
+		case '\t':
+			w += 8 - w%8
+		default:
+			return w
+		}
+	}
+	return w
 }
 
 // addFlag appends a flag once, and to the named section being read, if any.
@@ -1495,6 +1603,15 @@ func (p *helpParser) finish() ParsedHelp {
 	r.Sections = filtered
 	for _, ul := range p.usageLines {
 		r.Positionals = append(r.Positionals, parsePositionals(ul)...)
+	}
+	// Flags the synopsis names but no row lists ("go mod tidy" documents them
+	// in prose) come after the listed ones, which carry descriptions, and
+	// belong to no flag section.
+	p.currentSectionName = ""
+	for _, ul := range p.usageLines {
+		for _, f := range usageLineFlags(ul) {
+			p.addFlag(f)
+		}
 	}
 	r.Description = strings.Join(strings.Fields(r.Description), " ")
 	// A man-page bullet list ("o service") is authoritative: prose elsewhere in
@@ -1621,11 +1738,12 @@ func parseFlag(line string) (models.Flag, bool) {
 }
 
 // singleDashRe matches single-dash options (#156), as Go's flag package
-// ("  -cpuprofile string" with the description on the next line, "  -d<TAB>…")
-// and mitchellh/cli ("  -chdir=DIR    Switch …") print them. After the name and
-// an optional " type" or "=VALUE" comes a tab, a 2+ space gap or the end of
-// the line, so "-v verbose output" (prose after one space) never matches.
-var singleDashRe = regexp.MustCompile(`^ {2,4}(-[A-Za-z][A-Za-z0-9_.-]*)(?:[ =]([A-Za-z<][^\s]*))?(?:\t+| {2,}|$)(.*)$`)
+// ("  -cpuprofile string" with the description on the next line, "  -d<TAB>…"),
+// "go help <cmd>" ("<TAB>-C dir", #66) and mitchellh/cli ("  -chdir=DIR    Switch …")
+// print them. After the name and an optional " type" or "=VALUE" comes a tab,
+// a 2+ space gap or the end of the line, so "-v verbose output" (prose after
+// one space) never matches.
+var singleDashRe = regexp.MustCompile(`^(?: {2,4}|\t)(-[A-Za-z][A-Za-z0-9_.-]*)(?:[ =]([A-Za-z<][^\s]*))?(?:\t+| {2,}|$)(.*)$`)
 
 func parseSingleDashOption(line string) (models.Flag, bool) {
 	m := singleDashRe.FindStringSubmatch(line)
@@ -1772,6 +1890,55 @@ var positionalPlaceholders = map[string]bool{
 // bracketOptionRe matches bracket-enclosed option patterns that should not be
 // treated as positional arguments: [--long-opt...] and [-X <value>] forms.
 var bracketOptionRe = regexp.MustCompile(`\[-[^\]]+\]`)
+
+// usageOptionRe matches one option alone in a usage-line bracket, with an
+// optional value: "[-v]", "[--verbose]", "[-o output]", "[-go=version]",
+// "[--config <file>]". Brackets holding alternatives ("[-v | --version]")
+// or nested optional values ("[--exec-path[=<path>]]") do not match.
+var usageOptionRe = regexp.MustCompile(`\[(--?[A-Za-z][A-Za-z0-9_-]*)(?:[ =](<[A-Za-z][^<>\[\]|]*>|[A-Za-z][A-Za-z0-9_.,-]*))?\]`)
+
+// wordOptionRe matches a single-dash word option, which is lowercase
+// ("-json", "-testcache"); "[-Olevel]" (GNU find) is -O with a value.
+var wordOptionRe = regexp.MustCompile(`^-[a-z][a-z0-9-]+$`)
+
+// usageLineFlags reads the options a usage line names one per bracket (#66):
+// "usage: go mod tidy [-e] [-v] [-diff] [-go=version]". BSD tools cluster
+// single-letter options in one bracket ("[-pv]" is -p and -v), so a
+// multi-letter single-dash option without a value counts only when the same
+// line also lists a single letter alone ("[-e]"), which a clustering tool
+// would have merged.
+func usageLineFlags(line string) []models.Flag {
+	ms := usageOptionRe.FindAllStringSubmatch(line, -1)
+	lonePerLetter := false
+	for _, m := range ms {
+		lonePerLetter = lonePerLetter || (len(m[1]) == 2 && m[2] == "")
+	}
+	var flags []models.Flag
+	for _, m := range ms {
+		if f, ok := usageOptionFlag(m[1], strings.Trim(m[2], "<>"), lonePerLetter); ok {
+			flags = append(flags, f)
+		}
+	}
+	return flags
+}
+
+// usageOptionFlag turns one bracketed usage option into a flag, or reports
+// false for a possible BSD letter cluster (see usageLineFlags).
+func usageOptionFlag(name, value string, lonePerLetter bool) (models.Flag, bool) {
+	long := strings.HasPrefix(name, "--")
+	word := len(name) > 2 && !long
+	if word && value == "" && (!lonePerLetter || !wordOptionRe.MatchString(name)) {
+		return models.Flag{}, false
+	}
+	f := models.Flag{Name: name, ValueType: value}
+	if f.ValueType == "" {
+		f.ValueType = "bool"
+	}
+	if len(name) == 2 {
+		f.ShortName = name[1:]
+	}
+	return f, true
+}
 
 // parsePositionals extracts positional args from a usage line.
 func parsePositionals(line string) []models.Positional {

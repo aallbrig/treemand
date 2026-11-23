@@ -291,3 +291,43 @@ func TestRunHelp_usageAfterAnIllegalOptionIsHelpAndNoPositionalFormRuns(t *testi
 		}
 	}
 }
+
+// goStyle answers "<cmd> --help" with only a usage line and a pointer to
+// "help <cmd>", like the go command, and "help <cmd>" with the full text.
+const goStyle = `case "$1 $2" in
+"help build") printf 'usage: formcli build [-o output] [packages]\n\nBuild compiles packages.\n\n\t-race\n\t\tenable data race detection.\n';;
+"build --help") printf "usage: formcli build [-o output] [packages]\nRun 'formcli help build' for details.\n";;
+"help doc") printf 'usage: formcli doc [doc flags]\n\n\t-all\n\t\tShow all the documentation.\n';;
+"doc --help") printf 'Usage of [formcli] doc:\n\tformcli doc <pkg>\nFor more information run\n\tformcli help doc\n\n';;
+"build "*) echo "built $2"; exit 0;;
+*) printf 'Formcli manages source.\n\nUsage:\n\n\tformcli <command> [arguments]\n\nThe commands are:\n\n\tbuild       compile packages\n\tdoc         show documentation\n';;
+esac
+`
+
+func TestRunHelp_followsAPointerToTheFullHelp(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell-script fake CLI")
+	}
+	bin, logPath := formCLI(t, 0, goStyle)
+	root, err := NewHelpDiscoverer(2).Discover(context.Background(), bin, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(root.Children) != 2 {
+		t.Fatalf("children: %+v", root.Children)
+	}
+	got := map[string]bool{}
+	for _, c := range root.Children {
+		for _, f := range c.Flags {
+			got[c.Name+" "+f.Name] = true
+		}
+	}
+	if !got["build -race"] || !got["build -o"] || !got["doc -all"] {
+		t.Errorf("build flags %v, want build -race (from help build), build -o and doc -all (from help doc); calls: %q", got, calls(t, logPath))
+	}
+	for _, c := range calls(t, logPath) {
+		if c == "build" || strings.HasPrefix(c, "build help") {
+			t.Errorf("ran a form the CLI did not name: %q", c)
+		}
+	}
+}
