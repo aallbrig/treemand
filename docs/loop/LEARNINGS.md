@@ -14,13 +14,11 @@ into the `## Summary` section by the loop.
 - Cycle 17 (#37, v0.4.4): a coverage floor must hold on GitHub CI as well as locally (cmd measured lower on the runner because some tests use CLIs installed on a dev box), so floors are the lower of the two. After a push, checks take a moment to register, so `pr:merge` run too early reports none.
 - Cycles 18-20 (#53 v0.4.5, #38 v0.4.6, #39 v0.5.0): help probes read through a 1MB cap and kill the process when it is hit; run any new slow-path test under -race before pushing (regexes are about 20x slower there). The e2e package (built binary, fake CLIs, real pty) finds parser bugs on its first run, and a pty harness must answer cursor and color queries or every start waits about 5s. Usage errors exit 2 and runtime failures exit 1. Walk the real paths with the built binary before writing docs. apt time and memory follow the state of the host, not the code, so judge them with a main-vs-branch A/B.
 - Cycle 21 (#54): when an issue is already fixed, prove it with the issue's acceptance command and spend the cycle on a guard (a jitter test, tighter deterministic perf thresholds). Test-only changes ship without a release.
+- Cycle 22 (#40, v0.6.0): measure TUI speed before changing it (real aws was already fast; one slow key on a 60k-row tree went from 295ms to 42ms by reusing the row buffer). Render-fit tests at three sizes and a scan of the key handlers against the overlay text catch overflow and undocumented keys. In zsh, an unmatched glob aborts an `&&` chain, so use `find -delete`.
 
 ## Recent cycles
 
 <!-- Retro appends below: ### Cycle N — YYYY-MM-DD — outcome — #issue vX.Y.Z -->
-
-### Cycle 22 - 2026-11-10 - released - #40 v0.6.0
-TUI at scale: measured before changing. Real aws (422 stubs) was already fast (every key about 5ms); a fully expanded 60k-row tree had one slow key (expand-all 295ms to 42ms by reusing the row buffer and dropping fmt.Sprintf). The bigger finds were not latency: the tree pane had no PgUp/PgDn at all, and the key bindings overlay overflowed the terminal (long lines wrapped inside a box sized by source-line count). Render-fit tests at 3 sizes across 33 UI states are cheap and caught it; so does scanning model_keys.go against the overlay text, which fails for any undocumented new key. A zsh pitfall cost a capture run: an unmatched glob in rm aborted an && chain before a variable was set, so use find -delete and set variables on their own line.
 
 ### Cycle 23 - 2026-11-10 - merged, no release - #42
 Competitive teardown from the peers published pages only: the permission policy denied installing and running third-party code, so nothing was run and every peer claim is labelled as theirs (hands-on follow-up filed as #101, loop:blocked). I did not look for a way around the denial. Reading the pages still paid off: it corrected stale versions (mandible is 0.9.0, not the linked 0.2.0) and produced 9 deduped gap issues (#92-#100) plus an honest README section. When a tool is denied, do the part that needs no new permission, say plainly what was not done, and file the rest for a human. Run and cold-start comparisons remain open.
@@ -105,3 +103,6 @@ cmd coverage went from 66.8% to 87.0% (floor 64 to 85) with hermetic tests: the 
 
 ### Cycle 51 - 2026-11-23 - released - #66 v0.11.4
 go subcommands without flags went from 33/33 to 10/33: follow the `Run 'go help <cmd>' for details` pointer, then read tab-indented rows, one-per-bracket usage options and "The -x flag" prose. The issue's under-25% target was below the real floor (9 go nodes have no flags at all), so the PR reports 30% and why. The ratchet also counts functions that cross 15 through a new branch (`tryForm` went 15 to 17), so run `gocognit -over 15` on touched packages before pushing. The local `nvm use` in a subshell does not reach `task ci`; prefix PATH with a Node 22+ bin directory instead.
+
+### Cycle 52 - 2026-11-23 - released - #92 v0.12.0
+`--stdin` parses a piped help text as the root and runs nothing; subcommands stay stubs. The e2e proof puts a trap binary of the same name on PATH that leaves a marker file if it runs, which is stronger than asserting on output. The loop's guard blocks writes to the session scratchpad, so put PR bodies under `.loop/`. Test & Lint failed once on `TestExpandAllOnAFullyExpandedAwsTree` (wall clock, #335); a rerun passed.
