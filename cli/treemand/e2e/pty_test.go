@@ -169,6 +169,26 @@ func TestInteractive_navigateAndQuit(t *testing.T) {
 	}
 }
 
+// The help pane's footer promises g/G and the page keys; with it focused they
+// must scroll the pane, not move the tree behind it (#311).
+func TestInteractive_helpPaneJumpKeyScrollsThePane(t *testing.T) {
+	s := startInteractive(t, "-i", "--no-cache", "fakelonghelp")
+	s.waitFor("note line 1", 15*time.Second) // the root's help is in the pane
+
+	s.send("\t")
+	s.waitFor("g/G:top/bottom", 5*time.Second)
+	if strings.Contains(s.screen(), "end of the long help") {
+		t.Fatalf("the end of the help is visible before scrolling; screen:\n%s", s.screen())
+	}
+	s.send("G")
+	s.waitFor("end of the long help", 5*time.Second)
+
+	s.send("q")
+	if code := s.exitCode(10 * time.Second); code != 0 {
+		t.Errorf("exit code %d after q, want 0", code)
+	}
+}
+
 func TestInteractive_ctrlCQuits(t *testing.T) {
 	s := startInteractive(t, "-i", "--no-cache", "fakecobra")
 	s.waitFor("deploy", 15*time.Second)

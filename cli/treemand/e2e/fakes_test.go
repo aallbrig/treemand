@@ -106,6 +106,16 @@ alpha) printf 'Alpha thing\n\nFlags:\n  -h, --help   help\n';;
 esac
 `,
 
+	// A root help page far taller than the help pane, ending in a marker line,
+	// for the help pane's scroll keys.
+	"fakelonghelp": `case "$1" in
+only) printf 'Only thing\n\nUsage:\n  fakelonghelp only\n\nFlags:\n  -h, --help   help for only\n';;
+*) printf 'fakelonghelp has a long help page\n\nUsage:\n  fakelonghelp [command]\n\nAvailable Commands:\n  only        Only thing\n\nFlags:\n  -h, --help   help for fakelonghelp\n\nNotes:\n'
+  i=1; while [ "$i" -le 80 ]; do printf '  note line %s\n' "$i"; i=$((i + 1)); done
+  printf '  end of the long help\n';;
+esac
+`,
+
 	// A CLI that never answers: --timeout must bound discovery.
 	"fakehang": "exec sleep 600\n",
 
