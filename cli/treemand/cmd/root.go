@@ -154,7 +154,11 @@ func runRoot(cmd *cobra.Command, args []string) error {
 
 	// Fail early with a clear message if the binary cannot be found.
 	if err := checkAvailable(cliName); err != nil {
-		return err
+		var never *discovery.NeverProbeError
+		if errors.As(err, &never) {
+			return err
+		}
+		return fmt.Errorf("%w%s", err, subcommandHint(cmd.Root(), cliName))
 	}
 
 	cfg := configFromFlags()

@@ -133,6 +133,38 @@ func levenshtein(a, b string) int {
 	return prev[len(b)]
 }
 
+// groupRun is the RunE of a command that only groups subcommands. With no
+// argument it prints the group's help; any argument is an unknown
+// subcommand, reported as a usage error that names the closest match.
+func groupRun(c *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return c.Help()
+	}
+	hint := "Run '" + c.CommandPath() + " --help' for its commands."
+	if s := suggestSubcommands(c, args[0]); len(s) > 0 {
+		hint = "Did you mean '" + c.CommandPath() + " " + s[0] + "'?\n" + hint
+	}
+	return newUsageError(hint, "unknown command %q for %q", args[0], c.CommandPath())
+}
+
+// subcommandHint suggests a treemand subcommand close to a name that is not
+// a CLI on PATH: a CLI and a treemand subcommand share the first argument.
+func subcommandHint(root *cobra.Command, name string) string {
+	if s := suggestSubcommands(root, name); len(s) > 0 {
+		return "\nDid you mean 'treemand " + s[0] + "'?"
+	}
+	return ""
+}
+
+// suggestSubcommands returns c's subcommands close to typed, by cobra's rule
+// (a prefix, or within two edits) as cobra applies it to unknown commands.
+func suggestSubcommands(c *cobra.Command, typed string) []string {
+	if c.SuggestionsMinimumDistance <= 0 {
+		c.SuggestionsMinimumDistance = 2
+	}
+	return c.SuggestionsFor(typed)
+}
+
 var shells = []string{"bash", "zsh", "fish", "powershell"}
 
 // completionArgs requires exactly one known shell.

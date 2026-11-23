@@ -206,6 +206,10 @@ func TestFailurePaths(t *testing.T) {
 		{"unknown output format", []string{"--output=xml", "fakecobra"}, 2, []string{"unknown output format", "text, json or yaml"}},
 		{"completion without shell", []string{"completion"}, 2, []string{"missing shell", "powershell"}},
 		{"completion unknown shell", []string{"completion", "tcsh"}, 2, []string{"unknown shell", "tcsh"}},
+		{"mistyped cache subcommand", []string{"cache", "lst"}, 2, []string{`unknown command "lst" for "treemand cache"`, "Did you mean 'treemand cache list'?"}},
+		{"mistyped config subcommand", []string{"config", "veiw"}, 2, []string{`unknown command "veiw"`, "Did you mean 'treemand config view'?"}},
+		{"unknown cache subcommand", []string{"cache", "zzzz"}, 2, []string{`unknown command "zzzz"`, "treemand cache --help"}},
+		{"mistyped treemand subcommand", []string{"confg"}, 1, []string{"not found", "Did you mean 'treemand config'?"}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

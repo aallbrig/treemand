@@ -14,8 +14,10 @@ import (
 )
 
 var configCmd = &cobra.Command{
-	Use:   "config",
-	Short: "Manage treemand configuration",
+	RunE:                  groupRun,
+	DisableFlagsInUseLine: true,
+	Use:                   "config",
+	Short:                 "Manage treemand configuration",
 	Long: `View, validate, and modify the treemand configuration file.
 
 The config file is YAML and is searched in order:
