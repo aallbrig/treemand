@@ -95,6 +95,8 @@ func DefaultConfig() Config {
 			dialog("value-input", "updateValueModal", 0, "renderValueInputModal", "Esc"),
 			dialog("exec", "updateModal", 0, "renderModal", "Esc"),
 			dialog("recents", "updateRecentsModal", 0, "renderRecentsModal", "Esc"),
+			dialog("presets", "updatePresetsModal", 0, "renderPresetsModal", "Esc"),
+			dialog("preset-name", "updatePresetName", 0, "renderPresetsModal", "Enter save"),
 			dialog("flag-value", "updateFlagModal", 0, "renderFlagModal", "Type value"),
 			dialog("flag-picker", "updateFlagModal", 1, "renderFlagModal", "navigate"),
 			dialog("search", "updateSearchModal", 0, "renderSearchModal", "Esc"),

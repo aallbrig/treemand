@@ -89,6 +89,10 @@ func (m *Model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.openRecents()
 		return m, nil
 
+	case "ctrl+o":
+		m.openPresets()
+		return m, nil
+
 	case "ctrl+k":
 		m.preview.ClearAll()
 		m.tree.SetCmdTokens(nil)
