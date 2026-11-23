@@ -12,21 +12,7 @@ import (
 // updateKeys is the main key dispatcher when no modal is active.
 func (m *Model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	key := msg.String()
-
-	// Handle pending 'g' for gg (jump to top) sequence.
-	if m.pendingG {
-		m.pendingG = false
-		if key == "g" {
-			m.tree.Top()
-			m.syncSelected()
-			return m, nil
-		}
-		// Not 'g' — cancel pending and process this key normally.
-	}
-
-	// The focused help pane takes its scroll keys before the global ones, which
-	// would otherwise move the tree behind it.
-	if m.focusedPane == paneHelp && m.updateHelpPaneKeys(key) {
+	if m.takeKeyBeforeGlobals(key) {
 		return m, nil
 	}
 
@@ -205,6 +191,22 @@ func (m *Model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	default:
 		return m.handleArrows(msg)
 	}
+}
+
+// takeKeyBeforeGlobals handles the keys that must run before the global ones
+// and reports whether key was used: the second g of gg, and the focused help
+// pane's scroll keys, which the global keys would use to move the tree.
+func (m *Model) takeKeyBeforeGlobals(key string) bool {
+	if m.pendingG {
+		m.pendingG = false
+		if key == "g" {
+			m.tree.Top()
+			m.syncSelected()
+			return true
+		}
+		// Not 'g': cancel the pending g and process this key normally.
+	}
+	return m.focusedPane == paneHelp && m.updateHelpPaneKeys(key)
 }
 
 // updateHelpPaneKeys scrolls the focused help pane and reports whether key
