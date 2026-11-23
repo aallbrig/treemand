@@ -32,6 +32,8 @@ Examples:
   treemand config init             # create a default config file
   treemand config path             # print config file path
   treemand config edit             # open config in $EDITOR`,
+	RunE:                  groupRun,
+	DisableFlagsInUseLine: true,
 }
 
 // ── config view ───────────────────────────────────────────────────────────────
