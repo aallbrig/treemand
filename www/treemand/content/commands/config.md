@@ -51,6 +51,51 @@ treemand searches for the config file in this order:
 | `colors.flag` | hex | `#50FA7B` | Flag color (fallback) |
 | `colors.selected` | hex | `#00BFFF` | TUI selection background |
 
+## Overrides for CLIs treemand misreads
+
+When treemand reads a CLI's help wrongly, you can correct the tree yourself
+without waiting for a release. Put a YAML file named after the CLI in
+`overrides/` beside the config file, for example
+`~/.config/treemand/overrides/mytool.yaml`:
+
+```yaml
+commands:
+  "":                    # the CLI itself
+    description: My tool does things
+    hide_flags: [--debug-internal]
+  remote add:            # a command path below the CLI
+    description: Add a remote
+    flags:
+      - name: --track    # added, or updates the flag of the same name
+        short: -t
+        value_type: string
+        description: Track one branch
+  remote prune:
+    hide: true           # removed from the tree
+  config set:            # not in the tree: added, with its parents
+    description: Set a value
+```
+
+Each key under `commands` is a command path without the CLI's name (`""` is
+the CLI itself). A command can set:
+
+| Key | Effect |
+|-----|--------|
+| `description` | Replaces the description |
+| `flags` | Adds each flag, or updates the fields it sets on an existing flag of that `name` (`short`, `value_type`, `description`) |
+| `hide_flags` | Removes flags by name |
+| `hide` | Removes the command and everything below it |
+
+A command the tree lacks is added, and treemand never runs it to read its
+help. The override applies to every tree treemand shows for that CLI: text and
+JSON output, the TUI, `--stdin`, `treemand mcp` and `treemand doctor`. Editing
+the file takes effect on the next run. An unknown key or invalid YAML is an
+error that names the file, so a typo never goes unnoticed.
+
+An override is also the most useful thing to attach to a
+[bug report](https://github.com/aallbrig/treemand/issues): it shows exactly
+what treemand got wrong.
+
 ## Example config
 
 ```yaml

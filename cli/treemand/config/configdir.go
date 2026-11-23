@@ -43,3 +43,13 @@ func legacyConfigDir() string {
 	}
 	return filepath.Join(home, "Library", "Application Support", "treemand")
 }
+
+// OverridesDir is where per-CLI override files live:
+// <config dir>/treemand/overrides (see package overrides).
+func OverridesDir() (string, error) {
+	home, err := configHome()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, "treemand", "overrides"), nil
+}

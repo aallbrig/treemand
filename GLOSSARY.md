@@ -20,6 +20,10 @@ _Avoid_: introspection, scanning, crawling.
 **Strategy**: one source discovery reads: help output, shell completions, or the
 man page.
 
+**Override**: a user's YAML file (`<config dir>/treemand/overrides/<cli>.yaml`)
+that corrects one target CLI's command tree after discovery: descriptions,
+added commands and flags, hidden nodes. _Avoid_: preset (built into treemand).
+
 **Help attempt**: one run of a target CLI with one help form (`--help`, `-h`,
 `help`, `help <sub>`). It ends read, rejected (the output was an error, not
 help), timed out, or failed.

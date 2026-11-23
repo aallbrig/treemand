@@ -81,3 +81,13 @@ func TestInitViper_prefersDotConfigOverLegacy(t *testing.T) {
 		t.Errorf("ConfigFileUsed() = %q, want %q", got, current)
 	}
 }
+
+// Override files sit beside config.yaml, in treemand/overrides.
+func TestOverridesDir_isBesideTheConfigFile(t *testing.T) {
+	xdg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", xdg)
+	got, err := config.OverridesDir()
+	if want := filepath.Join(xdg, "treemand", "overrides"); err != nil || got != want {
+		t.Errorf("OverridesDir() = %q, %v; want %q", got, err, want)
+	}
+}
