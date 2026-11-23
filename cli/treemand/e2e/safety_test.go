@@ -30,34 +30,46 @@ func TestProbesRunInAThrowawayHome(t *testing.T) {
 	}
 
 	for _, dir := range []string{home, tmp} {
-		var found []string
-		_ = filepath.WalkDir(dir, func(p string, d os.DirEntry, _ error) error {
-			if strings.Contains(filepath.Base(p), "fakewriter") {
-				found = append(found, p)
-			}
-			return nil
-		})
-		if len(found) > 0 {
-			t.Errorf("a probe wrote into the user's %s: %v", dir, found)
-		}
+		assertNothingNamed(t, dir, "fakewriter")
 	}
+	assertProbeDirsGone(t, log, home, tmp)
+}
 
+// assertNothingNamed fails when any path under dir has name in its base name.
+func assertNothingNamed(t *testing.T, dir, name string) {
+	t.Helper()
+	var found []string
+	_ = filepath.WalkDir(dir, func(p string, _ os.DirEntry, _ error) error {
+		if strings.Contains(filepath.Base(p), name) {
+			found = append(found, p)
+		}
+		return nil
+	})
+	if len(found) > 0 {
+		t.Errorf("a probe wrote into the user's %s: %v", dir, found)
+	}
+}
+
+// assertProbeDirsGone reads the directories the fake CLI logged and fails
+// when one is the user's own or still exists.
+func assertProbeDirsGone(t *testing.T, log, home, tmp string) {
+	t.Helper()
 	raw, err := os.ReadFile(log)
 	if err != nil {
 		t.Fatalf("the fake CLI never ran: %v", err)
 	}
-	lines := strings.Fields(string(raw))
-	if len(lines) == 0 {
+	seen := strings.Fields(string(raw))
+	if len(seen) == 0 {
 		t.Fatal("the fake CLI logged nothing")
 	}
-	for _, seen := range lines {
+	for _, d := range seen {
 		// The probe directory is created inside the user's TMPDIR, so only an
 		// exact match means the probe saw the user's own directory.
-		if seen == home || seen == tmp || strings.HasPrefix(seen, home+string(os.PathSeparator)) {
-			t.Errorf("a probe saw the user's directory %s", seen)
+		if d == home || d == tmp || strings.HasPrefix(d, home+string(os.PathSeparator)) {
+			t.Errorf("a probe saw the user's directory %s", d)
 		}
-		if _, err := os.Stat(seen); err == nil {
-			t.Errorf("probe directory %s still exists after treemand exited", seen)
+		if _, err := os.Stat(d); err == nil {
+			t.Errorf("probe directory %s still exists after treemand exited", d)
 		}
 	}
 }
