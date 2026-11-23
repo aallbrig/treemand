@@ -141,7 +141,14 @@ treemand is safe to use in pipelines.
 ```bash
 treemand --output=json git | jq '.children[].name'   # machine-readable tree (json or yaml)
 treemand git | less -R                               # plain text when piped
+docker --help | treemand --stdin docker              # parse a help text, run nothing
 ```
+
+- **Help text from stdin.** `--stdin` parses the help text piped in as the root of the tree and
+  runs nothing, so it maps a CLI that is not installed here, one on another machine or in a
+  container, or a saved help text (handy for bug reports). The subcommands it lists stay stubs
+  (`discovered: false`), since their own help is never read. It works with every `--output`
+  format, skips the cache, and cannot be combined with `-i` or `--expand-stubs`, which run the CLI.
 
 - **Output goes to stdout, messages to stderr.** Errors never write to stdout, so a pipe only ever
   sees a complete result. The progress spinner and the "undiscovered subcommands" note use stderr.

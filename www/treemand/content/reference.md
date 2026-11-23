@@ -34,6 +34,7 @@ treemand cache [clear|list]
 | `--no-color` | | false | Disable color output |
 | `--no-cache` | | false | Skip cache lookup and write |
 | `--refresh` | | false | Re-discover even if cached, and update the cache entry |
+| `--stdin` | | false | Read the CLI's help text from stdin instead of running it; subcommands stay undiscovered (`docker --help \| treemand --stdin docker`) |
 | `--timeout` | | `30` | Discovery timeout in seconds (0 = no limit) |
 | `--debug` | | false | Enable debug logging to stderr |
 

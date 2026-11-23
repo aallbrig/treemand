@@ -83,6 +83,7 @@ Examples:
   treemand --commands-only docker     # subcommands only, no flags
   treemand --output=json gh | jq .    # pipe JSON to jq
   treemand --filter=remote git        # only show nodes matching "remote"
+  docker --help | treemand --stdin docker  # parse a help text, run nothing
   treemand treemand                   # introspect treemand itself
   treemand mcp                        # MCP server: discovery as AI agent tools
 
@@ -108,6 +109,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&cfgNoColor, "no-color", false, "Disable color output")
 	rootCmd.PersistentFlags().BoolVar(&cfgNoCache, "no-cache", false, "Disable caching")
 	rootCmd.Flags().BoolVar(&cfgRefresh, "refresh", false, "Re-discover the CLI even if it is cached, and update the cache")
+	rootCmd.Flags().BoolVar(&cfgStdin, "stdin", false, "Read the CLI's help text from stdin instead of running it (subcommands stay undiscovered)")
 	rootCmd.PersistentFlags().IntVar(&cfgJobs, "jobs", 0, "Max concurrent help processes during discovery (0 = auto: 2 x CPUs, between 4 and 16)")
 	rootCmd.PersistentFlags().IntVar(&cfgExpandStubs, "expand-stubs", 0, "Expand undiscovered (stub, marked (…)) nodes N levels deep before output: gets their descriptions and children (slow on huge CLIs; disables cache)")
 	rootCmd.PersistentFlags().IntVar(&cfgTimeout, "timeout", 30, "Discovery timeout in seconds (0 = no limit; each help command still has its own limit)")
@@ -143,6 +145,9 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	}
 	if err := checkTimeout(cfgTimeout); err != nil {
 		return err
+	}
+	if cfgStdin {
+		return runFromStdin(cmd, cliName)
 	}
 	configureDiscovery()
 
@@ -468,10 +473,18 @@ func output(cmd *cobra.Command, node *models.Node, cfg *config.Config, save func
 	if cfgOutput == "" || cfgOutput == "text" {
 		if n := countStubs(node); n > 0 {
 			// stderr, so stdout stays clean for pipes.
-			fmt.Fprintf(cmd.ErrOrStderr(), "\n%d undiscovered subcommands are marked (…). Use -i to expand them on demand, or --expand-stubs=1 for a complete snapshot (slow on large CLIs).\n", n)
+			fmt.Fprint(cmd.ErrOrStderr(), stubNote(n))
 		}
 	}
 	return nil
+}
+
+// stubNote explains the (…) marks under a text tree.
+func stubNote(n int) string {
+	if cfgStdin {
+		return fmt.Sprintf("\n%d subcommands are marked (…): --stdin reads one help text and runs nothing, so their own help was not read.\n", n)
+	}
+	return fmt.Sprintf("\n%d undiscovered subcommands are marked (…). Use -i to expand them on demand, or --expand-stubs=1 for a complete snapshot (slow on large CLIs).\n", n)
 }
 
 // countStubs returns how many nodes below root were not discovered (lazily
@@ -541,6 +554,7 @@ func NewRootCmd() *cobra.Command {
 	c.PersistentFlags().IntVar(&cfgJobs, "jobs", 0, "Max concurrent help processes")
 	c.PersistentFlags().IntVar(&cfgExpandStubs, "expand-stubs", 0, "Expand undiscovered (stub) nodes N levels deep before output")
 	c.Flags().BoolVar(&cfgRefresh, "refresh", false, "Re-discover even if cached")
+	c.Flags().BoolVar(&cfgStdin, "stdin", false, "Read the CLI's help text from stdin")
 	c.PersistentFlags().StringVar(&cfgTreeStyle, "tree-style", "default", "TUI tree style")
 	c.AddCommand(versionCmd)
 	c.AddCommand(schemaCmd)
