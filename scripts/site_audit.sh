@@ -28,7 +28,9 @@ sh scripts/site_search_index.sh "$out" >/dev/null
 # A free port by default: a fixed one can be held by a server another run left
 # behind, and the audit would then test that server's (stale) files.
 port="${AUDIT_PORT:-$(python3 -I -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')}"
-python3 -m http.server "$port" --bind 127.0.0.1 --directory "$out" >/dev/null 2>&1 &
+# Production's CSP and Permissions-Policy (infra/site.yaml) on every response, so
+# a resource the policy blocks fails the audit as a console error.
+python3 -I scripts/site/serve_with_headers.py "$port" "$out" &
 server_pid=$!
 for _ in $(seq 1 50); do
   curl -sf "http://127.0.0.1:$port/" >/dev/null && break
