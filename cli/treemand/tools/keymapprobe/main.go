@@ -94,6 +94,7 @@ func DefaultConfig() Config {
 			dialog("keys-overlay", "updateKeybindModal", 0, "renderKeybindModal", "Esc"),
 			dialog("value-input", "updateValueModal", 0, "renderValueInputModal", "Esc"),
 			dialog("exec", "updateModal", 0, "renderModal", "Esc"),
+			dialog("recents", "updateRecentsModal", 0, "renderRecentsModal", "Esc"),
 			dialog("flag-value", "updateFlagModal", 0, "renderFlagModal", "Type value"),
 			dialog("flag-picker", "updateFlagModal", 1, "renderFlagModal", "navigate"),
 			dialog("search", "updateSearchModal", 0, "renderSearchModal", "Esc"),

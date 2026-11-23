@@ -86,7 +86,7 @@ func TestInitViperAndApplyViper_fileOverridesDefaults(t *testing.T) {
 	viper.Reset()
 	t.Cleanup(viper.Reset)
 	file := filepath.Join(t.TempDir(), "config.yaml")
-	yaml := "icons: ascii\ndepth: 5\nstub_threshold: 77\nno_cache: true\nstrategies: help,man\n" +
+	yaml := "icons: ascii\ndepth: 5\nstub_threshold: 77\nno_cache: true\nno_history: true\nstrategies: help,man\n" +
 		"tree_style: default\ncolors:\n  base: \"#123456\"\n  flag: \"#abcdef\"\n"
 	if err := os.WriteFile(file, []byte(yaml), 0o600); err != nil {
 		t.Fatal(err)
@@ -102,6 +102,9 @@ func TestInitViperAndApplyViper_fileOverridesDefaults(t *testing.T) {
 	}
 	if cfg.Depth != 5 || cfg.StubThreshold != 77 || !cfg.NoCache {
 		t.Errorf("scalars not applied: depth %d stub %d nocache %v", cfg.Depth, cfg.StubThreshold, cfg.NoCache)
+	}
+	if !cfg.NoHistory {
+		t.Error("no_history not applied")
 	}
 	if got := strings.Join(cfg.Strategies, ","); got != "help,man" {
 		t.Errorf("strategies = %q, want help,man", got)

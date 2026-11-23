@@ -51,6 +51,9 @@ func (m *Model) View() string {
 	if m.kb.active {
 		return m.renderKeybindModal()
 	}
+	if m.rm.active {
+		return m.renderRecentsModal()
+	}
 	if m.modal.active {
 		return m.renderModal()
 	}

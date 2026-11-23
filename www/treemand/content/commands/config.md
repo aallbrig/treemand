@@ -45,6 +45,7 @@ treemand searches for the config file in this order:
 | `no_color` | bool | `false` | Disable colored output |
 | `depth` | int | `3` | Max tree depth (default 3; -1 = unlimited) |
 | `no_cache` | bool | `false` | Disable discovery cache |
+| `no_history` | bool | `false` | Do not remember commands copied or run from the TUI (see `treemand history`) |
 | `strategies` | string | `help` | Comma-separated discovery strategies |
 | `colors.base` | hex | `#FFFFFF` | Root command color |
 | `colors.subcmd` | hex | `#5EA4F5` | Subcommand color |
