@@ -15,13 +15,11 @@ into the `## Summary` section by the loop.
 - Cycles 18-20 (#53 v0.4.5, #38 v0.4.6, #39 v0.5.0): help probes read through a 1MB cap and kill the process when it is hit; run any new slow-path test under -race before pushing (regexes are about 20x slower there). The e2e package (built binary, fake CLIs, real pty) finds parser bugs on its first run, and a pty harness must answer cursor and color queries or every start waits about 5s. Usage errors exit 2 and runtime failures exit 1. Walk the real paths with the built binary before writing docs. apt time and memory follow the state of the host, not the code, so judge them with a main-vs-branch A/B.
 - Cycle 21 (#54): when an issue is already fixed, prove it with the issue's acceptance command and spend the cycle on a guard (a jitter test, tighter deterministic perf thresholds). Test-only changes ship without a release.
 - Cycle 22 (#40, v0.6.0): measure TUI speed before changing it (real aws was already fast; one slow key on a 60k-row tree went from 295ms to 42ms by reusing the row buffer). Render-fit tests at three sizes and a scan of the key handlers against the overlay text catch overflow and undocumented keys. In zsh, an unmatched glob aborts an `&&` chain, so use `find -delete`.
+- Cycle 23 (#42): a competitive teardown done from published pages only, because installing third-party code was denied. When a tool is denied, do the part that needs no new permission, say what was not done, and file the rest for a human.
 
 ## Recent cycles
 
 <!-- Retro appends below: ### Cycle N — YYYY-MM-DD — outcome — #issue vX.Y.Z -->
-
-### Cycle 23 - 2026-11-10 - merged, no release - #42
-Competitive teardown from the peers published pages only: the permission policy denied installing and running third-party code, so nothing was run and every peer claim is labelled as theirs (hands-on follow-up filed as #101, loop:blocked). I did not look for a way around the denial. Reading the pages still paid off: it corrected stale versions (mandible is 0.9.0, not the linked 0.2.0) and produced 9 deduped gap issues (#92-#100) plus an honest README section. When a tool is denied, do the part that needs no new permission, say plainly what was not done, and file the rest for a human. Run and cold-start comparisons remain open.
 
 ### Cycle 24 - 2026-11-10 - released - #55 v0.6.1
 Warm runs were slow because the cache key ran `<cli> --version` (aws 2.5s, pip 0.9s start an interpreter), not because of the cache read (4.9ms). Keyed on the executable on disk (resolved path, size, mtime) instead: warm aws 2.9s to 0.03s, pip 0.98s to 0.03s. It also fixed a latent staleness bug (a CLI without --version never invalidated). Profile by timing each phase before assuming where the time goes: the obvious suspect (sqlite and JSON decode) cost 4ms. The version string is now display-only and read concurrently with discovery.
@@ -106,3 +104,6 @@ go subcommands without flags went from 33/33 to 10/33: follow the `Run 'go help 
 
 ### Cycle 52 - 2026-11-23 - released - #92 v0.12.0
 `--stdin` parses a piped help text as the root and runs nothing; subcommands stay stubs. The e2e proof puts a trap binary of the same name on PATH that leaves a marker file if it runs, which is stronger than asserting on output. The loop's guard blocks writes to the session scratchpad, so put PR bodies under `.loop/`. Test & Lint failed once on `TestExpandAllOnAFullyExpandedAwsTree` (wall clock, #335); a rerun passed.
+
+### Cycle 53 - 2026-11-23 - released - #93 v0.13.0
+Every probe that starts the target now runs in a throwaway HOME, XDG dirs and TMPDIR, and kill, reboot, shutdown and similar are refused with exit 1. Existing version-manager roots stay pointed at the real home so shims resolve. The complexity ratchet counts test functions too: a new e2e test crossed 15 and failed the Measurement gate, so run `gocognit -over 15 cli/treemand` (whole module, tests included) before pushing. `git commit --no-verify` is denied; fix the lint and commit normally.
