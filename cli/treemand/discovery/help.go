@@ -697,7 +697,38 @@ func (h *HelpDiscoverer) tryForm(ctx context.Context, resolved string, args []st
 			return all
 		}
 	}
+	// A short answer that names "<cli> help <path>" as the details (the go
+	// command, #66) is a pointer: that form is the CLI's own, so ask it.
+	if (f == formFlag || f == formShort) && pointsToHelpPrefix(s, resolved, args) {
+		if full := h.runOne(ctx, resolved, append([]string{"help"}, args...), &at.timedOut); full != "" && !isErrorOutput(full) {
+			return full
+		}
+	}
 	return s
+}
+
+// helpPointerRes match a pointer to fuller help; the first group is the
+// command: "Run 'go help build' for details." (with "and 'go help testflag'"
+// variants) and "For more information run\n\tgo help doc".
+var helpPointerRes = []*regexp.Regexp{
+	regexp.MustCompile(`(?m)^Run '([^']+)'(?: and '[^']+')* for (?:details|more information)\.?\s*$`),
+	regexp.MustCompile(`(?m)^For more information,? run:?\s*\n[ \t]+(\S[^\n]*?)\s*$`),
+}
+
+// pointsToHelpPrefix reports whether s is a short help (a usage line and a
+// pointer) that names exactly "<cli> help <args...>". Only that command is
+// followed: a pointer to anything else is never run.
+func pointsToHelpPrefix(s, resolved string, args []string) bool {
+	if len(args) == 0 || strings.Count(strings.TrimSpace(s), "\n") > 12 {
+		return false
+	}
+	want := strings.Join(append([]string{strings.TrimSuffix(filepath.Base(resolved), ".exe"), "help"}, args...), " ")
+	for _, re := range helpPointerRes {
+		if m := re.FindStringSubmatch(s); m != nil {
+			return strings.Join(strings.Fields(m[1]), " ") == want
+		}
+	}
+	return false
 }
 
 // runOne runs a single help command with the pager variables set and returns
@@ -1099,6 +1130,7 @@ func (p *helpParser) line(l helpLine) {
 	case secNone, secUsage:
 		// Outside named sections: flags, and subcommands with stricter checks.
 		p.addParsedFlag(l)
+		p.proseFlags(l)
 		p.freeFormSubcommand(l.raw)
 	}
 }
@@ -1430,6 +1462,34 @@ func (p *helpParser) freeFormSubcommand(raw string) {
 func (p *helpParser) addParsedFlag(l helpLine) {
 	if f, ok := parseFlag(l.raw); ok {
 		p.addFlag(p.withNextLineDescription(l, f))
+	}
+}
+
+// proseFlagRe matches a paragraph that opens by naming flags, as "go help
+// <cmd>" documents them (#66): "The -fmt flag reformats ...", "The
+// -require=path@version and -droprequire=path flags ...".
+var (
+	proseFlagRe      = regexp.MustCompile(`^The (-{1,2}[A-Za-z][A-Za-z0-9_-]*(?:=\S+)?(?:(?:,? (?:and|or) |, )-{1,2}[A-Za-z][A-Za-z0-9_-]*(?:=\S+)?)*) flags?\b`)
+	proseFlagTokenRe = regexp.MustCompile(`(-{1,2}[A-Za-z][A-Za-z0-9_-]*)(?:=(\S+))?`)
+)
+
+// proseFlags adds the flags a "The -x flag ..." paragraph opens with. The
+// sentence must start the line, so a mention mid-paragraph ("Note that
+// -require overrides ...") is never a flag.
+func (p *helpParser) proseFlags(l helpLine) {
+	m := proseFlagRe.FindStringSubmatch(l.raw)
+	if m == nil {
+		return
+	}
+	for _, t := range proseFlagTokenRe.FindAllStringSubmatch(m[1], -1) {
+		f := models.Flag{Name: t[1], ValueType: strings.TrimRight(t[2], ",")}
+		if f.ValueType == "" {
+			f.ValueType = "bool"
+		}
+		if len(f.Name) == 2 {
+			f.ShortName = f.Name[1:]
+		}
+		p.addFlag(f)
 	}
 }
 

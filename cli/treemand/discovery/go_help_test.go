@@ -86,3 +86,25 @@ func TestParseHelp_flagsFromUsageSynopsisBrackets(t *testing.T) {
 		})
 	}
 }
+
+// "go help mod edit" documents its flags only in prose paragraphs that open
+// with "The -name flag" (#66).
+func TestParseHelp_flagsFromProseThatNamesThem(t *testing.T) {
+	help := "usage: go mod edit [editing flags] [-fmt|-print|-json] [go.mod]\n\n" +
+		"Edit provides a command-line interface for editing go.mod.\n\n" +
+		"The -fmt flag reformats the go.mod file without making other changes.\n\n" +
+		"The -go=version flag sets the expected Go language version.\n\n" +
+		"The -require=path@version and -droprequire=path flags\n" +
+		"add and drop a requirement on the given module path and version.\n\n" +
+		"Note that -require overrides any existing requirements on path.\n"
+	got := flagTypes(discovery.ParseHelpOutput(help))
+	want := map[string]string{"-fmt": "bool", "-go": "version", "-require": "path@version", "-droprequire": "path"}
+	for name, vt := range want {
+		if got[name] != vt {
+			t.Errorf("%s: value type %q, want %q (all: %v)", name, got[name], vt, got)
+		}
+	}
+	if len(got) != len(want) {
+		t.Errorf("flags %v, want only %v", got, want)
+	}
+}

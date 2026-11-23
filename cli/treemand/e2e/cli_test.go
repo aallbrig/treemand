@@ -397,3 +397,28 @@ func TestApt_commandsShowTheOptionsTheManPageDocuments(t *testing.T) {
 		}
 	}
 }
+
+// The go command keeps subcommand flags in "go help <cmd>" (#66): treemand
+// follows the pointer "<cmd> --help" prints and reads every flag shape there.
+func TestGoStyle_subcommandFlagsComeFromTheHelpCommand(t *testing.T) {
+	r := run(t, limit, nil, "--no-cache", "--output=json", "fakegotool")
+	if r.exit != 0 {
+		t.Fatalf("exit %d, stderr: %s", r.exit, r.stderr)
+	}
+	root := parseJSON(t, r.stdout)
+	want := map[string][]string{
+		"build": {"-o", "-race"},
+		"tidy":  {"-e", "-v", "-diff", "-compat"},
+	}
+	for sub, flags := range want {
+		c, ok := root.child(sub)
+		if !ok {
+			t.Fatalf("no %q node in %s", sub, r.stdout)
+		}
+		for _, f := range flags {
+			if !c.hasFlag(f) {
+				t.Errorf("%s: missing flag %s (flags: %+v)", sub, f, c.Flags)
+			}
+		}
+	}
+}
