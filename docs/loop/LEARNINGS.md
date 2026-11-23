@@ -106,3 +106,6 @@ clap's `name version` first line and its `Name <email>` author line no longer co
 
 ### Cycle 48 - 2026-11-22 - merged, no release - #76
 presets coverage went from 76.9% to 100% (floor raised to 100). The stripe seed runs against the test binary re-executed as a fake CLI (`TestMain` + an env var), which works on every OS without shell scripts. `task coverage:update-floor` rewrites every package from local numbers, so keep only the issue's own line: the others (notably cmd) measure lower on CI. A test-only PR carries no release label, so `wait.sh` prints `none` and there is no tag to record.
+
+### Cycle 49 - 2026-11-22 - merged, no release - #75
+tui coverage went from 82.4% to 88.3% (floor 76 to 88) with internal key-driven tests on `Model`. The PR's Measurement gate counts test functions in the `complexity` ratchet (`functions_over_15`), so run `gocognit -over 15` on new test files before pushing and split long scenario tests. With help-pane focus, `G`, `g`, PgUp/PgDn and Ctrl+D/U are taken by the tree's global keys first, so those `updateHelpPaneKeys` branches never run (noted in #433, not filed).
