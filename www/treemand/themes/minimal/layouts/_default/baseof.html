@@ -36,8 +36,11 @@
   {{- with .OutputFormats.Get "rss" }}
   <link rel="alternate" type="application/rss+xml" href="{{ .RelPermalink }}" title="{{ $.Site.Title }}{{ if not $.IsHome }} {{ $.Title }}{{ end }}">
   {{- end }}
-  <link rel="stylesheet" href="{{ "css/main.css" | relURL }}">
-  <link rel="stylesheet" href="{{ "css/chroma.css" | relURL }}">
+  {{- range slice "css/main.css" "css/chroma.css" }}
+  {{- with partial "asset" . }}
+  <link rel="stylesheet" href="{{ .RelPermalink }}" integrity="{{ .Data.Integrity }}">
+  {{- end }}
+  {{- end }}
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -73,12 +76,16 @@
       </div>
     </nav>
   </header>
-  <script src="{{ "nav.js" | relURL }}"></script>
+  {{- with partial "asset" "nav.js" }}
+  <script src="{{ .RelPermalink }}" integrity="{{ .Data.Integrity }}"></script>
+  {{- end }}
   <dialog class="search-dialog" id="search-dialog" aria-label="Search the docs">
     <div class="search-head"><div id="search" data-base="{{ "pagefind/" | relURL }}"></div><button type="button" class="search-close" id="search-close">Esc</button></div>
   </dialog>
   <main id="main">{{ block "main" . }}{{ end }}</main>
   <footer><p>MIT License · <a href="https://github.com/aallbrig/treemand">GitHub</a> · <a href="{{ "changelog/" | relURL }}">Changelog</a></p></footer>
-  <script defer src="{{ "site.js" | relURL }}"></script>
+  {{- with partial "asset" "site.js" }}
+  <script defer src="{{ .RelPermalink }}" integrity="{{ .Data.Integrity }}"></script>
+  {{- end }}
 </body>
 </html>

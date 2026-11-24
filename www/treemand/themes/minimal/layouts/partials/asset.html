@@ -1,0 +1,21 @@
+{{- /*
+  A stylesheet or script, minified and published under assets/ with a content
+  hash in its name, so new HTML never pairs with a cached old file at the same
+  URL (issue #240). publish_site.sh serves assets/ as immutable.
+  Argument: the path under assets/ (site or theme), or under static/ for a
+  build output such as try/wasm_exec.js. Returns the resource, or nil (with a
+  warning) when a build output is missing; use .RelPermalink and .Data.Integrity.
+*/ -}}
+{{- $r := resources.Get . -}}
+{{- if not $r -}}
+  {{- $static := printf "static/%s" . -}}
+  {{- if fileExists $static -}}
+    {{- $r = readFile $static | resources.FromString . -}}
+  {{- end -}}
+{{- end -}}
+{{- if $r -}}
+  {{- $r = $r | minify | resources.Copy (printf "assets/%s" .) | fingerprint "sha256" -}}
+{{- else -}}
+  {{- warnf "asset %q not found in assets/ or static/" . -}}
+{{- end -}}
+{{- return $r -}}
