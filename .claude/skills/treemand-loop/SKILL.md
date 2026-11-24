@@ -93,7 +93,11 @@ Helpers live in `scripts/loop/`; call state as `python3 -I scripts/loop/state.py
   `end-cycle parked`) only when the work is infeasible or needs something forbidden.
 - Anything that leaves the loop unable to ship: `end-cycle failed`.
 - Green comes from fixing the cause: every hook, test and lint rule stays on.
-- Budget: a cycle that will overrun `LOOP_CYCLE_BUDGET_MINUTES` parks and ends.
+- The supervisor may type **park this cycle now** (context past `LOOP_CONTEXT_PARK_PCT`, or
+  no tool use for `LOOP_STALL_SECONDS`). Do it at once: commit and push the work in
+  progress to the issue's branch, comment on the issue starting `Parked:` with what is
+  done, what is left and the next step, remove the worktree, unclaim the issue and
+  `end-cycle parked`. The next cycle resumes it from the branch and the comment.
 
 ## Never stall
 
