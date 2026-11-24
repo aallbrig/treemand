@@ -128,16 +128,16 @@ func (m *Model) renderStatusBar() string {
 		hint = m.timedMsg
 		hintStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#BD93F9"))
 	case m.filtering:
-		hint = m.filter.View() + "  Enter:keep  Esc:clear"
+		hint = m.filter.View() + "  " + Footer(ModeFilter)
 		hintStyle = lipgloss.NewStyle().Faint(true)
 	case m.focusedPane == panePreview:
-		hint = "Esc:back  Ctrl+E:exec/copy  Tab:switch"
+		hint = Footer(ModePreview)
 		hintStyle = lipgloss.NewStyle().Faint(true)
 	case m.focusedPane == paneHelp:
-		hint = "↑↓:scroll  PgUp/PgDn  g/G:top/bottom  Tab:switch"
+		hint = Footer(ModeHelpPane)
 		hintStyle = lipgloss.NewStyle().Faint(true)
 	default:
-		hint = schemeIndicator + fitHints(m.schemeHints(), m.width-lipgloss.Width(left)-3-len(schemeIndicator))
+		hint = schemeIndicator + fitHints(Footer(schemeMode(m.scheme)), m.width-lipgloss.Width(left)-3-len(schemeIndicator))
 		hintStyle = lipgloss.NewStyle().Faint(true)
 	}
 	right := hintStyle.Render(hint)
@@ -152,22 +152,6 @@ func (m *Model) renderStatusBar() string {
 	}
 	return left + strings.Repeat(" ", gap) + right
 }
-
-// schemeHints returns the key-hint text adapted to the active navigation scheme.
-func (m *Model) schemeHints() string {
-	switch m.scheme {
-	case SchemeVim:
-		return "j/k:nav  h/l:expand/collapse  Enter:pick  e/E:expand/collapse all  Shift+h/l:subtree  S:sections  f:flags  /:filter  Ctrl+P:help  Ctrl+E:exec  gg/G:top/bottom  n/N:search  ?:keys  q:quit"
-	case SchemeWASD:
-		return "w/s:nav  a/d:expand/collapse  Enter:pick  e/E:expand/collapse all  Shift+a/d:subtree  S:sections  f:flags  /:filter  H:help  Ctrl+E:exec  gg/G:top/bottom  n/N:search  ?:keys  q:quit"
-	default:
-		return "↑↓:nav  ←→:expand/collapse  Enter:pick  e/E:expand/collapse all  Shift+←→:subtree  S:sections  f:flags  /:filter  H:help  Ctrl+E:exec  gg/G:top/bottom  n/N:search  ?:keys  q:quit"
-	}
-}
-
-// hintDropOrder lists the indices of schemeHints tokens in the order they are
-// dropped when the footer is too narrow (least important first).
-var hintDropOrder = []int{11, 10, 9, 4, 3, 5, 6, 1}
 
 // fitHints removes whole hint tokens (double-space separated) until the text
 // fits in avail columns, so the footer never truncates mid-token.

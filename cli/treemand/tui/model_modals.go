@@ -20,51 +20,6 @@ type keybindModal struct {
 	offset int
 }
 
-const keybindText = `Navigation
-  ↑ / ↓    or  k / j   or  w / s    Move up / down
-  → / l / d                          Expand node; enter children (2nd press)
-  ← / h / a                          Collapse node; go to parent (2nd press)
-  Shift+→ / Shift+L / Shift+D        Expand entire subtree
-  Shift+← / Shift+H / Shift+A        Collapse entire subtree
-  PgUp / PgDn  or  Ctrl+U / Ctrl+D  Move up / down a screenful
-  gg                                  Jump to top
-  G                                   Jump to bottom
-  Space                               Toggle expand / collapse
-
-Tree
-  /        Fuzzy filter tree (Esc clears, Enter keeps)
-  Ctrl+F   Global fuzzy find: commands, flags, args, help text
-             (Tab inside: index all undiscovered nodes in background)
-  n / N    Next / previous search match
-  e / E    Expand all / collapse all
-  S        Toggle section headers
-  t / T    Cycle display style (default → columns → compact → graph)
-  r / R    Re-discover selected node (refresh children)
-
-Building Commands
-  Enter    Set command / add flag / fill positional
-  f / F    Open flag picker modal
-  Backspace / Delete  Remove last token from preview
-  Ctrl+K   Clear entire preview bar
-  Ctrl+E   Copy or execute the assembled command
-  Ctrl+R   Recent commands (Enter loads one into the preview)
-  Ctrl+O   Saved presets: load, save (a) or delete (x) named commands
-
-View
-  H / Ctrl+P   Toggle help pane
-  Tab / Shift+Tab  Cycle pane focus
-  d / D    Open docs URL in browser
-  Ctrl+S   Cycle navigation scheme (arrows → vim → WASD)
-  ?        Show this help
-
-Mouse
-  Click        Select a node or flag
-  Click ▶ / ▼  Expand / collapse
-  Wheel        Scroll the tree
-
-Quit
-  q / Esc / Ctrl+C    Quit`
-
 func (m *Model) updateKeybindModal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+c", "esc", "q", "?":
@@ -137,7 +92,7 @@ func (m *Model) renderKeybindModal() string {
 	// screen row and the scroll window below counts rows, not source lines.
 	innerW := modalW - 6 // border (2) + horizontal padding (4)
 	var lines []string
-	for _, src := range strings.Split(keybindText, "\n") {
+	for _, src := range strings.Split(KeyOverlay(), "\n") {
 		lines = append(lines, wrapHanging(src, innerW)...)
 	}
 	maxVisible := m.height - 10

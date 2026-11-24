@@ -40,8 +40,8 @@ The TUI opens as soon as the CLI's top-level help is read, usually in well under
 | `↑` / `↓` | `k` / `j` | `w` / `s` | Move up / down |
 | `→` | `l` | `d` | Expand node; enter children on 2nd press |
 | `←` | `h` | `a` | Collapse node; go to parent on 2nd press |
-| `Shift+→` | `Shift+L` | `Shift+D` | Expand entire subtree |
-| `Shift+←` | `Shift+H` | `Shift+A` | Collapse entire subtree |
+| `Shift+→` | `Shift+→` | `Shift+→` | Expand entire subtree |
+| `Shift+←` | `Shift+←` | `Shift+←` | Collapse entire subtree |
 | `gg` | | | Jump to top |
 | `G` | | | Jump to bottom |
 

@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -14,14 +13,14 @@ import (
 // ("Ctrl+F", "PgUp", "k", ...).
 func docTokens() map[string]bool {
 	set := map[string]bool{}
-	for _, tok := range regexp.MustCompile(`[\s/·,;:()]+`).Split(keybindText, -1) {
+	for _, tok := range regexp.MustCompile(`[\s/·,;:()]+`).Split(KeyOverlay(), -1) {
 		if tok != "" {
 			set[tok] = true
 		}
 	}
 	// "/" is also the separator above, so a line that starts with it is the
 	// filter binding itself.
-	if regexp.MustCompile(`(?m)^\s+/\s`).MatchString(keybindText) {
+	if regexp.MustCompile(`(?m)^\s+/\s`).MatchString(KeyOverlay()) {
 		set["/"] = true
 	}
 	return set
@@ -56,38 +55,67 @@ func docForms(k string) []string {
 	return []string{k} // a plain letter, case-sensitive
 }
 
-// keyCases returns every key literal in the `case "a", "b":` labels of the
-// named functions of model_keys.go.
-func keyCases(t *testing.T, funcs ...string) []string {
-	t.Helper()
-	src, err := os.ReadFile("model_keys.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	text := string(src)
-	caseRe := regexp.MustCompile(`(?m)^\s*case ((?:"(?:[^"\\]|\\.)*"(?:,\s*)?)+):`)
-	quoted := regexp.MustCompile(`"(?:[^"\\]|\\.)*"`)
+// tableKeys returns every key the key map binds in modes.
+func tableKeys(modes ...string) []string {
 	var keys []string
-	for _, name := range funcs {
-		start := strings.Index(text, "func (m *Model) "+name+"(")
-		if start < 0 {
-			t.Fatalf("function %s not found in model_keys.go", name)
-		}
-		body := text[start+1:]
-		if end := strings.Index(body, "\nfunc "); end >= 0 {
-			body = body[:end]
-		}
-		for _, m := range caseRe.FindAllStringSubmatch(body, -1) {
-			for _, q := range quoted.FindAllString(m[1], -1) {
-				k, err := strconv.Unquote(q)
-				if err != nil {
-					t.Fatalf("bad key literal %s: %v", q, err)
-				}
-				keys = append(keys, k)
+	for _, b := range keymap {
+		for _, mode := range modes {
+			if b.Mode == mode {
+				keys = append(keys, b.Keys...)
 			}
 		}
 	}
 	return keys
+}
+
+// A key bound twice in one mode would silently lose one binding.
+func TestKeymapBindsEachKeyOnceInAMode(t *testing.T) {
+	seen := map[string]bool{}
+	for _, b := range keymap {
+		for _, k := range b.Keys {
+			id := b.Mode + " " + strconv.Quote(k)
+			if seen[id] {
+				t.Errorf("key %s is bound twice", id)
+			}
+			seen[id] = true
+		}
+	}
+}
+
+// Every bound action runs something, and every footer token is there in
+// each scheme, so hintDropOrder's positions stay right.
+func TestKeymapActionsRunAndFootersAreComplete(t *testing.T) {
+	for _, b := range keymap {
+		if _, ok := actionFuncs[b.action]; !ok && len(b.Keys) > 0 {
+			t.Errorf("%s %q: action %d has no function", b.Mode, b.Keys, b.action)
+		}
+	}
+	for mode, order := range footerOrder {
+		modes := []string{mode}
+		if mode == ModeTree {
+			modes = []string{ModeArrows, ModeVim, ModeWASD}
+		}
+		for _, md := range modes {
+			if got := len(strings.Split(Footer(md), "  ")); got != len(order) {
+				t.Errorf("footer of %s has %d tokens, want %d: %q", md, got, len(order), Footer(md))
+			}
+		}
+	}
+}
+
+// Shift plus a letter arrives as the capital letter, so the subtree keys are
+// Shift+arrows in every scheme, and the footers say so (#312).
+func TestSubtreeKeysAreShiftArrowsInEveryScheme(t *testing.T) {
+	for _, mode := range []string{ModeArrows, ModeVim, ModeWASD} {
+		if f := Footer(mode); !strings.Contains(f, "Shift+←→:subtree") {
+			t.Errorf("%s footer lacks Shift+←→:subtree: %s", mode, f)
+		}
+	}
+	for _, k := range tableKeys(ModeTree, ModeArrows, ModeVim, ModeWASD) {
+		if strings.HasPrefix(k, "shift+") && len(k) == len("shift+x") {
+			t.Errorf("%q is bound, but bubbletea reports Shift+letter as the capital letter", k)
+		}
+	}
 }
 
 // Every key the tree pane reacts to must be in the in-app key bindings
@@ -95,9 +123,9 @@ func keyCases(t *testing.T, funcs ...string) []string {
 // new binding without documentation fails here.
 func TestEveryTreeKeyIsDocumentedInTheOverlay(t *testing.T) {
 	tokens := docTokens()
-	keys := keyCases(t, "updateKeys", "handleArrows", "handleVim", "handleWASD")
+	keys := tableKeys(ModeTree, ModeArrows, ModeVim, ModeWASD)
 	if len(keys) < 40 {
-		t.Fatalf("found only %d key cases; the scan is probably broken", len(keys))
+		t.Fatalf("the key map binds only %d tree keys", len(keys))
 	}
 	var missing []string
 	for _, k := range keys {
@@ -112,7 +140,7 @@ func TestEveryTreeKeyIsDocumentedInTheOverlay(t *testing.T) {
 		}
 	}
 	if len(missing) > 0 {
-		t.Errorf("keys handled in model_keys.go but missing from keybindText: %s", strings.Join(missing, ", "))
+		t.Errorf("keys in the key map but missing from the ? overlay: %s", strings.Join(missing, ", "))
 	}
 }
 
@@ -120,8 +148,7 @@ func TestEveryTreeKeyIsDocumentedInTheOverlay(t *testing.T) {
 // in every navigation scheme and at 80 columns.
 func TestFooterAdvertisesTheKeyBindingsOverlay(t *testing.T) {
 	for _, scheme := range []NavScheme{SchemeArrows, SchemeVim, SchemeWASD} {
-		m := &Model{scheme: scheme}
-		hints := m.schemeHints()
+		hints := Footer(schemeMode(scheme))
 		if !strings.Contains(hints, "?:keys") {
 			t.Errorf("scheme %v footer hints lack ?:keys: %s", scheme, hints)
 		}

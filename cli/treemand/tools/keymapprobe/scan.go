@@ -5,7 +5,10 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
+
+	"github.com/aallbrig/treemand/tui"
 )
 
 var metricNames = []string{"conflicts", "unreachable_bindings", "undocumented_bindings.overlay",
@@ -13,11 +16,12 @@ var metricNames = []string{"conflicts", "unreachable_bindings", "undocumented_bi
 	"documented_unbound.hints", "documented_unbound.website"}
 
 type scanner struct {
-	src         *source
-	cfg         Config
-	rep         *Report
-	bound       map[string]map[string]string // mode -> key -> where
-	overlayKeys map[string]bool
+	src          *source
+	cfg          Config
+	rep          *Report
+	bound        map[string]map[string]string // mode -> key -> where
+	overlayKeys  map[string]bool
+	overlayWhere string
 }
 
 // Scan reads the tui package in tuiDir and the website content in siteDir.
@@ -38,11 +42,15 @@ func Scan(tuiDir, siteDir string, cfg Config) (*Report, error) {
 	for _, md := range cfg.Modes {
 		s.bindMode(md)
 	}
-	overlay, ok := src.consts[cfg.OverlayConst]
-	if !ok {
-		return nil, fmt.Errorf("overlay const %s not found", cfg.OverlayConst)
+	overlay, where := cfg.OverlayText, "tui.KeyOverlay"
+	if overlay == "" {
+		var ok bool
+		if overlay, ok = src.consts[cfg.OverlayConst]; !ok {
+			return nil, fmt.Errorf("overlay const %s not found", cfg.OverlayConst)
+		}
+		where = cfg.OverlayConst
 	}
-	s.overlayKeys = overlayKeyColumn(overlay)
+	s.overlayKeys, s.overlayWhere = overlayKeyColumn(overlay), where
 	s.checkOverlay()
 	for _, md := range cfg.Modes {
 		if err := s.checkHints(md); err != nil {
@@ -110,6 +118,16 @@ func (s *scanner) checkMapping(tuiDir string) error {
 }
 
 func (s *scanner) checkUnreachable() {
+	seen := map[string]bool{}
+	for _, b := range s.cfg.Table {
+		for _, k := range b.Keys {
+			s.rep.Bound++
+			if !reachable(k) && !seen[k] {
+				seen[k] = true
+				s.add(Detail{Metric: "unreachable_bindings", Key: k, Where: tableWhere(b), Note: unreachableNote(k)})
+			}
+		}
+	}
 	for _, ref := range s.usedSwitches() {
 		seen := map[string]bool{}
 		for _, b := range s.src.switches[ref].bindings {
@@ -125,6 +143,10 @@ func (s *scanner) checkUnreachable() {
 // bindMode records the mode's reachable keys and reports the ones a later
 // switch lists after an earlier one has consumed them.
 func (s *scanner) bindMode(md Mode) {
+	if len(md.Layers) > 0 {
+		s.bindLayers(md)
+		return
+	}
 	bound := map[string]string{}
 	consumed := map[string]string{}
 	for _, ref := range md.Chain {
@@ -143,6 +165,41 @@ func (s *scanner) bindMode(md Mode) {
 		}
 	}
 	s.bound[md.Name] = bound
+}
+
+// bindLayers records a key map mode's reachable keys and reports a key bound
+// twice in one layer. An upper layer overriding a lower one is deliberate.
+func (s *scanner) bindLayers(md Mode) {
+	bound := map[string]string{}
+	for _, layer := range md.Layers {
+		inLayer := map[string]bool{}
+		for _, b := range s.cfg.Table {
+			if b.Mode != layer {
+				continue
+			}
+			for _, k := range b.Keys {
+				if !reachable(k) {
+					continue
+				}
+				if inLayer[k] {
+					s.add(Detail{Metric: "conflicts", Key: k, Mode: md.Name, Where: tableWhere(b),
+						Note: "bound twice in key map mode " + layer})
+				}
+				inLayer[k] = true
+				setFirst(bound, k, tableWhere(b))
+			}
+		}
+	}
+	s.bound[md.Name] = bound
+}
+
+// tableWhere names a key map binding for a finding.
+func tableWhere(b tui.Binding) string {
+	name := b.Label
+	if name == "" && len(b.Keys) > 0 {
+		name = strconv.Quote(b.Keys[0])
+	}
+	return fmt.Sprintf("keymap.go (%s %s)", b.Mode, name)
 }
 
 func setFirst(m map[string]string, k, v string) {
@@ -177,7 +234,7 @@ func (s *scanner) checkOverlay() {
 	}
 	for _, k := range sortedKeys(s.overlayKeys) {
 		if _, ok := bound[k]; !ok {
-			s.add(Detail{Metric: "documented_unbound.overlay", Key: k, Where: s.cfg.OverlayConst,
+			s.add(Detail{Metric: "documented_unbound.overlay", Key: k, Where: s.overlayWhere,
 				Note: "the ? overlay names it; no tree or help-pane switch binds it"})
 		}
 	}
@@ -187,7 +244,7 @@ func (s *scanner) checkOverlay() {
 func (s *scanner) hintDocs(md Mode) (map[string]string, error) {
 	documented := map[string]string{}
 	for _, h := range md.Hints {
-		lits, where, err := s.src.hintLiterals(h)
+		lits, where, err := s.hintText(md, h)
 		if err != nil {
 			return nil, fmt.Errorf("mode %s: %w", md.Name, err)
 		}
@@ -198,6 +255,14 @@ func (s *scanner) hintDocs(md Mode) (map[string]string, error) {
 		}
 	}
 	return documented, nil
+}
+
+// hintText is the hint text h selects and where it is.
+func (s *scanner) hintText(md Mode, h HintRef) ([]string, string, error) {
+	if h.Text != "" {
+		return []string{h.Text}, "tui.Footer(" + md.Name + ")", nil
+	}
+	return s.src.hintLiterals(h)
 }
 
 func (s *scanner) checkHints(md Mode) error {

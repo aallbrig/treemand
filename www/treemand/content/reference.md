@@ -265,8 +265,8 @@ The **preview bar** at the top updates live as you build the command.
 | `↑` / `↓` | `k` / `j` | `w` / `s` | Move up / down (cursor only — never auto-expands) |
 | `→` | `l` | `d` | Expand node and stay (1st); enter first child (2nd) |
 | `←` | `h` | `a` | Collapse node and stay (1st); go to parent (2nd) |
-| `Shift+→` | `Shift+L` | `Shift+D` | Expand entire subtree (at root = expand all) |
-| `Shift+←` | `Shift+H` | `Shift+A` | Collapse entire subtree (at root = collapse all) |
+| `Shift+→` | `Shift+→` | `Shift+→` | Expand entire subtree (at root = expand all) |
+| `Shift+←` | `Shift+←` | `Shift+←` | Collapse entire subtree (at root = collapse all) |
 
 This matches the VS Code / macOS Finder tree model. To collapse a node and
 move to its sibling: press `←` (collapse), then `↓` (next sibling).
