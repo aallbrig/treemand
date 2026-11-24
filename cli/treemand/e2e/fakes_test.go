@@ -37,6 +37,15 @@ sync) printf 'Sync things\n\nUsage:\n  fakewriter sync [flags]\n\nFlags:\n  -h, 
 esac
 `,
 
+	// Its help lists only "build"; its fish completion script (written by
+	// scripts_test.go) also knows "deploy". Logs to $FAKE_LOG.
+	"fakescripted": `[ -n "$FAKE_LOG" ] && echo "$*" >>"$FAKE_LOG"
+case "$1" in
+build) printf 'Build things\n\nUsage:\n  fakescripted build [flags]\n\nFlags:\n  -h, --help   help for build\n';;
+*) printf 'fakescripted ships things\n\nUsage:\n  fakescripted [command]\n\nAvailable Commands:\n  build       Build things\n\nFlags:\n  -h, --help   help for fakescripted\n';;
+esac
+`,
+
 	// cobra (Go): "Available Commands:" and "Flags:" sections.
 	"fakecobra": `case "$1" in
 build) cat <<'H'

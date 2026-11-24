@@ -31,27 +31,9 @@ func mergeInto(dst, src *models.Node) {
 		dst.HelpText = src.HelpText
 	}
 
-	// Merge flags (deduplicate by name)
-	flagSet := map[string]bool{}
-	for _, f := range dst.Flags {
-		flagSet[f.Name] = true
-	}
-	for _, f := range src.Flags {
-		if !flagSet[f.Name] {
-			dst.Flags = append(dst.Flags, f)
-		}
-	}
+	dst.Flags = mergeFlags(dst.Flags, src.Flags)
 
-	// Merge positionals (deduplicate by name)
-	posSet := map[string]bool{}
-	for _, p := range dst.Positionals {
-		posSet[p.Name] = true
-	}
-	for _, p := range src.Positionals {
-		if !posSet[p.Name] {
-			dst.Positionals = append(dst.Positionals, p)
-		}
-	}
+	dst.Positionals = mergePositionals(dst.Positionals, src.Positionals)
 
 	// Merge children
 	for _, srcChild := range src.Children {
@@ -69,6 +51,64 @@ func mergeInto(dst, src *models.Node) {
 	}
 }
 
+// mergeFlags appends the flags of src that dst lacks. Flags are the same
+// when their names match, or when a short-only "-v" is the short form of a
+// "--verbose": whichever side has it, the two become one --verbose flag.
+func mergeFlags(dst, src []models.Flag) []models.Flag {
+	at := map[string]int{} // a flag's name, and "-" + its short name -> index in dst
+	index := func(i int) {
+		at[dst[i].Name] = i
+		if dst[i].ShortName != "" {
+			at["-"+dst[i].ShortName] = i
+		}
+	}
+	for i := range dst {
+		index(i)
+	}
+	for _, f := range src {
+		if _, ok := at[f.Name]; ok {
+			continue
+		}
+		if i, ok := at["-"+f.ShortName]; ok && f.ShortName != "" {
+			dst[i] = foldShort(dst[i], f)
+			index(i)
+			continue
+		}
+		dst = append(dst, f)
+		index(len(dst) - 1)
+	}
+	return dst
+}
+
+// foldShort returns have with long's name when have is the short-only form
+// of long, keeping have's description and value type, which came first.
+func foldShort(have, long models.Flag) models.Flag {
+	if have.Name != "-"+long.ShortName {
+		return have // a different long flag already owns this short name
+	}
+	if have.Description != "" {
+		long.Description = have.Description
+	}
+	if have.ValueType != "" {
+		long.ValueType = have.ValueType
+	}
+	return long
+}
+
+// mergePositionals appends the positionals of src that dst lacks by name.
+func mergePositionals(dst, src []models.Positional) []models.Positional {
+	have := map[string]bool{}
+	for _, p := range dst {
+		have[p.Name] = true
+	}
+	for _, p := range src {
+		if !have[p.Name] {
+			dst = append(dst, p)
+		}
+	}
+	return dst
+}
+
 // Run executes all discoverers and merges their results.
 func Run(ctx context.Context, discoverers []Discoverer, cliName string) (*models.Node, error) {
 	if len(discoverers) == 0 {
@@ -84,7 +124,9 @@ func Run(ctx context.Context, discoverers []Discoverer, cliName string) (*models
 			lastErr = err
 			continue
 		}
-		trees = append(trees, tree)
+		if tree != nil {
+			trees = append(trees, tree)
+		}
 	}
 	if len(trees) == 0 {
 		return nil, lastErr
@@ -112,6 +154,8 @@ func BuildDiscoverersWithThreshold(strategies []string, maxDepth, stubThreshold 
 			result = append(result, NewManDiscoverer())
 		case "completions":
 			result = append(result, NewCompletionsDiscoverer())
+		case "scripts":
+			result = append(result, NewScriptsDiscoverer())
 		}
 	}
 	if len(result) == 0 {

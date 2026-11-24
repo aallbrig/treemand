@@ -70,6 +70,8 @@ Interactive TUI controls (press ? inside TUI for full help):
 Discovery strategies (--strategy):
   help          parse --help output (default, works on nearly every CLI)
   completions   use shell completion data (richer flag metadata)
+  man           parse the man page
+  scripts       read the installed fish/zsh/bash completion script (never run)
 
 Output formats (--output):
   text          colored tree (default)
@@ -103,7 +105,7 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file (default: ~/.config/treemand/config.yaml)")
 	rootCmd.PersistentFlags().BoolVarP(&cfgInteractive, "interactive", "i", false, "Launch interactive TUI")
-	rootCmd.PersistentFlags().StringVarP(&cfgStrategy, "strategy", "s", "help", "Discovery strategies (comma-separated: help,completions)")
+	rootCmd.PersistentFlags().StringVarP(&cfgStrategy, "strategy", "s", "help", "Discovery strategies (comma-separated: help,completions,man,scripts)")
 	rootCmd.PersistentFlags().IntVar(&cfgDepth, "depth", 3, "Max tree depth (default 3; -1 = unlimited)")
 	rootCmd.PersistentFlags().StringVar(&cfgFilter, "filter", "", "Only show nodes matching pattern")
 	rootCmd.PersistentFlags().StringVar(&cfgExclude, "exclude", "", "Exclude nodes matching pattern")

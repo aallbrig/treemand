@@ -17,8 +17,8 @@ argparse, man-page, BSD utilities). Parser quality is judged per family.
 **Discovery**: reading a target CLI's own help to build its command tree.
 _Avoid_: introspection, scanning, crawling.
 
-**Strategy**: one source discovery reads: help output, shell completions, or the
-man page.
+**Strategy**: one source discovery reads: help output, shell completions, the
+man page, or the installed shell completion script.
 
 **Override**: a user's YAML file (`<config dir>/treemand/overrides/<cli>.yaml`)
 that corrects one target CLI's command tree after discovery: descriptions,
