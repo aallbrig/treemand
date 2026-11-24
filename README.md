@@ -339,8 +339,8 @@ sh scripts/dev/setup.sh --install  # install them (brew, apt or dnf) and the git
 ```
 
 The pre-commit hook runs the pre-commit framework and `task precommit` before
-every commit; the pre-push hook runs `task precommit` before pushing to `main`
-or `develop`. See [CONTRIBUTING.md](CONTRIBUTING.md#dev-host-setup-macos-or-linux).
+every commit; the pre-push hook runs `task measure:gate` before every push and
+`task precommit` before pushing to `main` or `develop`. See [CONTRIBUTING.md](CONTRIBUTING.md#dev-host-setup-macos-or-linux).
 
 ## License
 

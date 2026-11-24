@@ -151,21 +151,13 @@ jobs:
         with:
           go-version-file: cli/treemand/go.mod
           cache-dependency-path: cli/treemand/go.sum
-      # Deterministic probes only: timing history belongs to the host that
-      # recorded it. A regression against docs/metrics fails the PR; a fix
-      # that improves a metric records the new value (treemand-measure).
-      - name: complexity
-        run: python3 -I scripts/metrics/measure.py complexity --gate
-      - name: parser
-        run: python3 -I scripts/metrics/measure.py parser --gate
-      - name: tui-layout
-        run: python3 -I scripts/metrics/measure.py tui-layout --gate
-      - name: tui-keymap
-        run: python3 -I scripts/metrics/measure.py tui-keymap --gate
-      - name: tui-contrast
-        run: python3 -I scripts/metrics/measure.py tui-contrast --gate
-      - name: shell-portability
-        run: python3 -I scripts/metrics/measure.py shell-portability --gate
+      - uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611 # v2.0.0
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      # The probe list lives in the Taskfile, shared with task ci (#468).
+      - name: task measure:gate
+        run: task measure:gate
 
   build-matrix:
     name: Cross-platform build
