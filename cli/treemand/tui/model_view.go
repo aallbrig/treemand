@@ -168,7 +168,7 @@ func fitHints(hints string, avail int) string {
 		return strings.Join(kept, "  ")
 	}
 	out := join()
-	for _, idx := range hintDropOrder {
+	for _, idx := range hintDropPositions() {
 		if lipgloss.Width(out) <= avail || idx >= len(tokens) {
 			break
 		}

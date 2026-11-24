@@ -173,7 +173,7 @@ var keymap = []Binding{
 		Section: "View", Label: "Tab / Shift+Tab", Help: "Cycle pane focus"},
 	{Mode: ModeTree, Keys: []string{"shift+tab"}, action: actFocusPrev},
 	{Mode: ModeTree, Keys: []string{"D"}, action: actDocs,
-		Section: "View", Label: "d / D", Help: "Open docs URL in browser"},
+		Section: "View", Label: "d / D", Help: "Open docs URL in browser (WASD: D only; d moves right)"},
 	{Mode: ModeArrows, Keys: []string{"d"}, action: actDocs},
 	{Mode: ModeTree, Keys: []string{"ctrl+s"}, action: actCycleScheme,
 		Section: "View", Label: "Ctrl+S", Help: "Cycle navigation scheme (arrows → vim → WASD)"},
@@ -220,9 +220,23 @@ var footerOrder = map[string][]action{
 	ModeFilter:   {actFilterKeep, actFilterClear},
 }
 
-// hintDropOrder lists the positions in footerOrder[ModeTree] of the tokens
-// dropped when the footer is too narrow (least important first).
-var hintDropOrder = []int{11, 10, 9, 4, 3, 5, 6, 1}
+// hintDropOrder lists the tree footer's tokens, by action, in the order they
+// are dropped when the footer is too narrow (least important first).
+var hintDropOrder = []action{actNextMatch, actBottom, actExec, actExpandSubtree, actExpandAll,
+	actToggleSections, actFlags, actLeft}
+
+// hintDropPositions is hintDropOrder as positions in the tree footer.
+func hintDropPositions() []int {
+	var out []int
+	for _, act := range hintDropOrder {
+		for i, a := range footerOrder[ModeTree] {
+			if a == act {
+				out = append(out, i)
+			}
+		}
+	}
+	return out
+}
 
 // keyIndex maps mode -> key -> action.
 var keyIndex = indexKeymap(keymap)

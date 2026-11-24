@@ -83,12 +83,15 @@ func TestKeymapBindsEachKeyOnceInAMode(t *testing.T) {
 }
 
 // Every bound action runs something, and every footer token is there in
-// each scheme, so hintDropOrder's positions stay right.
+// each scheme, and every action hintDropOrder drops is in the tree footer.
 func TestKeymapActionsRunAndFootersAreComplete(t *testing.T) {
 	for _, b := range keymap {
 		if _, ok := actionFuncs[b.action]; !ok && len(b.Keys) > 0 {
 			t.Errorf("%s %q: action %d has no function", b.Mode, b.Keys, b.action)
 		}
+	}
+	if got := len(hintDropPositions()); got != len(hintDropOrder) {
+		t.Errorf("hintDropOrder names %d actions, %d of them in the tree footer", len(hintDropOrder), got)
 	}
 	for mode, order := range footerOrder {
 		modes := []string{mode}

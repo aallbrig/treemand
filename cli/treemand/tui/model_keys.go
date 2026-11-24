@@ -66,22 +66,26 @@ func (m *Model) run(act action) (tea.Cmd, bool) {
 	return fn(m), true
 }
 
-// updateKeys is the main key dispatcher when no modal is active: the tree's
-// keys, then the navigation scheme's.
+// updateKeys is the main key dispatcher when no modal is active: the
+// navigation scheme's keys, then the tree's.
 func (m *Model) updateKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	key := msg.String()
 	if m.takeKeyBeforeGlobals(key) {
 		return m, nil
 	}
-	if cmd, ok := m.run(lookupKey(ModeTree, key)); ok {
-		return m, cmd
+	// The scheme's keys sit over the tree's, as layers says; the scheme's
+	// navigation keys do nothing while the help pane has focus.
+	modes := layers(schemeMode(m.scheme))
+	if m.focusedPane == paneHelp {
+		modes = []string{ModeTree}
 	}
-	// Tree navigation keys do nothing while the help pane has focus.
+	for _, mode := range modes {
+		if cmd, ok := m.run(lookupKey(mode, key)); ok {
+			return m, cmd
+		}
+	}
 	if m.focusedPane == paneHelp {
 		return m, nil
-	}
-	if cmd, ok := m.run(lookupKey(schemeMode(m.scheme), key)); ok {
-		return m, cmd
 	}
 	return m, m.afterNav()
 }
