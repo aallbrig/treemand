@@ -30,9 +30,11 @@ case "$tool" in
   Bash)
     cmd="$(jq -r '.tool_input.command // ""' <<<"$input")"
     shopt -s nocasematch
-    # The command with quoted text removed, so a commit message that mentions
-    # a flag (-n, --no-verify) is not mistaken for using it.
+    # The command with quoted text removed, so a commit message or PR body that
+    # mentions a flag (-n, --no-verify) or a file is not mistaken for using it.
     bare="$(sed -E "s/'[^']*'//g; s/\"([^\"\\\\]|\\\\.)*\"//g" <<<"$cmd")"
+    # A heredoc's body is data too (commit messages, PR bodies): drop it.
+    bare="${bare%%<<*}"
     # Pushing.
     [[ "$cmd" =~ ${git_}push${rest}(--force|--force-with-lease|--mirror|[[:space:]]-[a-z]*f([[:space:]]|$)) ]] && deny "force push"
     [[ "$cmd" =~ ${git_}push${rest}[[:space:]]\+[^[:space:]]+ ]] && deny "force push (+refspec)"
@@ -50,7 +52,7 @@ case "$tool" in
     [[ "$cmd" =~ gh[[:space:]]+ruleset[[:space:]]+(create|edit|delete) ]] && deny "gh ruleset change"
     [[ "$cmd" =~ gh[[:space:]]+api${rest}(protection|/secrets|/keys|/actions/permissions|/rulesets|-X[[:space:]]*(DELETE|PUT)|--method[[:space:]]*(DELETE|PUT)) ]] && deny "gh api on protected surface or destructive method"
     # The loop's own permissions, guard and hooks, written from the shell.
-    [[ "$cmd" =~ $protected && "$cmd" =~ $writes ]] && deny "the loop may not edit its own permissions, guard or hooks"
+    [[ "$cmd" =~ $protected && "$bare" =~ $writes ]] && deny "the loop may not edit its own permissions, guard or hooks"
     # Host safety.
     [[ "$cmd" =~ (^|[\;\&\|[:space:]])sudo[[:space:]] ]] && deny "sudo"
     [[ "$cmd" =~ rm[[:space:]]+-[a-z]*r[a-z]*f?[[:space:]]+(/|~|\$HOME)([[:space:]]|$) ]] && deny "destructive rm"
