@@ -11,6 +11,10 @@ loop="$root/.loop"
 input="$(cat)"
 source="$(printf '%s' "$input" | jq -r '.source // ""' 2>/dev/null)"
 
+# A new context (startup, /clear, compaction): forget the last one's usage, so
+# the status line measures this one and post_tool.sh may note it again.
+rm -f "$loop/context" "$loop/context-noted" "$loop/stop-blocks"
+
 # --- preflight verdict and work ----------------------------------------------------
 line="" verdict=""
 if [ -e "$loop/STOP" ]; then

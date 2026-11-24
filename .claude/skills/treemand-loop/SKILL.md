@@ -15,12 +15,19 @@ Escalation is the last rung of a ladder ([references/escalation.md](references/e
   work, the vision's goals, the last LEARNINGS entries and the latest measurements.
   Start from it. Invoked by hand with no such context, run `bash scripts/loop/preflight.sh`
   and read `.loop/work`, `docs/loop/LEARNINGS.md` and the newest `docs/design/*_vision.md`.
-- **Stop** blocks the turn from ending while a cycle is open. A cycle closes only with
+- **Stop** blocks the turn from ending while a cycle is open, or while the issue's
+  worktree has uncommitted or unpushed work. A cycle closes only with
   `python3 -I scripts/loop/state.py end-cycle <outcome>`.
 - **PostToolUse** relays a stop request (`task loop:stop`). When it says a stop was
   requested, the cycle becomes the **stop**: finish or park the issue, remove its
   worktree, `bash scripts/loop/issues.sh unclaim <n>`, `end-cycle stopped`, reply
-  `stopped`, and take no further action.
+  `stopped`, and take no further action. It also notes once when the context passes
+  half full: finish the current step, delegate wide reads, read narrowly.
+- **Go feedback** (PostToolUse on Edit and Write, `.claude/settings.json`): after a
+  Go edit it reports a file that does not parse or is not gofmt-formatted, and any
+  function over cognitive complexity 15 that is new or worse than on `origin/main`.
+  Act on it before moving on; CI fails on the same things.
+- **PreCompact** keeps the work line, branch, step and open failures in the summary.
 
 After `end-cycle` the supervisor runs a token-free work check and types `/clear`
 and `/treemand-loop` when there is work. You never schedule anything.
