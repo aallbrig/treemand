@@ -52,17 +52,25 @@ case "$1 $2" in
 esac
 EOF
 # claude: logs its args and each line typed into the pane. The initial prompt and
-# each typed /treemand-loop run one fake cycle: wait while $FAKE_DIR/hold exists,
-# ship the first ready issue (or stop if STOP is present), then end-cycle.
+# each typed /treemand-loop run one fake cycle: wait while $FAKE_DIR/hold exists
+# (using tools, so the heartbeat stays fresh), ship the first ready issue (or stop
+# if STOP is present), then end-cycle. With $FAKE_DIR/hang the cycle goes quiet
+# (no tool use, no end); with $FAKE_DIR/fat it reports 80% context and waits. A
+# typed park instruction parks the cycle, unless $FAKE_DIR/deaf exists.
 cat >"$tmp/bin/claude" <<'EOF'
 #!/bin/sh
 log="$FAKE_DIR/claude.log"
 echo "START $*" >>"$log"
+echo "ENV autocompact=${CLAUDE_AUTOCOMPACT_PCT_OVERRIDE:-}" >>"$log"
+beat() { : >.loop/heartbeat; }
+ship() { jq -c '.[1:]' "$FAKE_DIR/ready.json" >"$FAKE_DIR/ready.tmp" && mv "$FAKE_DIR/ready.tmp" "$FAKE_DIR/ready.json"; }
 cycle() {
   echo CYCLE >>"$log"
-  while [ -e "$FAKE_DIR/hold" ]; do sleep 1; done
+  if [ -e "$FAKE_DIR/fat" ]; then beat; echo "80 1000000 0" >.loop/context; return; fi
+  if [ -e "$FAKE_DIR/hang" ]; then return; fi
+  while [ -e "$FAKE_DIR/hold" ]; do beat; sleep 1; done
   if [ -e .loop/STOP ]; then python3 -I scripts/loop/state.py end-cycle stopped; return; fi
-  jq -c '.[1:]' "$FAKE_DIR/ready.json" >"$FAKE_DIR/ready.tmp" && mv "$FAKE_DIR/ready.tmp" "$FAKE_DIR/ready.json"
+  ship
   python3 -I scripts/loop/state.py end-cycle released
 }
 case "$*" in *" /treemand-loop") cycle ;; esac
@@ -71,6 +79,8 @@ while IFS= read -r line; do
   case "$line" in
     /exit) echo EXIT >>"$log"; exit 0 ;;
     /treemand-loop) cycle ;;
+    *"park this cycle now"*)
+      if [ ! -e "$FAKE_DIR/deaf" ]; then echo PARKED >>"$log"; ship; python3 -I scripts/loop/state.py end-cycle parked; fi ;;
   esac
 done
 EOF
@@ -101,6 +111,9 @@ LOOP_TICK_SECONDS=1
 LOOP_IDLE_EXIT_MINUTES=0
 LOOP_KEY_DELAY_SECONDS=0
 LOOP_SETTLE_SECONDS=0
+LOOP_STALL_SECONDS=3
+LOOP_STALL_STEP_SECONDS=2
+LOOP_NOTIFY=0
 EOF
 
 # --- helpers -----------------------------------------------------------------
@@ -179,6 +192,36 @@ check "recovery is logged" 'supervisor_says "recovery: resume #7" && supervisor_
 loopctl stop --now >/dev/null
 check "stop --now kills the session and closes the pane" 'wait_for "[ \"\$(agent_panes)\" = 0 ] && ! claude_running"'
 check "stop --now disables the loop" '[ ! -e "$home/.loop/ENABLED" ]'
+
+# --- a stalled session: nudge, park, /exit, then relaunch with recovery -----------
+rm -f "$FAKE_DIR/hold"
+: >"$FAKE_DIR/in-progress"
+g -C "$home" worktree remove --force "$home/.loop/worktrees/7" 2>/dev/null
+: >"$FAKE_DIR/claude.log"
+touch "$FAKE_DIR/hang" "$FAKE_DIR/deaf"
+ready 21
+loopctl start >/dev/null
+check "stall: the agent is nudged" 'wait_for "grep -q \"^KEY treemand loop supervisor: no tool use\" \"$FAKE_DIR/claude.log\""'
+check "stall: then told to park" 'wait_for "grep -q \"treemand loop supervisor: park this cycle now (no tool use\" \"$FAKE_DIR/claude.log\""'
+check "stall: then the session is ended" 'wait_for "[ \"\$(count EXIT)\" -ge 1 ]"'
+rm -f "$FAKE_DIR/hang" "$FAKE_DIR/deaf"
+check "stall: escalation is logged" 'supervisor_says "stalled: no tool use" && supervisor_says "ending the session"'
+check "stall: the relaunched session ships the issue" 'wait_for "[ \"\$(jq length \"$FAKE_DIR/ready.json\")\" = 0 ]" && wait_for "! claude_running"'
+check "stall: the marker is consumed by recovery" '[ ! -e "$home/.loop/stalled" ]'
+
+# --- a full context: park once ---------------------------------------------------------
+: >"$FAKE_DIR/claude.log"
+touch "$FAKE_DIR/fat"
+ready 22
+check "context: the session starts" 'wait_for "[ \"\$(count START)\" = 1 ]"'
+check "context: the cycle is parked at 80%" 'wait_for "grep -q \"^KEY treemand loop supervisor: park this cycle now (context at 80%)\" \"$FAKE_DIR/claude.log\"" && wait_for "[ \"\$(count PARKED)\" = 1 ]"'
+rm -f "$FAKE_DIR/fat"
+check "context: parked once, then idle" 'wait_for "[ \"\$(count EXIT)\" = 1 ]" && [ "$(count "park this cycle")" = 1 ] && [ "$(count "no tool use")" = 0 ]'
+check "context: park is logged" 'supervisor_says "context at 80%; parking the cycle"'
+check "the session gets the auto-compact threshold" 'grep -qx "ENV autocompact=85" "$FAKE_DIR/claude.log"'
+
+loopctl stop --now >/dev/null
+check "stop --now again" 'wait_for "[ \"\$(agent_panes)\" = 0 ] && ! claude_running"'
 
 if [ "$fail" = 0 ]; then echo "supervisor_test: ok"; else
   echo "--- supervisor.log" >&2; cat "$home/.loop/supervisor.log" >&2 2>/dev/null

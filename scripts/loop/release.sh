@@ -38,7 +38,7 @@ done
 # GitHub sometimes fails a run before the build job exists (no logs, jobs skipped).
 # That is infrastructure, not the code: rerun up to twice before calling it a failure.
 attempt=0
-until timeout "$((LOOP_CYCLE_BUDGET_MINUTES * 60))" gh run watch "$run_id" --exit-status; do
+until timeout "$((LOOP_RELEASE_WATCH_MINUTES * 60))" gh run watch "$run_id" --exit-status; do
   jobs_seen="$(gh run view "$run_id" --json jobs --jq '[.jobs[].name]|index("Build & Release")' 2>/dev/null || echo null)"
   attempt=$((attempt + 1))
   if [ "$jobs_seen" != "null" ] || [ "$attempt" -gt 2 ]; then
