@@ -10,6 +10,7 @@
       "Bash(gofmt:*)",
       "Bash(golangci-lint:*)",
       "Bash(govulncheck:*)",
+      "Bash(dlv:*)",
       "Bash(hugo:*)",
       "Bash(tmux:*)",
       "Bash(jq:*)",
@@ -49,7 +50,8 @@
       "Bash(gh repo delete:*)",
       "Bash(sudo:*)",
       "Edit(.git/**)",
-      "Edit(.env*)"
+      "Edit(.env*)",
+      "mcp__goland"
     ]
   },
   "hooks": {
