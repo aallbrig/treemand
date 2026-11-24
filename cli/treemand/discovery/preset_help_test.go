@@ -17,7 +17,7 @@ func TestRunHelp_presetDocumentedHelpSubcommandIsAskedFirst(t *testing.T) {
 	logPath := filepath.Join(dir, "calls.log")
 	script := "#!/bin/sh\necho \"$*\" >>'" + logPath + "'\n" +
 		"last=\"\"; for a in \"$@\"; do last=\"$a\"; done\n" +
-		"if [ \"$last\" != help ]; then sleep 0.6; echo 'error: argument operation: Invalid choice' >&2; exit 252; fi\n" +
+		"if [ \"$last\" != help ]; then sleep 2; echo 'error: argument operation: Invalid choice' >&2; exit 252; fi\n" +
 		"printf 'AWS()\\n\\nNAME\\n       aws -\\n\\nDESCRIPTION\\n       The AWS Command Line Interface.\\n\\nAVAILABLE SERVICES\\n       o s3\\n\\n       o ec2\\n'\n"
 	bin := filepath.Join(dir, "aws")
 	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
@@ -30,7 +30,7 @@ func TestRunHelp_presetDocumentedHelpSubcommandIsAskedFirst(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if elapsed := time.Since(start); elapsed > 400*time.Millisecond {
+	if elapsed := time.Since(start); elapsed > time.Second {
 		t.Errorf("root help took %v; asking the documented form first takes one fast call", elapsed)
 	}
 	if len(root.Children) != 2 {
