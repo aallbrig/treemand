@@ -71,3 +71,7 @@ GoLand at **Settings → Tools → MCP Server** ("Enable MCP Server"), let it
 configure the detected Claude Code client, and start a new session. It uses
 the same delve engine as above, so plain `dlv` is enough when GoLand is not
 running.
+
+GoLand is for maintainer sessions only. The loop's settings deny every GoLand
+MCP tool (its file edits and terminal would bypass the loop's guard), so the
+loop debugs with `dlv` as described above.
