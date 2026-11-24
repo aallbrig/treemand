@@ -8,7 +8,8 @@
 #                    tmuxinator schema, shellcheck), installed by `pre-commit install`
 # pre-commit.legacy  runs `task precommit` (gitleaks on staged changes, lint, tests);
 #                    the framework's hook runs it first, before its own hooks
-# pre-push           runs `task precommit` before a push to main or develop
+# pre-push           runs `task measure:gate` (the CI ratchets) before every push,
+#                    and `task precommit` too before a push to main or develop
 #
 # Hooks live in the repo's common git dir, so every worktree shares them.
 # TREEMAND_REPO_ROOT overrides the repo (default: this checkout).
@@ -54,16 +55,19 @@ write_pre_push() {
 #!/bin/sh
 $marker
 # Installed by scripts/dev/hooks.sh (task setup -- --install).
-# Runs task precommit before a push to main or develop.
+# Runs task measure:gate (the ratchets CI gates on) before every push, and
+# task precommit too before a push to main or develop.
 run=0
 while read -r _ _ remote_ref _; do
   case "\$remote_ref" in refs/heads/main | refs/heads/develop) run=1 ;; esac
 done
-[ "\$run" = 1 ] || exit 0
 if ! command -v task >/dev/null 2>&1; then
   echo "task not found: skipping pre-push checks (install go-task)" >&2
   exit 0
 fi
+echo "Running the measurement gate before push (task measure:gate)..."
+task measure:gate || exit 1
+[ "\$run" = 1 ] || exit 0
 echo "Running precommit checks before push..."
 task precommit
 EOF
@@ -111,7 +115,7 @@ verify() {
     line inactive pre-commit.legacy "task precommit hook not installed"; ok=1
   fi
   if [ -x "$d/pre-push" ] && ours "$d/pre-push"; then
-    line ok pre-push "task precommit before pushes to main"
+    line ok pre-push "task measure:gate before every push; task precommit before pushes to main"
   else
     line inactive pre-push "task precommit pre-push hook not installed"; ok=1
   fi

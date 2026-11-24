@@ -37,7 +37,9 @@ when to use each.
   (`.pre-commit-config.yaml`: gitleaks, tmuxinator schema, shellcheck), which
   first runs `pre-commit.legacy`.
 - `pre-commit.legacy`: `task precommit` (gitleaks on staged changes, lint, tests).
-- `pre-push`: `task precommit` before a push to `main` or `develop`.
+- `pre-push`: `task measure:gate` (the ratchets CI's measurement gate runs:
+  complexity, parser, TUI layout, keymap and contrast, shell portability) before
+  every push, and `task precommit` too before a push to `main` or `develop`.
 
 Hooks live in the shared git dir, so every worktree uses them.
 

@@ -210,6 +210,25 @@ tasks:
     cmds:
       - dash scripts/metrics/measure_test.sh
 
+  # The one list of gated probes: task ci, the CI measure job and the pre-push
+  # hook all run this. Deterministic probes only: timing history belongs to the
+  # host that recorded it. A regression against docs/metrics fails; a fix that
+  # improves a metric records the new value (treemand-measure).
+  measure:gate:
+    desc: Gate the deterministic probes (complexity, parser, tui-layout, tui-keymap, tui-contrast, shell-portability) against docs/metrics, as CI does
+    cmds:
+      - python3 -I scripts/metrics/measure.py complexity --gate
+      - python3 -I scripts/metrics/measure.py parser --gate
+      - python3 -I scripts/metrics/measure.py tui-layout --gate
+      - python3 -I scripts/metrics/measure.py tui-keymap --gate
+      - python3 -I scripts/metrics/measure.py tui-contrast --gate
+      - python3 -I scripts/metrics/measure.py shell-portability --gate
+
+  measure:gate:test:
+    desc: Test that measure:gate fails on a complexity regression and is the only probe list task ci and the CI measure job use
+    cmds:
+      - dash scripts/metrics/measure_gate_test.sh
+
   channels:check:
     desc: Check every documented install channel is published and current (network)
     cmds:
@@ -571,6 +590,7 @@ tasks:
       - task: gates:test
       - task: release:test
       - task: measure:test
+      - task: measure:gate:test
       - task: fuzz:test
       - task: channels:test
       - task: fmt:check
@@ -602,6 +622,7 @@ tasks:
       - task: release:health:test
       - task: corpus:test
       - task: coverage:check
+      - task: measure:gate
       - task: chaos
       - task: loop:test-session
 

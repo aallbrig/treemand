@@ -75,5 +75,22 @@ else
   echo "hooks_test: pre-commit not installed; skipping the framework cases"
 fi
 
+# The pre-push hook gates every push on the CI ratchets, and adds the full
+# precommit run only for a push to main or develop (#468). install writes it
+# with or without the pre-commit framework.
+newrepo
+hooks "$tmp/repo" install
+check "pre-push gates on measure:gate" 'grep -q "task measure:gate" "$h/pre-push" && [ -x "$h/pre-push" ]'
+prepush() { rm -f "$tmp/task-calls"; printf 'refs/heads/x 1111 %s 0000\n' "$1" | "$h/pre-push" origin url >/dev/null 2>&1; echo $? >"$tmp/rc"; }
+prepush refs/heads/feature
+check "a branch push runs measure:gate" 'grep -qx "task measure:gate" "$tmp/task-calls"'
+check "a branch push skips precommit" '! grep -qx "task precommit" "$tmp/task-calls"'
+prepush refs/heads/main
+check "a push to main runs measure:gate and precommit" 'grep -qx "task measure:gate" "$tmp/task-calls" && grep -qx "task precommit" "$tmp/task-calls"'
+printf '#!/bin/sh\necho "task $*" >>"%s/task-calls"\n[ "$1" != measure:gate ]\n' "$tmp" >"$tmp/bin/task"
+prepush refs/heads/main
+check "a gate failure blocks the push" '[ "$(rc)" = 1 ] && ! grep -qx "task precommit" "$tmp/task-calls"'
+printf '#!/bin/sh\necho "task $*" >>"%s/task-calls"\n' "$tmp" >"$tmp/bin/task"
+
 [ "$fail" = 0 ] && echo "hooks_test: ok"
 exit "$fail"
