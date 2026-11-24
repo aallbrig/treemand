@@ -1563,7 +1563,7 @@ func TestModel_ExpandCollapseAll_viaKeyMsg(t *testing.T) {
 	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
 	// Shift+Right should expand all.
-	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("shift+right")})
+	m.Update(tea.KeyMsg{Type: tea.KeyShiftRight})
 	// Use View to confirm the model still renders without panicking.
 	v := m.View()
 	if v == "" {
@@ -3031,7 +3031,7 @@ func TestShiftRight_expandsSubtree(t *testing.T) {
 	}
 
 	// Shift+Right to expand commit's subtree.
-	m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("L")})
+	m.Update(tea.KeyMsg{Type: tea.KeyShiftRight})
 
 	v := m.View()
 	// commit's flags should now be visible.

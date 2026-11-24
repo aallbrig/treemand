@@ -16,9 +16,12 @@
 //   - documented_unbound.<surface>: keys the overlay, a hint or a website
 //     table names that nothing binds in that mode
 //
-// The TUI has no single key map, so the mode table (DefaultConfig) says which
-// switches make up each mode. Any key switch the table does not name, and any
-// table entry the code no longer has, fails the probe: drift is loud.
+// The tree pane's keys, its ? overlay and its footers come from the TUI's key
+// map (tui.Keymap, tui.KeyOverlay, tui.Footer), which the probe reads
+// directly. The dialogs still bind keys in switches, so the mode table
+// (DefaultConfig) says which switches make up each dialog mode. Any key
+// switch the table does not name, and any table entry the code no longer
+// has, fails the probe: drift is loud.
 package main
 
 import (
@@ -26,6 +29,8 @@ import (
 	"fmt"
 	"os"
 	"sort"
+
+	"github.com/aallbrig/treemand/tui"
 )
 
 // SwitchRef names the Index-th switch with string-literal cases in Func.
@@ -34,11 +39,13 @@ type SwitchRef struct {
 	Index int
 }
 
-// HintRef selects hint text: the string literals of Func, only those inside
-// the case clause whose condition contains Clause ("default" for the default
-// clause) when Clause is set, and only those containing Contains when set.
+// HintRef selects hint text: Text when set (a footer the key map renders);
+// otherwise the string literals of Func, only those inside the case clause
+// whose condition contains Clause ("default" for the default clause) when
+// Clause is set, and only those containing Contains when set.
 type HintRef struct {
 	Func, Clause, Contains string
+	Text                   string
 }
 
 // Mode is one input context of the TUI.
@@ -49,6 +56,9 @@ type Mode struct {
 	// Chain is the dispatch order: an earlier case that always returns
 	// consumes the key, so a later switch listing it is shadowed.
 	Chain []SwitchRef
+	// Layers are the key map modes of a mode that binds from the key map,
+	// top first: an upper layer overrides a lower one on purpose.
+	Layers []string
 	// Hints are what the TUI shows while in this mode.
 	Hints []HintRef
 	// Overlay and Reference: the ? overlay and the website reference page
@@ -60,37 +70,42 @@ type Mode struct {
 // Config is the mode table plus where documentation lives.
 type Config struct {
 	Modes        []Mode
-	OverlayConst string   // the const holding the ? overlay text
+	OverlayConst string // the const holding the ? overlay text, when OverlayText is ""
+	OverlayText  string // the ? overlay text
+	Table        []tui.Binding
 	Reference    string   // the website page that must list every key
 	Pages        []string // website pages whose key tables are checked
 }
 
 // DefaultConfig is treemand's TUI as of this probe.
 func DefaultConfig() Config {
-	tree := func(name, scheme, handler, clause string) Mode {
+	tree := func(name, scheme string) Mode {
 		return Mode{Name: name, Scheme: scheme, Overlay: true, Reference: true,
-			Chain: []SwitchRef{{"updateKeys", 0}, {handler, 0}},
-			Hints: []HintRef{{Func: "schemeHints", Clause: clause}}}
+			Layers: []string{name, tui.ModeTree}, Hints: []HintRef{{Text: tui.Footer(name)}}}
+	}
+	table := func(name string, layers ...string) Mode {
+		return Mode{Name: name, Layers: layers, Hints: []HintRef{{Text: tui.Footer(name)}}}
 	}
 	dialog := func(name, update string, idx int, render, contains string) Mode {
 		return Mode{Name: name, Chain: []SwitchRef{{update, idx}},
 			Hints: []HintRef{{Func: render, Contains: contains}}}
 	}
 	return Config{
-		OverlayConst: "keybindText",
-		Reference:    "reference.md",
-		Pages:        []string{"reference.md", "commands/interactive.md", "getting-started.md"},
+		OverlayText: tui.KeyOverlay(),
+		Table:       tui.Keymap(),
+		Reference:   "reference.md",
+		Pages:       []string{"reference.md", "commands/interactive.md", "getting-started.md"},
 		Modes: []Mode{
-			tree("tree:arrows", "arrows", "handleArrows", "default"),
-			tree("tree:vim", "vim", "handleVim", "SchemeVim"),
-			tree("tree:wasd", "wasd", "handleWASD", "SchemeWASD"),
-			{Name: "help-pane", Overlay: true, Reference: true,
-				Chain: []SwitchRef{{"updateHelpPaneKeys", 0}, {"updateKeys", 0}},
-				Hints: []HintRef{{Func: "renderStatusBar", Clause: "paneHelp"}}},
-			{Name: "preview", Chain: []SwitchRef{{"updatePreviewInput", 0}},
-				Hints: []HintRef{{Func: "renderStatusBar", Clause: "panePreview"}}},
-			{Name: "filter", Chain: []SwitchRef{{"updateFilter", 0}},
-				Hints: []HintRef{{Func: "renderStatusBar", Clause: "m.filtering"}}},
+			tree(tui.ModeArrows, "arrows"),
+			tree(tui.ModeVim, "vim"),
+			tree(tui.ModeWASD, "wasd"),
+			func() Mode {
+				md := table(tui.ModeHelpPane, tui.ModeHelpPane, tui.ModeTree)
+				md.Overlay, md.Reference = true, true
+				return md
+			}(),
+			table(tui.ModePreview, tui.ModePreview),
+			table(tui.ModeFilter, tui.ModeFilter),
 			dialog("keys-overlay", "updateKeybindModal", 0, "renderKeybindModal", "Esc"),
 			dialog("value-input", "updateValueModal", 0, "renderValueInputModal", "Esc"),
 			dialog("exec", "updateModal", 0, "renderModal", "Esc"),

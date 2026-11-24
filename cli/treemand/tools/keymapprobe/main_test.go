@@ -3,6 +3,8 @@ package main
 import (
 	"strings"
 	"testing"
+
+	"github.com/aallbrig/treemand/tui"
 )
 
 func fixtureConfig() Config {
@@ -125,5 +127,36 @@ func TestRealTUIScans(t *testing.T) {
 	}
 	if rep.Bound < 60 {
 		t.Errorf("found only %d bindings; the scan is probably broken", rep.Bound)
+	}
+}
+
+// Modes that bind from the key map are read from the table: a key bound
+// twice in one layer conflicts, an upper layer may override a lower one, and
+// the footer text the key map renders is checked like any hint.
+func TestScanReadsTheKeyMap(t *testing.T) {
+	cfg := Config{
+		OverlayText: "Keys\n  j / k   Move\n  x       Nothing binds this",
+		Table: []tui.Binding{
+			{Mode: "base", Keys: []string{"j", "k"}},
+			{Mode: "top", Keys: []string{"j"}},            // overrides base: fine
+			{Mode: "top", Keys: []string{"j", "shift+q"}}, // j again: a conflict
+		},
+		Modes: []Mode{{Name: "top", Overlay: true, Layers: []string{"top", "base"},
+			Hints: []HintRef{{Text: "j/k:move  y:nothing"}}}},
+	}
+	rep, err := Scan("testdata/keymaptui", "testdata/site", cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]float64{
+		"conflicts":                  1, // j twice in top
+		"unreachable_bindings":       1, // shift+q
+		"documented_unbound.overlay": 1, // x
+		"documented_unbound.hints":   1, // y
+	}
+	for k, v := range want {
+		if rep.Metrics[k] != v {
+			t.Errorf("%s = %v, want %v (details %+v)", k, rep.Metrics[k], v, rep.Details)
+		}
 	}
 }
