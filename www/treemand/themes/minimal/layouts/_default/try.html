@@ -47,6 +47,11 @@ treemand -i kubectl</code></pre>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css">
 <script defer src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
-<script defer src="{{ "try/wasm_exec.js" | relURL }}"></script>
-<script defer src="{{ "try/try.js" | relURL }}" data-base="{{ "try/" | relURL }}"></script>
+{{- /* wasm_exec.js is a build output (task web:wasm) the asset partial reads from static/. */}}
+{{- with partial "asset" "try/wasm_exec.js" }}
+<script defer src="{{ .RelPermalink }}" integrity="{{ .Data.Integrity }}"></script>
+{{- end }}
+{{- with partial "asset" "try/try.js" }}
+<script defer src="{{ .RelPermalink }}" integrity="{{ .Data.Integrity }}" data-base="{{ "try/" | relURL }}"></script>
+{{- end }}
 {{ end }}

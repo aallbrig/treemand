@@ -21,7 +21,12 @@ cli/treemand/web/wasm/build.sh www/treemand/static/try >/dev/null
 sh scripts/site_search_index.sh "$out"
 
 echo "[site:publish] syncing $(find "$out" -type f | wc -l) files to $origin"
-aws s3 sync "$out" "s3://$bucket/" --delete --exclude 'releases/*' \
+# assets/ holds only content-hashed CSS/JS (the theme's asset partial), so a
+# URL there never changes content: cache it for a year. Upload it first and
+# never delete from it, so HTML still cached anywhere keeps its old assets.
+aws s3 sync "$out/assets" "s3://$bucket/assets/" \
+  --cache-control 'public, max-age=31536000, immutable' --only-show-errors
+aws s3 sync "$out" "s3://$bucket/" --delete --exclude 'releases/*' --exclude 'assets/*' \
   --cache-control 'public, max-age=300' --only-show-errors
 aws cloudfront create-invalidation --distribution-id "$distribution" --paths '/*' >/dev/null
 echo "[site:publish] done; CDN invalidation started"

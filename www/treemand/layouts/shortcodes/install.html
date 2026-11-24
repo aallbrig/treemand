@@ -20,4 +20,4 @@
   </section>
   {{- end }}
 </div>
-<script defer src="{{ "install.js" | relURL }}"></script>
+{{ with partial "asset" "install.js" }}<script defer src="{{ .RelPermalink }}" integrity="{{ .Data.Integrity }}"></script>{{ end }}

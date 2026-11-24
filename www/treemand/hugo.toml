@@ -8,7 +8,7 @@ disableKinds = ["taxonomy", "term"]
 
 [markup]
   # Classes, not inline colours, so code follows the light/dark theme;
-  # themes/minimal/static/css/chroma.css holds GitHub light and dark.
+  # themes/minimal/assets/css/chroma.css holds GitHub light and dark.
   [markup.highlight]
     noClasses = false
   # The docs pages' "On this page" outline: sections and subsections.
