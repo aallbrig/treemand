@@ -196,6 +196,8 @@ var keymap = []Binding{
 	{Mode: ModeHelpPane, Keys: []string{"pgdown", "ctrl+d"}, action: actScrollPageDown},
 	{Mode: ModeHelpPane, Keys: []string{"g"}, action: actScrollTop, Hint: "g/G:top/bottom"},
 	{Mode: ModeHelpPane, Keys: []string{"G"}, action: actScrollBottom},
+	// The scheme's keys are off while the help pane has focus; d stays docs.
+	{Mode: ModeHelpPane, Keys: []string{"d"}, action: actDocs},
 
 	// The focused preview line; other keys edit it.
 	{Mode: ModePreview, Keys: []string{"ctrl+c"}, action: actQuit},
