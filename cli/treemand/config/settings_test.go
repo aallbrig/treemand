@@ -146,3 +146,26 @@ func TestSettings_readErrors(t *testing.T) {
 		t.Errorf("Get on a missing file = %+v, %v", got, err)
 	}
 }
+
+func TestApplyLive_themeAndLayoutOnly(t *testing.T) {
+	cfg := config.DefaultConfig()
+	for _, kv := range [][2]string{{"tree_style", "graph"}, {"icons", "ascii"}, {"colors.selected_text", "#123456"}} {
+		if !config.ApplyLive(cfg, kv[0], kv[1]) {
+			t.Errorf("ApplyLive(%s) = false", kv[0])
+		}
+	}
+	if cfg.TreeStyle != config.StyleGraph || cfg.IconPreset != "ascii" || cfg.Icons.Leaf != "- " || cfg.Colors.SelectedText != "#123456" {
+		t.Errorf("cfg = %+v", cfg)
+	}
+	for _, key := range []string{"depth", "colors.nope"} {
+		if config.ApplyLive(cfg, key, "1") {
+			t.Errorf("ApplyLive(%s) = true", key)
+		}
+	}
+	// Every colors.* schema key has a field.
+	for _, e := range config.KnownKeys {
+		if strings.HasPrefix(e.Key, "colors.") && !config.ApplyLive(cfg, e.Key, "#000") {
+			t.Errorf("no live field for %s", e.Key)
+		}
+	}
+}

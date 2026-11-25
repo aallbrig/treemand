@@ -108,14 +108,21 @@ func init() {
 
 	defineRootFlags(rootCmd)
 
-	_ = viper.BindPFlag("icons", rootCmd.PersistentFlags().Lookup("icons"))
-	_ = viper.BindPFlag("desc_line_length", rootCmd.PersistentFlags().Lookup("line-length"))
-	_ = viper.BindPFlag("stub_threshold", rootCmd.PersistentFlags().Lookup("stub-threshold"))
-	_ = viper.BindPFlag("no_color", rootCmd.PersistentFlags().Lookup("no-color"))
-	_ = viper.BindPFlag("tree_style", rootCmd.PersistentFlags().Lookup("tree-style"))
-	_ = viper.BindPFlag("depth", rootCmd.PersistentFlags().Lookup("depth"))
-	_ = viper.BindPFlag("strategies", rootCmd.PersistentFlags().Lookup("strategy"))
-	_ = viper.BindPFlag("no_cache", rootCmd.PersistentFlags().Lookup("no-cache"))
+	for _, b := range configFlags {
+		_ = viper.BindPFlag(b.key, rootCmd.PersistentFlags().Lookup(b.flag))
+	}
+}
+
+// configFlags pairs each config key a root flag sets with that flag.
+var configFlags = []struct{ key, flag string }{
+	{"icons", "icons"},
+	{"desc_line_length", "line-length"},
+	{"stub_threshold", "stub-threshold"},
+	{"no_color", "no-color"},
+	{"tree_style", "tree-style"},
+	{"depth", "depth"},
+	{"strategies", "strategy"},
+	{"no_cache", "no-cache"},
 }
 
 // defineRootFlags defines the root command's flags on c. Production and the
@@ -336,7 +343,7 @@ func output(cmd *cobra.Command, node *models.Node, cfg *config.Config, save func
 		return tui.RunWithOptions(node, cfg, tui.RunOptions{
 			Save: save, Crawl: crawl, History: historyStore(cfg, node.Name),
 			Presets: tuiPresets(node.Name), Preset: startPreset,
-			Override: overrideFunc(ov),
+			Override: overrideFunc(ov), Settings: configSettings(cmd),
 		})
 	}
 	opts := render.Options{

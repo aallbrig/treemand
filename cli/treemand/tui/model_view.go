@@ -57,6 +57,9 @@ func (m *Model) View() string {
 	if m.pm.active {
 		return m.renderPresetsModal()
 	}
+	if m.st.active {
+		return m.renderSettingsModal()
+	}
 	if m.modal.active {
 		return m.renderModal()
 	}

@@ -40,7 +40,8 @@ func TestSettings_editInTheTUIThenConfigGet(t *testing.T) {
 	s.send("\x15120\r")
 	s.waitFor("desc_line_length = 120", 5*time.Second)
 	s.waitFor("applies on next run", 5*time.Second)
-	s.send("\x1b") // Esc closes the screen
+	s.send(",") // , closes the screen again
+	s.waitFor(",:settings", 5*time.Second)
 	s.send("q")
 	s.exitCode(10 * time.Second)
 

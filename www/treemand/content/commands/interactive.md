@@ -77,6 +77,7 @@ Toggle navigation scheme with **Ctrl+S** (arrows → vim → WASD).
 |-----|--------|
 | `H` / `Ctrl+P` | Toggle help pane |
 | `Tab` / `Shift+Tab` | Cycle pane focus |
+| `,` | Settings: every `treemand config` key with its value and source; `Enter` edits one and writes it to the config file |
 | `d` / `D` | Open docs URL in browser |
 | `?` | Show all key bindings (scrollable overlay) |
 | `q` / `Esc` | Quit |

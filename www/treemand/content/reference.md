@@ -307,6 +307,7 @@ Toggle navigation scheme with **Ctrl+S** (cycles: arrows → vim → WASD).
 |-----|--------|
 | `H` / `Ctrl+P` | Toggle help pane (uppercase `H` only — lowercase `h` is Left navigation in vim mode) |
 | `Tab` / `Shift+Tab` | Cycle pane focus forward / backward (tree → help → preview) |
+| `,` | Settings: every `treemand config` key with its value and source; `Enter` edits one and writes it to the config file, keeping its comments (theme and layout apply at once; see [`treemand config`](../commands/config/)) |
 | `?` | Show all key bindings in a scrollable overlay |
 | `d` / `D` | Open docs URL in browser (if detected in help text; `d` conflicts with Right in WASD mode) |
 

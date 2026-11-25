@@ -94,6 +94,8 @@ type Model struct {
 	rm           recentsModal        // Ctrl+R recent commands
 	saved        *savedpresets.Store // saved presets; nil when unavailable
 	pm           presetsModal        // Ctrl+O saved presets
+	settings     *config.Settings    // the config file; nil when unavailable
+	st           settingsModal       // , settings screen
 }
 
 // clearTimedMsgMsg is fired by a tea.Tick to clear a timed status message.
@@ -211,6 +213,8 @@ func (m *Model) activeDialog() func(tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.updateRecentsModal
 	case m.pm.active:
 		return m.updatePresetsModal
+	case m.st.active:
+		return m.updateSettingsModal
 	case m.modal.active:
 		return m.updateModal
 	}
@@ -305,6 +309,9 @@ type RunOptions struct {
 	Presets *savedpresets.Store
 	// Preset, when set, is loaded into the assembled command at start.
 	Preset *savedpresets.Preset
+	// Settings, when set, is the config file the , settings screen lists
+	// and edits.
+	Settings *config.Settings
 	// Override, when set, re-applies the CLI's override to the tree after
 	// discovery fills or refreshes a node.
 	Override func(root *models.Node)
@@ -320,6 +327,7 @@ func RunWithOptions(root *models.Node, cfg *config.Config, opts RunOptions) erro
 	}
 	m.SetHistory(opts.History)
 	m.SetSavedPresets(opts.Presets)
+	m.SetSettings(opts.Settings)
 	if opts.Preset != nil {
 		m.loadStartPreset(*opts.Preset)
 	}

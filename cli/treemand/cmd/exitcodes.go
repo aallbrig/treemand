@@ -221,6 +221,19 @@ func configSetArgs(c *cobra.Command, args []string) error {
 	}
 }
 
+// configGetArgs requires one key.
+func configGetArgs(c *cobra.Command, args []string) error {
+	hint := commandUsage(c, "treemand config get icons")
+	switch len(args) {
+	case 1:
+		return nil
+	case 0:
+		return newUsageError(hint, "missing key")
+	default:
+		return newUsageError(hint, "expected one key, got %d (%s)", len(args), strings.Join(args, " "))
+	}
+}
+
 var shells = []string{"bash", "zsh", "fish", "powershell"}
 
 // completionArgs requires exactly one known shell.

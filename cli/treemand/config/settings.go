@@ -44,6 +44,12 @@ func (e *UnknownKeyError) Error() string {
 	return msg
 }
 
+// InvalidValueError is returned for a value the key's schema refuses.
+type InvalidValueError struct{ Err error }
+
+func (e *InvalidValueError) Error() string { return e.Err.Error() }
+func (e *InvalidValueError) Unwrap() error { return e.Err }
+
 // Settings is the config file `treemand config` reads and writes, seen with
 // the values flags and the environment set for this run. List and Get read
 // the file each time; Set validates a value as `treemand config set` does and
@@ -92,7 +98,7 @@ func (s *Settings) Set(key, value string) error {
 		return err
 	}
 	if err := ValidateValue(e, value); err != nil {
-		return err
+		return &InvalidValueError{Err: err}
 	}
 	if e.Type == TypeBool {
 		value = strings.ToLower(value)
@@ -276,4 +282,35 @@ func writeFileAtomic(path string, data []byte) error {
 		return fmt.Errorf("write config: %w", err)
 	}
 	return nil
+}
+
+// ApplyLive sets key's value on a running config when a running TUI redraws
+// with it (the theme and the layout), and reports whether it did. Other keys
+// take effect on the next run.
+func ApplyLive(cfg *Config, key, value string) bool {
+	switch {
+	case key == "tree_style":
+		cfg.TreeStyle = ParseTreeStyle(value)
+	case key == "icons":
+		cfg.IconPreset, cfg.Icons = value, IconSetForPreset(value)
+	case strings.HasPrefix(key, "colors."):
+		f := colorField(&cfg.Colors, strings.TrimPrefix(key, "colors."))
+		if f == nil {
+			return false
+		}
+		*f = value
+	default:
+		return false
+	}
+	return true
+}
+
+// colorField is the scheme's field for a colors.<name> key, or nil.
+func colorField(c *ColorScheme, name string) *string {
+	return map[string]*string{
+		"base": &c.Base, "subcmd": &c.Subcmd, "flag": &c.Flag,
+		"flag_bool": &c.FlagBool, "flag_string": &c.FlagString, "flag_int": &c.FlagInt,
+		"flag_other": &c.FlagOther, "pos": &c.Pos, "value": &c.Value,
+		"invalid": &c.Invalid, "selected": &c.Selected, "selected_text": &c.SelectedText,
+	}[name]
 }

@@ -301,7 +301,8 @@ treemand config                    # show current config with file location
 treemand config view               # same as above
 treemand config validate           # check for errors/warnings
 treemand config validate --strict  # treat warnings as errors
-treemand config set icons nerd     # set a value
+treemand config get icons          # print a value
+treemand config set icons nerd     # set a value (keeps the file's comments)
 treemand config set depth 5        # set tree depth
 treemand config init               # create default config with comments
 treemand config path               # print config file path

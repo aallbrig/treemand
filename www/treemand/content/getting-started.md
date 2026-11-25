@@ -148,6 +148,7 @@ Press `c` to copy or `r` to run.
 | `Ctrl+E` | Copy or execute the assembled command |
 | `Ctrl+R` | Recent commands; `Enter` loads one into the preview |
 | `Ctrl+O` | Saved presets: `Enter` loads one, `a` saves the assembled command under a name, `x` deletes one |
+| `,` | Settings: every `treemand config` key with its value and source; `Enter` edits one and writes it to the config file |
 | `Ctrl+S` | Cycle navigation scheme (arrows → vim → WASD) |
 | `R` | Re-discover / refresh children of selected node |
 | `?` | Show all key bindings in a scrollable overlay |

@@ -26,6 +26,7 @@ var actionFuncs = map[action]func(*Model) tea.Cmd{
 	actExecPreview:     func(m *Model) tea.Cmd { m.openExec(false); return nil },
 	actRecents:         func(m *Model) tea.Cmd { m.openRecents(); return nil },
 	actPresets:         func(m *Model) tea.Cmd { m.openPresets(); return nil },
+	actSettings:        func(m *Model) tea.Cmd { m.openSettings(); return nil },
 	actClear:           (*Model).clearPreview,
 	actRemoveToken:     (*Model).removeLastToken,
 	actRediscover:      (*Model).forceExpandSelected,
