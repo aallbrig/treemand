@@ -157,11 +157,12 @@ esac
 `
 
 func TestRunHelp_learnedShortFlagIsTriedFirstAndFlagsRace(t *testing.T) {
-	// Each call takes 600ms and logs "done <args>" as it ends. Racing the
-	// flags at the root starts -h while --help still runs (the hedge fires at
-	// 250ms); trying them in turn would log "done --help" before "-h".
-	bin, logPath := formCLI(t, 0, `sleep 0.6
-echo "done $*" >>"$(dirname "$0")/calls.log"
+	// The root's calls take 2s and log "done <args>" as they end. Racing the
+	// flags starts -h while --help still runs (the hedge fires at 250ms, far
+	// inside the 2s); trying them in turn would log "done --help" before "-h".
+	bin, logPath := formCLI(t, 0, `case "$*" in --help|-h)
+sleep 2; echo "done $*" >>"$(dirname "$0")/calls.log";;
+esac
 `+shortOnly)
 	root, err := NewHelpDiscoverer(2).Discover(context.Background(), bin, nil)
 	if err != nil || len(root.Children) != 3 || len(root.Children[0].Flags) == 0 {
