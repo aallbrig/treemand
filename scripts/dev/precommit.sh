@@ -9,7 +9,8 @@
 #                      script's #! names bash (as task shell:check does)
 #   staged infra/      cfn-lint and checkov (task infra:lint)
 #
-# Every tool is required: a missing one fails the commit with its name.
+# The tools read the files on disk, so a partly staged file is checked as it
+# is in the working tree. Every tool is required: a missing one fails the commit with its name.
 set -u
 root="$(git rev-parse --show-toplevel)" || exit 1
 cd "$root" || exit 1

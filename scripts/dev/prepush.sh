@@ -22,6 +22,15 @@ if ! command -v task >/dev/null 2>&1; then
   exit 1
 fi
 
+# The steps run on the working tree; a pass stamps HEAD's tree (proof.sh,
+# clean trees only), which is the tree they ran on.
+head_tree="$(git rev-parse 'HEAD^{tree}')" || exit 1
+for t in $trees; do
+  [ "$t" = "$head_tree" ] && continue
+  echo "pre-push: pushing commits other than HEAD; the checks run on the working tree"
+  break
+done
+
 proven() {
   for t in $trees; do sh "$here/proof.sh" has "$t" "$1" || return 1; done
 }
