@@ -5,14 +5,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aallbrig/treemand/config"
 	"github.com/aallbrig/treemand/models"
 )
 
 // rightDump presses Right once from every row of a freshly set-up model and
 // records where the cursor lands and how many rows remain, so a refactor of
 // Right that changes any landing spot or expansion shows up as a diff.
-func rightDump(newModel func() *TreeModel) string {
+func rightDump(newModel func() *treeRows) string {
 	var b strings.Builder
 	base := newModel()
 	for i := range base.rows {
@@ -29,10 +28,10 @@ func TestRightLandings(t *testing.T) {
 	cases := []struct {
 		name    string
 		fixture func() *models.Node
-		setup   func(*TreeModel)
+		setup   func(*treeRows)
 		want    string
 	}{
-		{name: "fresh", fixture: flattenFixture, setup: func(*TreeModel) {}, want: `cmd:app@0 -> flag:--verbose@app rows=7
+		{name: "fresh", fixture: flattenFixture, setup: func(*treeRows) {}, want: `cmd:app@0 -> flag:--verbose@app rows=7
 section:app@0/flags -> flag:--verbose@app rows=7
 flag:--verbose@app -> flag:--verbose@app rows=7
 flag:--help@app -> flag:--help@app rows=7
@@ -40,7 +39,7 @@ section:app@0/subcommands -> section:app@0/subcommands rows=14
 section:app@0/positionals -> pos:target@app rows=7
 pos:target@app -> pos:target@app rows=7
 `},
-		{name: "everything expanded", fixture: flattenFixture, setup: func(tm *TreeModel) { tm.ExpandAll() }, want: `cmd:app@0 -> cmd:sub@1 rows=24
+		{name: "everything expanded", fixture: flattenFixture, setup: func(tm *treeRows) { tm.ExpandAll() }, want: `cmd:app@0 -> cmd:sub@1 rows=24
 section:app@0/flags -> flag:--verbose@app rows=24
 flag:--verbose@app -> flag:--verbose@app rows=24
 flag:--help@app -> flag:--help@app rows=24
@@ -65,7 +64,7 @@ cmd:c5@1 -> cmd:c5@1 rows=24
 section:app@0/positionals -> pos:target@app rows=24
 pos:target@app -> pos:target@app rows=24
 `},
-		{name: "sections hidden", fixture: flattenFixture, setup: func(tm *TreeModel) {
+		{name: "sections hidden", fixture: flattenFixture, setup: func(tm *treeRows) {
 			tm.ExpandAll()
 			tm.ToggleSections()
 		}, want: `cmd:app@0 -> cmd:sub@1 rows=17
@@ -86,7 +85,7 @@ cmd:c4@1 -> cmd:c4@1 rows=17
 cmd:c5@1 -> pos:target@app rows=17
 pos:target@app -> pos:target@app rows=17
 `},
-		{name: "nodes expanded, sections collapsed", fixture: flattenFixture, setup: func(tm *TreeModel) {
+		{name: "nodes expanded, sections collapsed", fixture: flattenFixture, setup: func(tm *treeRows) {
 			tm.nodeExpanded[nodeKey(tm.root, 0)] = true
 			tm.nodeExpanded[nodeKey(tm.root.Children[0], 1)] = true
 			tm.nodeExpanded[nodeKey(tm.root.Children[0].Children[0], 2)] = true
@@ -99,7 +98,7 @@ section:app@0/subcommands -> section:app@0/subcommands rows=23
 section:app@0/positionals -> pos:target@app rows=7
 pos:target@app -> pos:target@app rows=7
 `},
-		{name: "subcommands open, leaves expanded", fixture: flattenFixture, setup: func(tm *TreeModel) {
+		{name: "subcommands open, leaves expanded", fixture: flattenFixture, setup: func(tm *treeRows) {
 			tm.sectionExpanded["app@0/subcommands"] = true
 			tm.nodeExpanded[nodeKey(tm.root.Children[0], 1)] = true
 			tm.nodeExpanded[nodeKey(tm.root.Children[0].Children[0], 2)] = true
@@ -129,15 +128,15 @@ cmd:c5@1 -> cmd:c5@1 rows=23
 section:app@0/positionals -> pos:target@app rows=23
 pos:target@app -> pos:target@app rows=23
 `},
-		{name: "filtered", fixture: flattenFixture, setup: func(tm *TreeModel) { tm.SetFilter("deep") }, want: `cmd:app@0 -> cmd:sub@1 rows=3
+		{name: "filtered", fixture: flattenFixture, setup: func(tm *treeRows) { tm.SetFilter("deep") }, want: `cmd:app@0 -> cmd:sub@1 rows=3
 cmd:sub@1 -> cmd:sub@1 rows=3
 cmd:deep@2 -> cmd:deep@2 rows=3
 `},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			newModel := func() *TreeModel {
-				tm := NewTreeModel(tc.fixture(), config.DefaultConfig())
+			newModel := func() *treeRows {
+				tm := newTreeRows(tc.fixture())
 				tc.setup(tm)
 				return tm
 			}
