@@ -106,10 +106,10 @@ fresh; printf '# header\npkg/a\t70\npkg/b\t90\n' >"$repo/scripts/coverage_floor.
 out="$(GATES_LOOSEN=1 check)"; st=$?
 [ "$st" = 0 ] && has "$out" "gates:loosen" && ok "GATES_LOOSEN=1 accepts a loosening and says so" || bad "GATES_LOOSEN: exit $st: $out"
 
-# Wiring: task ci runs the check and its test.
-ci="$(sed -n '/^  ci:$/,/^  [a-z:-]*:$/p' Taskfile.yml)"
-case "$ci" in *"task: gates:baselines"*) ok "task ci runs gates:baselines" ;; *) bad "task ci does not run gates:baselines" ;; esac
-case "$ci" in *"task: gates:baselines:test"*) ok "task ci runs gates:baselines:test" ;; *) bad "task ci does not run gates:baselines:test" ;; esac
+# Wiring: task ci:gates (the CI gates job, and part of task ci) runs the check and its test.
+ci="$(sed -n '/^  ci:gates:$/,/^  [a-z:-]*:$/p' Taskfile.yml)"
+case "$ci" in *"task: gates:baselines"*) ok "task ci:gates runs gates:baselines" ;; *) bad "task ci:gates does not run gates:baselines" ;; esac
+case "$ci" in *"task: gates:baselines:test"*) ok "task ci:gates runs gates:baselines:test" ;; *) bad "task ci:gates does not run gates:baselines:test" ;; esac
 grep -q 'GATES_PR:' .github/workflows/ci.yml && ok "the CI gates job passes the pull request number" || bad "ci.yml does not set GATES_PR"
 
 [ "$fail" = 0 ] && echo "check_baselines_test: ok"
