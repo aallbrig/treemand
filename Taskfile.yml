@@ -687,6 +687,7 @@ tasks:
       - dash scripts/metrics/cli_ux_test.sh
       - dash scripts/check_coverage_test.sh
       - dash scripts/dev/test_race_test.sh
+      - dash scripts/dev/ci_jobs_test.sh
       - dash scripts/ship_test.sh
 
   taskfile:check:
