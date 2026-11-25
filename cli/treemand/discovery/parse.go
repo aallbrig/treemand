@@ -350,11 +350,13 @@ func (p *helpParser) isProse(l helpLine) bool {
 		l.lower != "description"
 }
 
-// collectUsageAndURL keeps usage / synopsis lines for positional parsing and
-// the first docs URL anywhere in the text.
+// collectUsageAndURL keeps usage / synopsis lines, with the indented lines
+// that continue a "usage:" line (ssh, tmux, a second BSD synopsis), for
+// positional and flag parsing, and the first docs URL anywhere in the text.
 func (p *helpParser) collectUsageAndURL(l helpLine) {
 	if strings.HasPrefix(l.lower, "usage:") || strings.HasPrefix(l.lower, "use:") ||
-		l.lower == "synopsis" || (p.section == secUsage && l.trimmed != "") {
+		l.lower == "synopsis" || (p.section == secUsage && l.trimmed != "") ||
+		(p.inUsageBlock && l.trimmed != "") {
 		p.usageLines = append(p.usageLines, l.raw)
 	}
 	if p.result.DocsURL == "" {
@@ -621,10 +623,8 @@ func (p *helpParser) finish() ParsedHelp {
 	// in prose) come after the listed ones, which carry descriptions, and
 	// belong to no flag section.
 	p.currentSectionName = ""
-	for _, ul := range p.usageLines {
-		for _, f := range usageLineFlags(ul) {
-			p.addFlag(f)
-		}
+	for _, f := range synopsisFlags(p.usageLines, r.Flags) {
+		p.addFlag(f)
 	}
 	r.Description = strings.Join(strings.Fields(r.Description), " ")
 	// A man-page bullet list ("o service") is authoritative: prose elsewhere in

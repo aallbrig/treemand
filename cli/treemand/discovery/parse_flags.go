@@ -209,23 +209,66 @@ var bracketOptionRe = regexp.MustCompile(`\[-[^\]]+\]`)
 // optional value: "[-v]", "[--verbose]", "[-o output]", "[-go=version]",
 // "[--config <file>]". Brackets holding alternatives ("[-v | --version]")
 // or nested optional values ("[--exec-path[=<path>]]") do not match.
-var usageOptionRe = regexp.MustCompile(`\[(--?[A-Za-z][A-Za-z0-9_-]*)(?:[ =](<[A-Za-z][^<>\[\]|]*>|[A-Za-z][A-Za-z0-9_.,-]*))?\]`)
+var usageOptionRe = regexp.MustCompile(`\[` + usageOption + `\]`)
+
+// usageOption is one option with an optional value, as usage lines write it.
+const usageOption = `(--?[A-Za-z][A-Za-z0-9_-]*)(?:[ =](<[A-Za-z][^<>\[\]|]*>|[A-Za-z][A-Za-z0-9_.,-]*))?`
+
+// usageAltRe matches a bracket of alternatives, "[-H | -L | -P]", and
+// usageAltPartRe one of them.
+var (
+	usageAltRe     = regexp.MustCompile(`\[([^\[\]|]*\|[^\[\]]*)\]`)
+	usageAltPartRe = regexp.MustCompile(`^` + usageOption + `$`)
+)
+
+// usageClusterRe matches a bracket of clustered single-character options,
+// "[-EXdsx]" or "[-@ABC1%,]" (BSD ls).
+var usageClusterRe = regexp.MustCompile(`\[-([A-Za-z0-9@%,]{2,})\]`)
 
 // wordOptionRe matches a single-dash word option, which is lowercase
 // ("-json", "-testcache"); "[-Olevel]" (GNU find) is -O with a value.
 var wordOptionRe = regexp.MustCompile(`^-[a-z][a-z0-9-]+$`)
 
-// usageLineFlags reads the options a usage line names one per bracket (#66):
-// "usage: go mod tidy [-e] [-v] [-diff] [-go=version]". BSD tools cluster
-// single-letter options in one bracket ("[-pv]" is -p and -v), so a
-// multi-letter single-dash option without a value counts only when the same
-// line also lists a single letter alone ("[-e]"), which a clustering tool
-// would have merged.
+// synopsisFlags returns the flags the usage lines name that the listed rows
+// do not already cover: a short option a row lists as the alias of a long
+// one ("-B SECONDS, --background SECONDS") is not another flag.
+func synopsisFlags(usageLines []string, listed []models.Flag) []models.Flag {
+	aliases := map[string]bool{}
+	for _, f := range listed {
+		if f.ShortName != "" && f.Name != "-"+f.ShortName {
+			aliases["-"+f.ShortName] = true
+		}
+	}
+	var flags []models.Flag
+	for _, ul := range usageLines {
+		for _, f := range usageLineFlags(ul) {
+			if !aliases[f.Name] {
+				flags = append(flags, f)
+			}
+		}
+	}
+	return flags
+}
+
+// usageLineFlags reads the options a usage line names (#66, #274):
+// one per bracket ("usage: go mod tidy [-e] [-v] [-diff] [-go=version]"),
+// alternatives ("[-H | -L | -P]") and BSD letter clusters ("[-pv]" is -p and
+// -v). A multi-letter single-dash option without a value counts as a word
+// option only when the same line also lists a single letter alone ("[-e]"),
+// which a clustering tool would have merged; otherwise it may be a cluster
+// (see usageClusterFlags).
 func usageLineFlags(line string) []models.Flag {
 	ms := usageOptionRe.FindAllStringSubmatch(line, -1)
 	lonePerLetter := false
 	for _, m := range ms {
 		lonePerLetter = lonePerLetter || (len(m[1]) == 2 && m[2] == "")
+	}
+	for _, alt := range usageAltRe.FindAllStringSubmatch(line, -1) {
+		for _, part := range strings.Split(alt[1], "|") {
+			if m := usageAltPartRe.FindStringSubmatch(strings.TrimSpace(part)); m != nil {
+				ms = append(ms, m)
+			}
+		}
 	}
 	var flags []models.Flag
 	for _, m := range ms {
@@ -233,7 +276,48 @@ func usageLineFlags(line string) []models.Flag {
 			flags = append(flags, f)
 		}
 	}
+	if !lonePerLetter {
+		flags = append(flags, usageClusterFlags(line)...)
+	}
 	return flags
+}
+
+// usageClusterFlags expands the letter clusters of a usage line whose tool
+// clusters: a bracket holds a character no word option has (an uppercase
+// letter, digit or symbol: "[-EXdsx]", "[-46AaC]"), which also vouches for
+// the line's lowercase clusters ("[-pv]"). A run that repeats a character is
+// a word ("[-Olevel]" is GNU find's -O with a value), never a cluster.
+func usageClusterFlags(line string) []models.Flag {
+	var clusters []string
+	proven := false
+	for _, m := range usageClusterRe.FindAllStringSubmatch(line, -1) {
+		if hasRepeatedRune(m[1]) {
+			continue
+		}
+		clusters = append(clusters, m[1])
+		proven = proven || strings.IndexFunc(m[1], func(r rune) bool { return r < 'a' || r > 'z' }) >= 0
+	}
+	if !proven {
+		return nil
+	}
+	var flags []models.Flag
+	for _, c := range clusters {
+		for _, r := range c {
+			flags = append(flags, models.Flag{Name: "-" + string(r), ShortName: string(r), ValueType: "bool"})
+		}
+	}
+	return flags
+}
+
+func hasRepeatedRune(s string) bool {
+	seen := map[rune]bool{}
+	for _, r := range s {
+		if seen[r] {
+			return true
+		}
+		seen[r] = true
+	}
+	return false
 }
 
 // usageOptionFlag turns one bracketed usage option into a flag, or reports
