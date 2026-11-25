@@ -16,9 +16,77 @@ linters:
     - errname
     - gocritic
     - nolintlint   # every //nolint must still be needed
-  disable:
-    - depguard
+    - depguard     # package import layering (#476); tested by scripts/dev/layering_test.sh
   settings:
+    # Layers, lowest first; a package imports only from layers below it:
+    #   models, config, history, savedpresets   (leaves)
+    #   discovery, fuzzy, render
+    #   presets, overrides, cache
+    #   mcp, tui
+    #   cmd
+    # Only cmd and the tools/ binaries import tui; only main imports cmd.
+    depguard:
+      rules:
+        leaves:
+          files:
+            - "**/cli/treemand/models/**"
+            - "**/cli/treemand/config/**"
+            - "**/cli/treemand/history/**"
+            - "**/cli/treemand/savedpresets/**"
+          deny:
+            - {pkg: github.com/aallbrig/treemand/discovery, desc: "leaf packages import nothing above them"}
+            - {pkg: github.com/aallbrig/treemand/fuzzy, desc: "leaf packages import nothing above them"}
+            - {pkg: github.com/aallbrig/treemand/render, desc: "leaf packages import nothing above them"}
+            - {pkg: github.com/aallbrig/treemand/presets, desc: "leaf packages import nothing above them"}
+            - {pkg: github.com/aallbrig/treemand/overrides, desc: "leaf packages import nothing above them"}
+            - {pkg: github.com/aallbrig/treemand/cache, desc: "leaf packages import nothing above them"}
+            - {pkg: github.com/aallbrig/treemand/mcp, desc: "leaf packages import nothing above them"}
+        discovery:
+          files:
+            - "**/cli/treemand/discovery/**"
+          # The one exemption: discovery imports presets in the help-attempt
+          # chain. TODO(#481): the probe runner removes that import; then add
+          # presets to this list.
+          deny:
+            - {pkg: github.com/aallbrig/treemand/overrides, desc: "discovery imports nothing above it"}
+            - {pkg: github.com/aallbrig/treemand/cache, desc: "discovery imports nothing above it"}
+            - {pkg: github.com/aallbrig/treemand/mcp, desc: "discovery imports nothing above it"}
+        middle:
+          files:
+            - "**/cli/treemand/fuzzy/**"
+            - "**/cli/treemand/render/**"
+          deny:
+            - {pkg: github.com/aallbrig/treemand/presets, desc: "fuzzy and render import nothing above them"}
+            - {pkg: github.com/aallbrig/treemand/overrides, desc: "fuzzy and render import nothing above them"}
+            - {pkg: github.com/aallbrig/treemand/cache, desc: "fuzzy and render import nothing above them"}
+            - {pkg: github.com/aallbrig/treemand/mcp, desc: "fuzzy and render import nothing above them"}
+        stores:
+          files:
+            - "**/cli/treemand/presets/**"
+            - "**/cli/treemand/overrides/**"
+            - "**/cli/treemand/cache/**"
+          deny:
+            - {pkg: github.com/aallbrig/treemand/mcp, desc: "presets, overrides and cache stay below the front ends"}
+        tui:
+          files:
+            - "**/cli/treemand/tui/**"
+          deny:
+            - {pkg: github.com/aallbrig/treemand/mcp, desc: "tui and mcp are separate front ends"}
+        not-tui:
+          files:
+            - "$all"
+            - "!**/cli/treemand/tui/**"
+            - "!**/cli/treemand/cmd/**"
+            - "!**/cli/treemand/tools/**"
+          deny:
+            - {pkg: github.com/aallbrig/treemand/tui, desc: "only cmd and the tools/ binaries import tui"}
+        not-cmd:
+          files:
+            - "$all"
+            - "!**/cli/treemand/cmd/**"
+            - "!**/cli/treemand/main.go"
+          deny:
+            - {pkg: github.com/aallbrig/treemand/cmd, desc: "only main imports cmd"}
     gocritic:
       disabled-checks:
         - ifElseChain # style only

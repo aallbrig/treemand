@@ -47,6 +47,12 @@ tasks:
     cmds:
       - golangci-lint run {{.GO_PKGS}}
 
+  lint:layering:test:
+    desc: Test the depguard import layering in .golangci.yml - the tree passes and each planted upward import fails
+    cmds:
+      - shellcheck --shell=sh scripts/dev/layering_test.sh
+      - dash scripts/dev/layering_test.sh
+
   lint-fix:
     desc: Run golangci-lint with auto-fix enabled
     cmds:
@@ -293,6 +299,7 @@ tasks:
       - task: fmt
       - task: vet
       - task: lint
+      - task: lint:layering:test
       - task: vuln
 
   fix:
