@@ -172,6 +172,12 @@ echo '       fakebsd [-H | -L | -P] [-EXdsx] -f path [path ...] [expression]' >&
 exit 1
 `,
 
+	// BSD ls (#275): rejects --help with a getopt_long error, then a usage
+	// synopsis, to stderr. The error line is not the description.
+	"fakebsdls": "echo \"fakebsdls: unrecognized option \\`--help'\" >&2\n" +
+		"echo 'usage: fakebsdls [-@ABCFGHILOPRSTUWXabcdefghiklmnopqrstuvwxy1%,] [--color=when] [-D format] [file ...]' >&2\n" +
+		"exit 1\n",
+
 	// apt (#65): no help lists an option. Its commands print the general
 	// help of the tool they forward to, or fail when the Linux Mint wrapper
 	// needs sudo; only the man page names the options (fakeAptMan).
