@@ -25,11 +25,16 @@ trusted_json="$(jq -nc --arg t "$LOOP_TRUSTED_AUTHORS" '$t | split(",") | map(gs
 
 pages() { gh api --paginate --slurp "$1" | jq -c 'add // []'; }
 
-# Trusted "Parked:" comments on issue N.
+# Trusted "Parked:" comments on issue N since the last block (BLOCKED_NOTE), so an
+# issue the maintainer re-scoped and made ready again starts a fresh count.
+BLOCKED_NOTE="The dev loop has parked this issue"
 park_count() {
   pages "repos/{owner}/{repo}/issues/$1/comments?per_page=100" |
-    jq --argjson t "$trusted_json" \
-      '[.[] | select(.user.login as $a | $t | index($a)) | select(.body | test("^\\s*Parked:"))] | length'
+    jq --argjson t "$trusted_json" --arg note "$BLOCKED_NOTE" '
+      [.[] | select(.user.login as $a | $t | index($a)) | .body]
+      | (map(startswith($note)) | rindex(true)) as $last
+      | (if $last == null then . else .[$last + 1:] end)
+      | map(select(test("^\\s*Parked:"))) | length'
 }
 
 list() { # list <label> [any-of-labels]; TSV: number, title, parked (true|false)
@@ -112,8 +117,8 @@ case "${1:-}" in
     fi
     maintainer="$(jq -r '.[0]' <<<"$trusted_json")"
     gh issue edit "$n" --add-label loop:blocked --remove-label loop:ready >/dev/null
-    printf 'The dev loop has parked this issue %s times without finishing it, so it is now `loop:blocked` and the loop will not pick it again. The `Parked:` comments above say what was done and what is left. @%s: re-scope it or split it, then swap `loop:blocked` for `loop:ready`.\n' \
-      "$parks" "$maintainer" | gh issue comment "$n" --body-file - >/dev/null
+    printf '%s %s times without finishing it, so it is now `loop:blocked` and the loop will not pick it again. The `Parked:` comments above say what was done and what is left. @%s: re-scope it or split it, then swap `loop:blocked` for `loop:ready`.\n' \
+      "$BLOCKED_NOTE" "$parks" "$maintainer" | gh issue comment "$n" --body-file - >/dev/null
     python3 -I "$LOOP_ROOT/scripts/loop/state.py" request-escalation \
       "#$n parked $parks times: labelled loop:blocked, needs re-scoping"
     echo "parked #$n ($parks parks): labelled loop:blocked, escalation queued"

@@ -99,5 +99,14 @@ grep -q "parked this issue 3 times" "$tmp/posted" || no "third park did not say 
 jq -e '.pending_escalation | test("#19")' "$root/.loop/state.json" >/dev/null 2>&1 || no "third park queued no escalation"
 echo "$out" | grep -q "loop:blocked" || no "third park did not report the block"
 
+# Re-readied after a block: only parks since the last block comment count.
+{ comment "$me" "Parked: one"; comment "$me" "Parked: two"; comment "$me" "Parked: three"
+  comment "$me" "The dev loop has parked this issue 3 times without finishing it, so ..."
+  comment "$me" "Parked: four"; } | jq -sc '[.]' >"$tmp/comments.19.json"
+: >"$tmp/log"
+out="$(run park 19 "$tmp/note")"
+echo "$out" | grep -q "park 2 of 3" || no "parks before a block still count: '$out'"
+grep -q "loop:blocked" "$tmp/log" && no "a re-readied issue was blocked on its second park"
+
 [ "$fail" = 0 ] && echo "issues_test: ok"
 exit "$fail"
