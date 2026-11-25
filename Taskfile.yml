@@ -252,6 +252,16 @@ tasks:
     cmds:
       - sh scripts/release/snapshot.sh
 
+  gates:baselines:
+    desc: Fail when the branch loosens a ratchet baseline, coverage floor or rules.json budget against origin/main (GATES_LOOSEN=1 or a gates:loosen PR label accepts it)
+    cmds:
+      - python3 -I scripts/metrics/check_baselines.py
+
+  gates:baselines:test:
+    desc: Prove gates:baselines fails each loosening and passes tightening
+    cmds:
+      - dash scripts/metrics/check_baselines_test.sh
+
   gates:test:
     desc: Prove the account-identifier and Project-tag gates fire on fixtures
     cmds:
@@ -588,6 +598,8 @@ tasks:
       - task: py:lint
       - task: py:types
       - task: gates:test
+      - task: gates:baselines:test
+      - task: gates:baselines
       - task: release:test
       - task: measure:test
       - task: measure:gate:test

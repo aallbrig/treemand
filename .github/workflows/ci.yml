@@ -139,6 +139,11 @@ jobs:
 
       - name: task ci
         run: task ci
+        env:
+          # gates:baselines reads this PR's labels live, so a maintainer's
+          # gates:loosen label takes effect on a re-run (#469).
+          GATES_PR: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
 
   measure:
     name: Measurement gate (ratchets)

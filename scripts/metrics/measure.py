@@ -42,7 +42,7 @@ import os
 import platform
 import subprocess
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any, cast
 
@@ -128,21 +128,30 @@ def last_record(probe: str, host_bound_host: str) -> tuple[Latest, Latest, Lates
     path = history_file(probe)
     if not path.exists():
         return {}, {}, {}
+    with path.open() as f:
+        return latest(f, host_bound_host)
+
+
+def latest(lines: Iterable[str], host_bound_host: str) -> tuple[Latest, Latest, Latest]:
+    """Return the latest value of each metric in history lines.
+
+    Three views: from any host, from host_bound_host, and from a calm record
+    of host_bound_host.
+    """
     any_host: Latest = {}
     same_host: Latest = {}
     same_host_calm: Latest = {}
-    with path.open() as f:
-        for line in f:
-            if not line.strip():
-                continue
-            rec = json.loads(line)
-            calm = rec.get("load", 0) <= MAX_LOAD_PER_CPU
-            for k, v in rec["metrics"].items():
-                any_host[k] = (v, rec)
-                if rec.get("host") == host_bound_host:
-                    same_host[k] = (v, rec)
-                    if calm:
-                        same_host_calm[k] = (v, rec)
+    for line in lines:
+        if not line.strip():
+            continue
+        rec = json.loads(line)
+        calm = rec.get("load", 0) <= MAX_LOAD_PER_CPU
+        for k, v in rec["metrics"].items():
+            any_host[k] = (v, rec)
+            if rec.get("host") == host_bound_host:
+                same_host[k] = (v, rec)
+                if calm:
+                    same_host_calm[k] = (v, rec)
     return any_host, same_host, same_host_calm
 
 
