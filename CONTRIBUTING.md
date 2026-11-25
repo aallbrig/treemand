@@ -34,12 +34,22 @@ when to use each.
 `setup.sh --install` (or `task hooks`) installs:
 
 - `pre-commit`: the [pre-commit](https://pre-commit.com) framework
-  (`.pre-commit-config.yaml`: gitleaks, tmuxinator schema, shellcheck), which
-  first runs `pre-commit.legacy`.
-- `pre-commit.legacy`: `task precommit` (gitleaks on staged changes, lint, tests).
-- `pre-push`: `task measure:gate` (the ratchets CI's measurement gate runs:
-  complexity, parser, TUI layout, keymap and contrast, shell portability) before
-  every push, and `task precommit` too before a push to `main` or `develop`.
+  (`.pre-commit-config.yaml`: tmuxinator schema), which first runs
+  `pre-commit.legacy`.
+- `pre-commit.legacy`: `task precommit`, scoped to what is staged so it takes
+  seconds: gitleaks always; gofmt, `go vet` and golangci-lint on the packages
+  with staged Go files; shellcheck on staged shell scripts; infra lint only
+  when `infra/` is staged.
+- `commit-msg`: the subject is at most 72 characters with a blank line after
+  it; a commit made from a Claude Code session needs a `Co-Authored-By`
+  trailer.
+- `pre-push`, on every branch: `task measure:gate` (the ratchets CI's
+  measurement gate runs), the tests with coverage floors (`task
+  coverage:check`) and the race tests (`task test-race`). When `task ci`
+  passes on a clean tree it stamps that tree (`scripts/dev/proof.sh`), and
+  pre-push skips the steps already proven for the pushed tree.
+
+A hook fails when `task` is missing, so a missing tool never turns a gate off.
 
 Hooks live in the shared git dir, so every worktree uses them.
 
@@ -55,7 +65,7 @@ task dev:install  # run tests + install binary (recommended)
 task build        # compile local binary only
 task test         # run all tests
 task lint         # run golangci-lint
-task precommit    # full hygiene gate: fmt, vet, lint, vuln, test
+task precommit    # pre-commit gate: gitleaks, lint scoped to staged files
 task fix          # auto-fix formatting and lint issues
 ```
 

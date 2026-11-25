@@ -296,19 +296,14 @@ tasks:
       - task: lint-fix
 
   precommit:
-    desc: Pre-commit gate — secrets, infra lint, fmt check, vet, lint, vuln, tests with coverage floors
+    desc: Pre-commit gate, scoped to what is staged - gitleaks; gofmt, vet and golangci-lint on staged Go packages; shellcheck on staged shell; infra lint when infra/ is staged
     cmds:
-      - task: secrets
-      - task: infra:lint
-      # Check, don't rewrite: a rewrite after staging commits the unformatted
-      # copy and fails CI's fmt:check (#178). Run `task fmt` and re-stage.
-      - task: fmt:check
-      - task: vet
-      - task: lint
-      - task: vuln
-      # Runs every test once, with coverage, and fails below a package's floor:
-      # the floor failures CI used to find after the push are caught here.
-      - task: coverage:check
+      - sh scripts/dev/precommit.sh
+
+  prepush:
+    desc: "Pre-push gate (every branch): measure:gate, coverage:check and test-race, skipping steps task ci proved for the pushed tree; reads git's pre-push lines on stdin"
+    cmds:
+      - sh scripts/dev/prepush.sh
 
   dev:install:
     desc: Fast edit loop — test then install the binary
@@ -637,6 +632,9 @@ tasks:
       - task: measure:gate
       - task: chaos
       - task: loop:test-session
+      # Last: reached only when every step above passed. pre-push skips these
+      # steps for this exact tree (scripts/dev/proof.sh).
+      - sh scripts/dev/proof.sh stamp coverage:check measure:gate test-race
 
   fmt:check:
     desc: Fail if any Go file needs formatting
@@ -740,7 +738,7 @@ tasks:
   # ── hooks ────────────────────────────────────────────────────────────────
 
   hooks:
-    desc: Install the git hooks (pre-commit framework chaining task precommit, and pre-push), then verify them
+    desc: Install the git hooks (pre-commit framework chaining task precommit, commit-msg, pre-push), then verify them
     cmds:
       - sh scripts/dev/hooks.sh install
       - sh scripts/dev/hooks.sh verify

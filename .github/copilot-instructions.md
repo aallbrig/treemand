@@ -19,7 +19,7 @@ Key Taskfile targets (Makefile mirrors these):
 - `task install`    — install to `$GOPATH/bin` without running tests
 - `task test`       — run all tests
 - `task lint`       — run golangci-lint
-- `task precommit`  — full hygiene gate: fmt, vet, lint, vuln, test
+- `task precommit`  — pre-commit gate: gitleaks, lint scoped to staged files
 - `task fix`        — auto-fix formatting and fixable lint issues
 
 ## Repository Layout

@@ -323,7 +323,7 @@ See [`docs/features/config.md`](docs/features/config.md) for full documentation.
 task dev          # run tests + install binary (recommended dev loop)
 task test         # run all tests
 task lint         # run golangci-lint
-task precommit    # full hygiene gate: fmt, vet, lint, vuln, test
+task precommit    # pre-commit gate: gitleaks, lint scoped to staged files
 task fix          # auto-fix formatting and lint issues
 task build        # compile local binary
 ```
@@ -338,9 +338,10 @@ sh scripts/dev/setup.sh            # report missing tools and hook state (change
 sh scripts/dev/setup.sh --install  # install them (brew, apt or dnf) and the git hooks
 ```
 
-The pre-commit hook runs the pre-commit framework and `task precommit` before
-every commit; the pre-push hook runs `task measure:gate` before every push and
-`task precommit` before pushing to `main` or `develop`. See [CONTRIBUTING.md](CONTRIBUTING.md#dev-host-setup-macos-or-linux).
+The pre-commit hook checks what is staged (gitleaks, and lint scoped to the
+staged files) in seconds; the commit-msg hook checks the subject and trailers;
+the pre-push hook runs the ratchets, coverage floors and race tests on every
+branch, skipping what `task ci` already proved for the same tree. See [CONTRIBUTING.md](CONTRIBUTING.md#dev-host-setup-macos-or-linux).
 
 ## License
 
