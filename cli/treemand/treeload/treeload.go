@@ -101,11 +101,10 @@ func (l Loader) Load(ctx context.Context, req Request) (Result, error) {
 		defer entry.c.Close()
 	}
 	if node := entry.get(req); node != nil {
-		save := entry.saver()
 		if !req.Crawl {
-			l.finishPartial(ctx, req, node, save)
+			l.finishPartial(ctx, req, node, entry)
 		}
-		return Result{Tree: node, Save: save, Cached: true, OverrideChanges: applyOverride(req.Override, node)}, nil
+		return Result{Tree: node, Save: entry.saver(req.CacheDir), Cached: true, OverrideChanges: applyOverride(req.Override, node)}, nil
 	}
 
 	// The version string is only shown by `cache list`. Read it while
@@ -128,7 +127,7 @@ func (l Loader) Load(ctx context.Context, req Request) (Result, error) {
 	res.Tree = node
 	res.OverrideChanges = applyOverride(req.Override, node)
 	entry.put(node, versionCh)
-	res.Save = entry.saver()
+	res.Save = entry.saver(req.CacheDir)
 	return res, nil
 }
 
@@ -193,7 +192,7 @@ func seed(ctx context.Context, req Request, node *models.Node) {
 
 // finishPartial completes a cached tree that a TUI session saved mid-crawl,
 // so a caller that does not crawl never gets a partial tree.
-func (l Loader) finishPartial(ctx context.Context, req Request, node *models.Node, save func(*models.Node) error) {
+func (l Loader) finishPartial(ctx context.Context, req Request, node *models.Node, e *entry) {
 	depth := CrawlDepth(req.Depth)
 	if len(discovery.PendingStubs(node, depth, req.StubThreshold)) == 0 {
 		return
@@ -201,7 +200,7 @@ func (l Loader) finishPartial(ctx context.Context, req Request, node *models.Nod
 	progress(req, "discovering "+req.CLI+"…", func() {
 		discovery.CompletePending(ctx, node, req.CLI, depth, req.StubThreshold, discovery.DefaultMaxConcurrentHelp())
 	})
-	if err := save(node); err != nil {
+	if err := SaveTo(e.c, e.key, e.cli, e.strategy)(node); err != nil {
 		log.Warn().Err(err).Msg("cache write failed")
 	}
 }
@@ -289,12 +288,21 @@ func (e *entry) get(req Request) *models.Node {
 }
 
 // saver returns the hook that writes a grown tree back to the entry, or nil
-// without a cache.
-func (e *entry) saver() func(*models.Node) error {
+// without a cache. The hook outlives Load (the TUI saves when it exits), so
+// it opens the cache in dir itself.
+func (e *entry) saver(dir string) func(*models.Node) error {
 	if e == nil {
 		return nil
 	}
-	return SaveTo(e.c, e.key, e.cli, e.strategy)
+	key, cli, strategy := e.key, e.cli, e.strategy
+	return func(root *models.Node) error {
+		c, err := cache.Open(dir)
+		if err != nil {
+			return err
+		}
+		defer c.Close()
+		return SaveTo(c, key, cli, strategy)(root)
+	}
 }
 
 // SaveTo returns the hook that writes a grown tree back to the cache:

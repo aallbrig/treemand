@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/aallbrig/treemand/discovery"
+	"github.com/aallbrig/treemand/treeload"
 )
 
 // cfgStdin is --stdin: read the root's help text from stdin instead of
@@ -56,9 +57,11 @@ func runFromStdin(cmd *cobra.Command, cliName string) error {
 	if err != nil {
 		return err
 	}
-	node := discovery.FromHelpText(cliName, text)
-	applyOverride(ov, node)
-	return output(cmd, node, configFromFlags(), nil, ov)
+	res, err := treeload.Load(cmd.Context(), treeload.Request{CLI: cliName, HelpText: text, Override: ov, Cache: treeload.Bypass})
+	if err != nil {
+		return err
+	}
+	return output(cmd, res.Tree, configFromFlags(), nil, ov)
 }
 
 // isTerminal reports whether f is a character device such as a terminal.

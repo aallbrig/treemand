@@ -20,6 +20,7 @@ import (
 	"github.com/aallbrig/treemand/overrides"
 	"github.com/aallbrig/treemand/presets"
 	"github.com/aallbrig/treemand/render"
+	"github.com/aallbrig/treemand/treeload"
 	"github.com/aallbrig/treemand/tui"
 )
 
@@ -104,28 +105,7 @@ Docs: https://treemand.dev`,
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file (default: ~/.config/treemand/config.yaml)")
-	rootCmd.PersistentFlags().BoolVarP(&cfgInteractive, "interactive", "i", false, "Launch interactive TUI")
-	rootCmd.PersistentFlags().StringVarP(&cfgStrategy, "strategy", "s", "help", "Discovery strategies (comma-separated: help,completions,man,scripts)")
-	rootCmd.PersistentFlags().IntVar(&cfgDepth, "depth", 3, "Max tree depth (default 3; -1 = unlimited)")
-	rootCmd.PersistentFlags().StringVar(&cfgFilter, "filter", "", "Only show nodes matching pattern")
-	rootCmd.PersistentFlags().StringVar(&cfgExclude, "exclude", "", "Exclude nodes matching pattern")
-	rootCmd.PersistentFlags().BoolVar(&cfgCommandsOnly, "commands-only", false, "Hide flags and positionals")
-	rootCmd.PersistentFlags().BoolVar(&cfgFullPath, "full-path", false, "Show full command paths")
-	rootCmd.PersistentFlags().StringVar(&cfgOutput, "output", "text", "Output format: text, json, yaml, html")
-	rootCmd.PersistentFlags().BoolVar(&cfgNoColor, "no-color", false, "Disable color output")
-	rootCmd.PersistentFlags().BoolVar(&cfgNoCache, "no-cache", false, "Disable caching")
-	rootCmd.Flags().BoolVar(&cfgRefresh, "refresh", false, "Re-discover the CLI even if it is cached, and update the cache")
-	rootCmd.Flags().BoolVar(&cfgStdin, "stdin", false, "Read the CLI's help text from stdin instead of running it (subcommands stay undiscovered)")
-	rootCmd.Flags().StringVar(&cfgPreset, "preset", "", "Open the TUI with this saved preset loaded (see treemand presets)")
-	rootCmd.PersistentFlags().IntVar(&cfgJobs, "jobs", 0, "Max concurrent help processes during discovery (0 = auto: 2 x CPUs, between 4 and 16)")
-	rootCmd.PersistentFlags().IntVar(&cfgExpandStubs, "expand-stubs", 0, "Expand undiscovered (stub, marked (…)) nodes N levels deep before output: gets their descriptions and children (slow on huge CLIs; disables cache)")
-	rootCmd.PersistentFlags().IntVar(&cfgTimeout, "timeout", 30, "Discovery timeout in seconds (0 = no limit; each help command still has its own limit)")
-	rootCmd.PersistentFlags().BoolVar(&cfgDebug, "debug", false, "Enable debug logging")
-	rootCmd.PersistentFlags().StringVar(&cfgIcons, "icons", "", "Icon preset: unicode (default), ascii, nerd")
-	rootCmd.PersistentFlags().IntVar(&cfgLineLength, "line-length", 0, "Max description chars before truncation (default 80)")
-	rootCmd.PersistentFlags().IntVar(&cfgStubThreshold, "stub-threshold", 0, "Max eager children before creating stubs (default 150)")
-	rootCmd.PersistentFlags().StringVar(&cfgTreeStyle, "tree-style", "default", "TUI tree presentation style: default, columns, compact, graph")
+	defineRootFlags(rootCmd)
 
 	_ = viper.BindPFlag("icons", rootCmd.PersistentFlags().Lookup("icons"))
 	_ = viper.BindPFlag("desc_line_length", rootCmd.PersistentFlags().Lookup("line-length"))
@@ -135,6 +115,33 @@ func init() {
 	_ = viper.BindPFlag("depth", rootCmd.PersistentFlags().Lookup("depth"))
 	_ = viper.BindPFlag("strategies", rootCmd.PersistentFlags().Lookup("strategy"))
 	_ = viper.BindPFlag("no_cache", rootCmd.PersistentFlags().Lookup("no-cache"))
+}
+
+// defineRootFlags defines the root command's flags on c. Production and the
+// test command factory share it, so their defaults cannot drift.
+func defineRootFlags(c *cobra.Command) {
+	c.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file (default: ~/.config/treemand/config.yaml)")
+	c.PersistentFlags().BoolVarP(&cfgInteractive, "interactive", "i", false, "Launch interactive TUI")
+	c.PersistentFlags().StringVarP(&cfgStrategy, "strategy", "s", "help", "Discovery strategies (comma-separated: help,completions,man,scripts)")
+	c.PersistentFlags().IntVar(&cfgDepth, "depth", 3, "Max tree depth (default 3; -1 = unlimited)")
+	c.PersistentFlags().StringVar(&cfgFilter, "filter", "", "Only show nodes matching pattern")
+	c.PersistentFlags().StringVar(&cfgExclude, "exclude", "", "Exclude nodes matching pattern")
+	c.PersistentFlags().BoolVar(&cfgCommandsOnly, "commands-only", false, "Hide flags and positionals")
+	c.PersistentFlags().BoolVar(&cfgFullPath, "full-path", false, "Show full command paths")
+	c.PersistentFlags().StringVar(&cfgOutput, "output", "text", "Output format: text, json, yaml, html")
+	c.PersistentFlags().BoolVar(&cfgNoColor, "no-color", false, "Disable color output")
+	c.PersistentFlags().BoolVar(&cfgNoCache, "no-cache", false, "Disable caching")
+	c.Flags().BoolVar(&cfgRefresh, "refresh", false, "Re-discover the CLI even if it is cached, and update the cache")
+	c.Flags().BoolVar(&cfgStdin, "stdin", false, "Read the CLI's help text from stdin instead of running it (subcommands stay undiscovered)")
+	c.Flags().StringVar(&cfgPreset, "preset", "", "Open the TUI with this saved preset loaded (see treemand presets)")
+	c.PersistentFlags().IntVar(&cfgJobs, "jobs", 0, "Max concurrent help processes during discovery (0 = auto: 2 x CPUs, between 4 and 16)")
+	c.PersistentFlags().IntVar(&cfgExpandStubs, "expand-stubs", 0, "Expand undiscovered (stub, marked (…)) nodes N levels deep before output: gets their descriptions and children (slow on huge CLIs; disables cache)")
+	c.PersistentFlags().IntVar(&cfgTimeout, "timeout", 30, "Discovery timeout in seconds (0 = no limit; each help command still has its own limit)")
+	c.PersistentFlags().BoolVar(&cfgDebug, "debug", false, "Enable debug logging")
+	c.PersistentFlags().StringVar(&cfgIcons, "icons", "", "Icon preset: unicode (default), ascii, nerd")
+	c.PersistentFlags().IntVar(&cfgLineLength, "line-length", 0, "Max description chars before truncation (default 80)")
+	c.PersistentFlags().IntVar(&cfgStubThreshold, "stub-threshold", 0, "Max eager children before creating stubs (default 150)")
+	c.PersistentFlags().StringVar(&cfgTreeStyle, "tree-style", "default", "TUI tree presentation style: default, columns, compact, graph")
 }
 
 func initConfig() {
@@ -168,53 +175,63 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	}
 
 	cfg := configFromFlags()
-	strategies := config.ParseStrategies(cfgStrategy)
-	preset, hasPreset := presets.Lookup(cliName)
-	if !hasPreset {
-		preset = nil
-	}
-	applyPresetDepth(cmd, cfg, preset)
-	ov, err := loadOverride(cliName)
+	req, err := loadRequest(cmd, cliName, cfg)
 	if err != nil {
 		return err
 	}
-
 	ctx, cancel := discoveryContext(cfgTimeout)
 	defer cancel()
-
-	rc := openRunCache(cfg, cliName, strategies, cacheKeyExtra(cfg, preset)+overrideKey(ov))
-	if rc != nil {
-		defer rc.c.Close()
-	}
-	if node := rc.cached(cfg); node != nil {
-		save := rc.saver()
-		if !cfgInteractive {
-			finishPartialTree(ctx, node, cliName, cfg, save)
-		}
-		applyOverride(ov, node)
-		return output(cmd, node, cfg, save, ov)
-	}
-
-	// The version string is only shown by `cache list`. Read it while discovery
-	// runs so a slow --version (aws, pip) adds nothing to a cold run.
-	versionCh := rc.readVersion()
-
-	node, err := discover(ctx, cliName, cfg, strategies)
+	res, err := treeload.Load(ctx, req)
 	if err != nil {
 		return err
 	}
-	if preset != nil && preset.Seed != nil {
-		seedFromPreset(ctx, node, cliName, preset)
-	}
-	if cfgExpandStubs > 0 {
-		withSpinner("expanding stubs…", func() {
-			discovery.ExpandStubs(ctx, node, cliName, cfgExpandStubs, 16, 30*time.Second, nil)
-		})
-	}
-	applyOverride(ov, node)
+	return output(cmd, res.Tree, cfg, res.Save, req.Override)
+}
 
-	rc.put(node, versionCh)
-	return output(cmd, node, cfg, rc.saver(), ov)
+// loadRequest reads the run's flags into a tree load request for cliName:
+// its strategies, preset (whose depth applies unless --depth was given),
+// override and cache policy.
+func loadRequest(cmd *cobra.Command, cliName string, cfg *config.Config) (treeload.Request, error) {
+	ov, err := loadOverride(cliName)
+	if err != nil {
+		return treeload.Request{}, err
+	}
+	preset := lookupPreset(cliName)
+	applyPresetDepth(cmd, cfg, preset)
+	req := treeload.Request{
+		CLI:           cliName,
+		Depth:         cfg.Depth,
+		StubThreshold: cfg.StubThreshold,
+		Strategies:    config.ParseStrategies(cfgStrategy),
+		Preset:        preset,
+		Override:      ov,
+		Cache:         cachePolicy(cfg.NoCache, cfgRefresh),
+		CacheDir:      cfg.CacheDir,
+		CacheTTL:      cfg.CacheTTL,
+		Crawl:         cfgInteractive,
+		ExpandStubs:   cfgExpandStubs,
+		Progress:      withSpinner,
+	}
+	return req, nil
+}
+
+// lookupPreset is the built-in preset for cliName, or nil.
+func lookupPreset(cliName string) *presets.Preset {
+	if p, ok := presets.Lookup(cliName); ok {
+		return p
+	}
+	return nil
+}
+
+// cachePolicy is the cache policy for --no-cache and --refresh.
+func cachePolicy(noCache, refresh bool) treeload.CachePolicy {
+	switch {
+	case noCache:
+		return treeload.Bypass
+	case refresh:
+		return treeload.Refresh
+	}
+	return treeload.UseCache
 }
 
 // checkAvailable reports a CLI treemand must not or cannot run. A missing
@@ -298,153 +315,7 @@ func configFromFlags() *config.Config {
 func applyPresetDepth(cmd *cobra.Command, cfg *config.Config, preset *presets.Preset) {
 	if preset != nil && preset.Depth != 0 && !cmd.Flags().Changed("depth") {
 		cfg.Depth = preset.Depth
-		cfgDepth = preset.Depth
 	}
-}
-
-// cacheKeyExtra is the part of the cache key that depends on how the tree
-// was discovered: depth, stub threshold and preset (nil without one).
-func cacheKeyExtra(cfg *config.Config, preset *presets.Preset) string {
-	extra := fmt.Sprintf("d=%d,t=%d", cfg.Depth, cfg.StubThreshold)
-	if preset != nil {
-		extra += ",p=" + preset.Name
-	}
-	return extra
-}
-
-// runCache is the cache entry one run reads and writes. A nil *runCache
-// means the run has no cache (--no-cache, or the cache failed to open), and
-// every method is then a no-op.
-type runCache struct {
-	c        *cache.Cache
-	key      string
-	cliName  string
-	strategy string
-}
-
-// openRunCache opens the cache and computes this run's key, or returns nil
-// when caching is off or the cache cannot be opened.
-func openRunCache(cfg *config.Config, cliName string, strategies []string, extra string) *runCache {
-	if cfg.NoCache {
-		return nil
-	}
-	c, err := cache.Open(cfg.CacheDir)
-	if err != nil {
-		log.Warn().Err(err).Msg("could not open cache, running without")
-		return nil
-	}
-	// Key on the binary on disk, not on its --version output: starting
-	// aws or pip just to read a version costs seconds on every cache
-	// hit, and a CLI with no --version would never be invalidated.
-	ver := cache.BinaryFingerprint(discovery.ResolveBinary(cliName))
-	if ver == "" {
-		ver = cache.CLIVersion(cliName)
-	}
-	return &runCache{c: c, key: cache.KeyWith(cliName, ver, strategies, extra), cliName: cliName, strategy: cfgStrategy}
-}
-
-// cached returns the cached tree, or nil on a miss or with --refresh.
-func (rc *runCache) cached(cfg *config.Config) *models.Node {
-	if rc == nil {
-		return nil
-	}
-	if cfgRefresh {
-		log.Debug().Str("cli", rc.cliName).Msg("cache bypassed by --refresh")
-		return nil
-	}
-	node, err := rc.c.Get(rc.key, cfg.CacheTTL)
-	if err != nil || node == nil {
-		return nil
-	}
-	log.Debug().Str("cli", rc.cliName).Msg("cache hit")
-	return node
-}
-
-// saver returns the hook that writes a grown tree back to the cache, or nil
-// without a cache.
-func (rc *runCache) saver() func(*models.Node) error {
-	if rc == nil {
-		return nil
-	}
-	return saveExpansions(rc.c, rc.key, rc.cliName, rc.strategy)
-}
-
-// readVersion starts reading the CLI's --version in the background, or
-// returns nil without a cache.
-func (rc *runCache) readVersion() chan string {
-	if rc == nil {
-		return nil
-	}
-	ch := make(chan string, 1)
-	go func() { ch <- cache.CLIVersion(rc.cliName) }()
-	return ch
-}
-
-// put stores a freshly discovered tree with the version readVersion read.
-func (rc *runCache) put(node *models.Node, versionCh chan string) {
-	if rc == nil {
-		return
-	}
-	if err := rc.c.Put(rc.key, rc.cliName, <-versionCh, rc.strategy, node); err != nil {
-		log.Warn().Err(err).Msg("cache write failed")
-	}
-}
-
-// finishPartialTree completes a cached tree that a TUI session saved
-// mid-crawl, so non-interactive output is never partial.
-func finishPartialTree(ctx context.Context, node *models.Node, cliName string, cfg *config.Config, save func(*models.Node) error) {
-	if len(discovery.PendingStubs(node, crawlDepth(cfg), cfg.StubThreshold)) == 0 {
-		return
-	}
-	withSpinner("discovering "+cliName+"…", func() {
-		discovery.CompletePending(ctx, node, cliName, crawlDepth(cfg), cfg.StubThreshold, discovery.DefaultMaxConcurrentHelp())
-	})
-	if err := save(node); err != nil {
-		log.Warn().Err(err).Msg("cache write failed")
-	}
-}
-
-// discover runs the configured strategies on cliName. An interactive help
-// run asks only the root; the TUI discovers the rest in the background.
-func discover(ctx context.Context, cliName string, cfg *config.Config, strategies []string) (*models.Node, error) {
-	var discoverers []discovery.Discoverer
-	if streamsDiscovery(strategies) {
-		// The TUI opens as soon as the root is read and discovers the rest
-		// in the background (EnableCrawl), so only the root is asked here.
-		d := discovery.NewHelpDiscoverer(1)
-		d.ChildrenAsStubs = true
-		d.StubThreshold = cfg.StubThreshold
-		discoverers = []discovery.Discoverer{d}
-	} else {
-		// -1 means unlimited; crawlDepth caps it at 99 to prevent infinite loops.
-		discoverers = discovery.BuildDiscoverersWithThreshold(strategies, crawlDepth(cfg), cfg.StubThreshold)
-	}
-	var (
-		node *models.Node
-		err  error
-	)
-	withSpinner("discovering "+cliName+"…", func() {
-		node, err = discovery.Run(ctx, discoverers, cliName)
-	})
-	if err != nil {
-		return nil, fmt.Errorf("discovery failed: %w", err)
-	}
-	if node == nil {
-		return nil, fmt.Errorf("no results from discovery for %q", cliName)
-	}
-	return node, nil
-}
-
-// seedFromPreset grafts the preset's own map of the CLI onto the tree.
-func seedFromPreset(ctx context.Context, node *models.Node, cliName string, preset *presets.Preset) {
-	withSpinner("mapping "+cliName+"…", func() {
-		seed, err := preset.Seed(ctx, cliName)
-		if err != nil {
-			log.Warn().Err(err).Str("preset", preset.Name).Msg("preset seed failed")
-			return
-		}
-		presets.Graft(node, seed)
-	})
 }
 
 // withSpinner shows msg on stderr while fn runs.
@@ -455,40 +326,11 @@ func withSpinner(msg string, fn func()) {
 	spin.Stop()
 }
 
-// streamsDiscovery reports whether this run opens the TUI on the root alone
-// and discovers the rest in the background. Merged strategies and
-// --expand-stubs exports still discover everything up front.
-func streamsDiscovery(strategies []string) bool {
-	return cfgInteractive && cfgExpandStubs == 0 && len(strategies) == 1 && strategies[0] == "help"
-}
-
-// crawlDepth is the depth a background crawl or completion stops at, matching
-// what an up-front discovery would have reached.
-func crawlDepth(cfg *config.Config) int {
-	if cfg.Depth < 0 {
-		return 99
-	}
-	return cfg.Depth
-}
-
-// saveExpansions returns the hook that writes a grown tree back to the cache:
-// commands discovered in the TUI (background crawl, stubs expanded on demand,
-// indexing) are kept, so the next run starts with them.
-func saveExpansions(c *cache.Cache, key, cliName, strategy string) func(*models.Node) error {
-	return func(root *models.Node) error {
-		ok, err := c.UpdateTree(key, root)
-		if err == nil && !ok {
-			err = c.Put(key, cliName, "", strategy, root)
-		}
-		return err
-	}
-}
-
 func output(cmd *cobra.Command, node *models.Node, cfg *config.Config, save func(*models.Node) error, ov *overrides.Override) error {
 	if cfgInteractive {
 		var crawl *tui.CrawlOptions
 		if !tui.Offline {
-			crawl = &tui.CrawlOptions{MaxDepth: crawlDepth(cfg), StubThreshold: cfg.StubThreshold}
+			crawl = &tui.CrawlOptions{MaxDepth: treeload.CrawlDepth(cfg.Depth), StubThreshold: cfg.StubThreshold}
 		}
 		return tui.RunWithOptions(node, cfg, tui.RunOptions{
 			Save: save, Crawl: crawl, History: historyStore(cfg, node.Name),
@@ -497,7 +339,7 @@ func output(cmd *cobra.Command, node *models.Node, cfg *config.Config, save func
 		})
 	}
 	opts := render.Options{
-		MaxDepth:       cfgDepth,
+		MaxDepth:       cfg.Depth,
 		Filter:         cfgFilter,
 		Exclude:        cfgExclude,
 		CommandsOnly:   cfgCommandsOnly,
@@ -580,28 +422,7 @@ func NewRootCmd() *cobra.Command {
 		RunE:          runRoot,
 	}
 	c.SetFlagErrorFunc(flagError)
-	c.PersistentFlags().StringVar(&cfgFile, "config", "", "Config file")
-	c.PersistentFlags().BoolVarP(&cfgInteractive, "interactive", "i", false, "Launch interactive TUI")
-	c.PersistentFlags().StringVarP(&cfgStrategy, "strategy", "s", "help", "Discovery strategies")
-	c.PersistentFlags().IntVar(&cfgDepth, "depth", 3, "Max tree depth (default 3; -1 = unlimited)")
-	c.PersistentFlags().StringVar(&cfgFilter, "filter", "", "Filter pattern")
-	c.PersistentFlags().StringVar(&cfgExclude, "exclude", "", "Exclude pattern")
-	c.PersistentFlags().BoolVar(&cfgCommandsOnly, "commands-only", false, "Hide flags/positionals")
-	c.PersistentFlags().BoolVar(&cfgFullPath, "full-path", false, "Full command paths")
-	c.PersistentFlags().StringVar(&cfgOutput, "output", "text", "Output format")
-	c.PersistentFlags().BoolVar(&cfgNoColor, "no-color", false, "Disable color")
-	c.PersistentFlags().BoolVar(&cfgNoCache, "no-cache", false, "Disable cache")
-	c.PersistentFlags().IntVar(&cfgTimeout, "timeout", 5, "Discovery timeout in seconds (0 = no limit)")
-	c.PersistentFlags().BoolVar(&cfgDebug, "debug", false, "Debug logging")
-	c.PersistentFlags().StringVar(&cfgIcons, "icons", "", "Icon preset")
-	c.PersistentFlags().IntVar(&cfgLineLength, "line-length", 0, "Max description line length")
-	c.PersistentFlags().IntVar(&cfgStubThreshold, "stub-threshold", 0, "Stub threshold")
-	c.PersistentFlags().IntVar(&cfgJobs, "jobs", 0, "Max concurrent help processes")
-	c.PersistentFlags().IntVar(&cfgExpandStubs, "expand-stubs", 0, "Expand undiscovered (stub) nodes N levels deep before output")
-	c.Flags().BoolVar(&cfgRefresh, "refresh", false, "Re-discover even if cached")
-	c.Flags().BoolVar(&cfgStdin, "stdin", false, "Read the CLI's help text from stdin")
-	c.Flags().StringVar(&cfgPreset, "preset", "", "Open the TUI with this saved preset loaded")
-	c.PersistentFlags().StringVar(&cfgTreeStyle, "tree-style", "default", "TUI tree style")
+	defineRootFlags(c)
 	c.AddCommand(versionCmd)
 	c.AddCommand(schemaCmd)
 	c.AddCommand(mcpCmd)

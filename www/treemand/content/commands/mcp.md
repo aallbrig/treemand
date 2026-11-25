@@ -37,6 +37,8 @@ The command tree as JSON, following the schema `treemand schema` prints.
 - `cli`: a command on `PATH`, such as `git`
 - `depth`: levels of subcommands, 1 to 5 (default 2)
 - `include_help`: keep each command's raw help text (default false)
+- `refresh`: discover the CLI again even if its tree is cached, and update the
+  cache, like `treemand --refresh` (default false)
 
 ### `search` {#tool-search}
 

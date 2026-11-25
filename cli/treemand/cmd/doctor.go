@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"cmp"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,11 +14,9 @@ import (
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v3"
 
-	"github.com/aallbrig/treemand/config"
 	"github.com/aallbrig/treemand/discovery"
 	"github.com/aallbrig/treemand/models"
-	"github.com/aallbrig/treemand/overrides"
-	"github.com/aallbrig/treemand/presets"
+	"github.com/aallbrig/treemand/treeload"
 )
 
 var doctorCmd = &cobra.Command{
@@ -101,69 +98,51 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	cfg := configFromFlags()
-	preset, _ := presets.Lookup(cliName)
-	applyPresetDepth(cmd, cfg, preset)
-	ov, err := loadOverride(cliName)
+	req, err := loadRequest(cmd, cliName, cfg)
 	if err != nil {
 		return err
 	}
-
-	rep := diagnose(cliName, cfg, config.ParseStrategies(cfgStrategy), preset, ov)
+	// A doctor run diagnoses discovery itself: the cache is neither read
+	// nor written, and the tree is discovered up front.
+	req.Cache, req.Crawl, req.ExpandStubs = treeload.Bypass, false, 0
+	rep := diagnose(req)
 	return writeDoctorReport(cmd.OutOrStdout(), rep, cfgOutput)
 }
 
-// diagnose discovers cliName with every probe recorded and builds the report.
-func diagnose(cliName string, cfg *config.Config, strategies []string, preset *presets.Preset, ov *overrides.Override) doctorReport {
+// diagnose loads req's tree with every probe recorded and builds the report.
+func diagnose(req treeload.Request) doctorReport {
 	ctx, cancel := discoveryContext(cfgTimeout)
 	defer cancel()
 	var probes discovery.ProbeLog
 	ctx = discovery.WithProbeLog(ctx, &probes)
 
-	discoverers := discovery.BuildDiscoverersWithThreshold(strategies, crawlDepth(cfg), cfg.StubThreshold)
 	start := time.Now()
-	var (
-		node *models.Node
-		err  error
-	)
-	withSpinner("diagnosing "+cliName+"…", func() {
-		node, err = discovery.Run(ctx, discoverers, cliName)
-		if err == nil && node != nil && preset != nil && preset.Seed != nil {
-			seedPreset(ctx, node, cliName, preset)
-		}
-	})
-	changes := applyOverride(ov, node)
+	req.Progress = func(_ string, step func()) { withSpinner("diagnosing "+req.CLI+"…", step) }
+	res, err := treeload.Load(ctx, req)
 
 	rep := doctorReport{
-		CLI:             cliName,
+		CLI:             req.CLI,
 		TreemandVersion: Version,
 		Platform:        runtime.GOOS + "/" + runtime.GOARCH,
-		Binary:          homeRelative(discovery.ResolveBinary(cliName)),
-		Strategies:      strategies,
-		HelpForm:        helpFormOf(discoverers),
-		Depth:           cfg.Depth,
+		Binary:          homeRelative(discovery.ResolveBinary(req.CLI)),
+		Strategies:      req.Strategies,
+		HelpForm:        helpFormOf(res.Discoverers),
+		Depth:           req.Depth,
 		ElapsedMS:       time.Since(start).Milliseconds(),
 	}
-	if preset != nil {
-		rep.Preset = preset.Name
+	if req.Preset != nil {
+		rep.Preset = req.Preset.Name
 	}
-	if ov != nil {
-		rep.Override = homeRelative(ov.Path)
-		rep.OverrideChanges = changes
+	if req.Override != nil {
+		rep.Override = homeRelative(req.Override.Path)
+		rep.OverrideChanges = res.OverrideChanges
 	}
 	if err != nil {
 		rep.Error = err.Error()
 	}
-	rep.addTree(node)
+	rep.addTree(res.Tree)
 	rep.addProbes(probes.Records())
 	return rep
-}
-
-// seedPreset grafts the preset's own map of the CLI onto the tree, as a
-// normal run does, so the report describes the tree users see.
-func seedPreset(ctx context.Context, node *models.Node, cliName string, preset *presets.Preset) {
-	if seed, err := preset.Seed(ctx, cliName); err == nil {
-		presets.Graft(node, seed)
-	}
 }
 
 // helpFormOf is the help form the help strategy learned, or "".

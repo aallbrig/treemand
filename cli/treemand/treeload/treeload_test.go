@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/aallbrig/treemand/cache"
 	"github.com/aallbrig/treemand/discovery"
 	"github.com/aallbrig/treemand/models"
 	"github.com/aallbrig/treemand/overrides"
@@ -221,5 +222,42 @@ func TestRootOnly(t *testing.T) {
 	}
 	if treeload.CrawlDepth(-1) != 99 || treeload.CrawlDepth(2) != 2 {
 		t.Error("CrawlDepth: unlimited caps at 99")
+	}
+}
+
+func TestSaveTo_createsTheEntryWhenNoneExists(t *testing.T) {
+	c, err := cache.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	save := treeload.SaveTo(c, "k", "tool", "help")
+	if err := save(&models.Node{Name: "tool"}); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := c.Get("k", 0); err != nil || n == nil || n.Name != "tool" {
+		t.Fatalf("entry not created: %+v %v", n, err)
+	}
+	if err := save(&models.Node{Name: "tool", Children: []*models.Node{{Name: "sub"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if n, _ := c.Get("k", 0); n == nil || len(n.Children) != 1 {
+		t.Fatalf("entry not updated: %+v", n)
+	}
+}
+
+// The TUI saves what it discovered when it exits, long after Load returned.
+func TestLoad_saveWorksAfterLoadReturns(t *testing.T) {
+	h := newHarness(partialTree)
+	req := request(t)
+	req.Crawl = true
+	res := h.load(t, req)
+	res.Tree.Children[0].Stub = false
+	res.Tree.Children[0].Description = "crawled"
+	if err := res.Save(res.Tree); err != nil {
+		t.Fatalf("save after Load: %v", err)
+	}
+	if again := h.load(t, req); again.Tree.Children[0].Description != "crawled" {
+		t.Fatalf("the saved tree was not kept: %+v", again.Tree.Children[0])
 	}
 }

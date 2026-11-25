@@ -46,6 +46,7 @@ var toolList = []map[string]any{
 				"cli":          cliProp,
 				"depth":        map[string]any{"type": "integer", "minimum": 1, "maximum": maxDepth, "description": fmt.Sprintf("Levels of subcommands to discover (default %d).", defaultDepth)},
 				"include_help": map[string]any{"type": "boolean", "description": "Keep each command's raw --help text (large; default false)."},
+				"refresh":      map[string]any{"type": "boolean", "description": "Discover the CLI again even if its tree is cached, and update the cache (default false), like treemand --refresh."},
 			},
 			"required": []string{"cli"},
 		},
@@ -103,12 +104,13 @@ func checkCLI(cli string) error {
 	return nil
 }
 
-// tree validates cli and discovers its tree.
-func (s *Server) tree(ctx context.Context, cli string, depth int) (*models.Node, *toolResult) {
+// tree validates the request's CLI and discovers its tree.
+func (s *Server) tree(ctx context.Context, req TreeRequest) (*models.Node, *toolResult) {
+	cli := req.CLI
 	if err := checkCLI(cli); err != nil {
 		return nil, toolError("%v", err)
 	}
-	root, err := s.Discover(ctx, cli, depth)
+	root, err := s.Discover(ctx, req)
 	if err != nil {
 		return nil, toolError("discovering %s failed: %v", cli, err)
 	}
@@ -130,6 +132,7 @@ func (s *Server) discoverTool(ctx context.Context, args json.RawMessage) *toolRe
 		CLI         string `json:"cli"`
 		Depth       int    `json:"depth"`
 		IncludeHelp bool   `json:"include_help"`
+		Refresh     bool   `json:"refresh"`
 	}
 	if bad := decode(args, &a); bad != nil {
 		return bad
@@ -139,7 +142,7 @@ func (s *Server) discoverTool(ctx context.Context, args json.RawMessage) *toolRe
 		depth = defaultDepth
 	}
 	depth = min(depth, maxDepth)
-	root, bad := s.tree(ctx, a.CLI, depth)
+	root, bad := s.tree(ctx, TreeRequest{CLI: a.CLI, Depth: depth, Refresh: a.Refresh})
 	if bad != nil {
 		return bad
 	}
@@ -180,7 +183,7 @@ func (s *Server) searchTool(ctx context.Context, args json.RawMessage) *toolResu
 		limit = defaultLimit
 	}
 	limit = min(limit, maxLimit)
-	root, bad := s.tree(ctx, a.CLI, searchDepth)
+	root, bad := s.tree(ctx, TreeRequest{CLI: a.CLI, Depth: searchDepth})
 	if bad != nil {
 		return bad
 	}
@@ -218,7 +221,7 @@ func (s *Server) assembleTool(ctx context.Context, args json.RawMessage) *toolRe
 	if bad := decode(args, &a); bad != nil {
 		return bad
 	}
-	root, bad := s.tree(ctx, a.CLI, max(len(a.Path), 1))
+	root, bad := s.tree(ctx, TreeRequest{CLI: a.CLI, Depth: max(len(a.Path), 1)})
 	if bad != nil {
 		return bad
 	}
