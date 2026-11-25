@@ -24,13 +24,11 @@ into the `## Summary` section by the loop.
 - Cycle 45 (#65, v0.11.1): when the help really lists no options (apt), take a root's options from `man`, marked inherited. Test new discovery rules through `ChildrenAsStubs` + `CompletePending` as well as `--output=json`, and check a premise in a `debian:bookworm` container when the CLI is not on this host. The guard blocks any command containing sudo.
 - Cycle 46 (#85, v0.11.2): `--timeout=0` means no overall limit (each help command keeps its own) and a negative value is a usage error; `mcp` uses negative for no limit because its zero is the 30s default. After a `cd` into `cli/treemand`, pass `gh --body-file` an absolute path.
 - Cycle 47 (#82, v0.11.3): clap's version and author lines are not prose, so a description comes from the next prose line. The `parser` probe counts descriptions, not correct ones, so prove a description fix by diffing every corpus root description against main. Put PR bodies under the ignored `.loop/`: the guard blocks Write outside the repo.
+- Cycle 48 (#76): a test binary re-executed as a fake CLI (`TestMain` + an env var) runs on every OS without shell scripts. `task coverage:update-floor` rewrites every package from local numbers, so keep only the issue's own line. A test-only PR carries no release label, so `wait.sh` prints `none`.
 
 ## Recent cycles
 
 <!-- Retro appends below: ### Cycle N — YYYY-MM-DD — outcome — #issue vX.Y.Z -->
-
-### Cycle 48 - 2026-11-22 - merged, no release - #76
-presets coverage went from 76.9% to 100% (floor raised to 100). The stripe seed runs against the test binary re-executed as a fake CLI (`TestMain` + an env var), which works on every OS without shell scripts. `task coverage:update-floor` rewrites every package from local numbers, so keep only the issue's own line: the others (notably cmd) measure lower on CI. A test-only PR carries no release label, so `wait.sh` prints `none` and there is no tag to record.
 
 ### Cycle 49 - 2026-11-22 - merged, no release - #75
 tui coverage went from 82.4% to 88.3% (floor 76 to 88) with internal key-driven tests on `Model`. The PR's Measurement gate counts test functions in the `complexity` ratchet (`functions_over_15`), so run `gocognit -over 15` on new test files before pushing and split long scenario tests. With help-pane focus, `G`, `g`, PgUp/PgDn and Ctrl+D/U are taken by the tree's global keys first, so those `updateHelpPaneKeys` branches never run (noted in #433, not filed).
@@ -107,3 +105,6 @@ A ruleguard rule (`cli/treemand/lintrules`, run by gocritic) flags unit tests th
 
 ### Cycle 78 - 2026-11-25 - released - #480 v0.20.0
 `treeload.Load` is now the one Tree load path for the CLI, TUI, MCP, doctor and `--stdin`; test it with `Loader.NewDiscoverers` and a temp cache dir. A hook that a result hands back (the TUI's `Save`) must not capture a handle that `Load` closes on return: open the cache when the hook runs. `task coverage:update-floor` raises every floor at once, so keep only the new package's line. Untrusted issues: 0.
+
+### Cycle 79 - 2026-11-25 - released - #481 v0.20.1
+Every target-CLI launch goes through `discovery.Runner` (positional gate, slot, timeout, pager env); test the help chain with the in-memory `fakeCLI` (`fake_cli_test.go`), not forked scripts, and set `HelpDiscoverer.Launcher` / `ExpandOptions.Launcher`. A preset hint is now a field callers set (`presets.HelpSubcommand`), so a new caller that builds a discoverer must pass it. New exported plumbing in treeload and presets drops their coverage below the floor: add the unit test before `task ci`. Splitting a file by line range with a go/ast decl lister worked; delete unused imports bottom-up. Untrusted issues: 0.
