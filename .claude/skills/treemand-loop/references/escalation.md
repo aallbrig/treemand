@@ -25,7 +25,8 @@ The maintainer is not a bottleneck. Climb only as far as needed.
    `state.py mark-escalated`. File or update a `loop:blocked` issue with details.
 
 Check at the end of each cycle: `python3 -I scripts/loop/state.py escalation`
-(exit 0 = due). Never notify for parked issues, reverted releases that recovered,
+(exit 0 = due); it is also due after `issues.sh park` blocks an issue on its
+third park. Never notify for a first or second park, reverted releases that recovered,
 or idle cycles.
 
 When the breaker is open (`HALT:`), do no work: `end-cycle idle` and stop. The

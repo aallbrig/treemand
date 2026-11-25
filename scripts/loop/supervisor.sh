@@ -67,7 +67,7 @@ mtime() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0; 
 # One line each (a newline would submit early). The agent's skill knows "park".
 NUDGE="treemand loop supervisor: no tool use for a while. If you are waiting on something, say what and carry on; if you are stuck, park this cycle (treemand-loop skill). Do not wait for a human."
 park_line() {
-  echo "treemand loop supervisor: park this cycle now ($1). Commit and push the work in progress to the issue's branch, comment on the issue starting 'Parked:' with what is done, what is left and the next step, remove the worktree, bash scripts/loop/issues.sh unclaim <n>, then python3 -I scripts/loop/state.py end-cycle parked. The next cycle resumes it."
+  echo "treemand loop supervisor: park this cycle now ($1). Commit and push the work in progress to the issue's branch, write what is done, what is left and the next step to a file under .loop/, remove the worktree, bash scripts/loop/issues.sh park <n> <file>, then python3 -I scripts/loop/state.py end-cycle parked. The next cycle resumes it."
 }
 
 # A cycle starts: forget any escalation. (The caller drops .loop/context before
