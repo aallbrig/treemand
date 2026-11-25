@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -33,19 +32,13 @@ func (m *Model) lazyExpandIfStub() tea.Cmd {
 		return nil
 	}
 	stub := sel.Node
-	stubThreshold := m.cfg.StubThreshold
-	cliName := m.root.Name
 	args := stub.FullPath[1:] // subcommand path below root
 
 	m.statusMsg = "discovering " + stub.Name + "…"
 
+	exp := m.nodeExpander(m.expandEagerBelow())
 	return func() tea.Msg {
-		d := discovery.NewHelpDiscoverer(1) // one level deep for the stub
-		d.StubThreshold = stubThreshold
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		result, err := d.Discover(ctx, cliName, args)
+		result, err := exp.Discover(context.Background(), args)
 		return LazyExpandMsg{Stub: stub, Discovered: result, Err: err}
 	}
 }
@@ -63,21 +56,45 @@ func (m *Model) forceExpandSelected() tea.Cmd {
 		return nil
 	}
 	node := sel.Node
-	stubThreshold := m.cfg.StubThreshold
-	cliName := m.root.Name
 	args := node.FullPath[1:] // subcommand path below root
 
 	m.statusMsg = "discovering " + node.Name + "…"
 
+	exp := m.nodeExpander(m.expandEagerBelow())
 	return func() tea.Msg {
-		d := discovery.NewHelpDiscoverer(1)
-		d.StubThreshold = stubThreshold
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		result, err := d.Discover(ctx, cliName, args)
+		result, err := exp.Discover(context.Background(), args)
 		return LazyExpandMsg{Stub: node, Discovered: result, Err: err, Refresh: true}
 	}
+}
+
+// nodeExpander returns the expander the TUI discovers single nodes with.
+// eagerBelow > 0 discovers a node's subcommands too when it lists at most
+// that many; 0 leaves them as stubs.
+func (m *Model) nodeExpander(eagerBelow int) *discovery.NodeExpander {
+	return discovery.NewNodeExpander(m.root.Name, discovery.ExpandOptions{
+		EagerBelow: eagerBelow, MaxDepth: -1, Override: m.override,
+	})
+}
+
+// expandEagerBelow is how many subcommands a node expanded on demand may list
+// and still have them discovered with it: the configured stub threshold, as
+// in a full discovery, where 0 or less means the default.
+func (m *Model) expandEagerBelow() int {
+	if m.cfg.StubThreshold <= 0 {
+		return discovery.DefaultStubThreshold
+	}
+	return m.cfg.StubThreshold
+}
+
+// applyExpansion merges an expand result into the tree and shows it.
+func (m *Model) applyExpansion(msg LazyExpandMsg) {
+	exp := m.nodeExpander(0)
+	if msg.Refresh {
+		exp.Refresh(m.root, msg.Stub, msg.Discovered)
+	} else {
+		exp.Fill(m.root, msg.Stub, msg.Discovered)
+	}
+	m.tree.NodeChanged(msg.Stub)
 }
 
 // openDocsURL attempts to open a documentation URL for the currently selected
@@ -164,7 +181,7 @@ func (m *Model) indexAllStubs() tea.Cmd {
 	if len(stubs) == 0 {
 		return nil
 	}
-	cliName := m.root.Name
+	exp := m.nodeExpander(discovery.OneLevel)
 	ch := make(chan LazyExpandMsg)
 	go func() {
 		defer close(ch)
@@ -176,11 +193,7 @@ func (m *Model) indexAllStubs() tea.Cmd {
 			go func(stub *models.Node) {
 				defer wg.Done()
 				defer func() { <-sem }()
-				d := discovery.NewHelpDiscoverer(1)
-				d.StubThreshold = 1 // children stay name-only stubs
-				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-				defer cancel()
-				res, err := d.Discover(ctx, cliName, stub.FullPath[1:])
+				res, err := exp.Discover(context.Background(), stub.FullPath[1:])
 				ch <- LazyExpandMsg{Stub: stub, Discovered: res, Err: err}
 			}(stub)
 		}
@@ -209,7 +222,8 @@ func (m *Model) handleIndexMsg(im indexMsg) tea.Cmd {
 		return nil
 	}
 	if im.msg.Err == nil && im.msg.Discovered != nil {
-		m.tree.PatchNodeQuiet(im.msg.Stub, im.msg.Discovered)
+		m.nodeExpander(0).Fill(m.root, im.msg.Stub, im.msg.Discovered)
+		m.tree.CountChange()
 	}
 	m.sm.indexed++
 	// Re-rank occasionally so results fill in while the user watches.

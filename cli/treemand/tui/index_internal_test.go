@@ -6,6 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/aallbrig/treemand/config"
+	"github.com/aallbrig/treemand/discovery"
 	"github.com/aallbrig/treemand/models"
 )
 
@@ -42,5 +43,18 @@ func TestIndexMsg_patchesStubsAndFinishes(t *testing.T) {
 	m.refreshSearch()
 	if len(m.sm.results) == 0 || m.sm.results[0].Entry.Name != "mb" {
 		t.Errorf("finder should see indexed child, got %+v", m.sm.results)
+	}
+}
+
+// An unset stub threshold means the default, as in a full discovery, not
+// "list every subcommand as a stub".
+func TestExpandEagerBelow_unsetThresholdMeansTheDefault(t *testing.T) {
+	cfg := config.DefaultConfig()
+	m := NewModel(&models.Node{Name: "aws", FullPath: []string{"aws"}}, cfg)
+	for _, tc := range []struct{ set, want int }{{25, 25}, {0, discovery.DefaultStubThreshold}, {-1, discovery.DefaultStubThreshold}} {
+		cfg.StubThreshold = tc.set
+		if got := m.expandEagerBelow(); got != tc.want {
+			t.Errorf("threshold %d: eager below %d, want %d", tc.set, got, tc.want)
+		}
 	}
 }

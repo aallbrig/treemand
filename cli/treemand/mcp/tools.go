@@ -258,7 +258,7 @@ func (s *Server) walkPath(ctx context.Context, cli string, root *models.Node, pa
 	n := root
 	for i := 0; ; i++ {
 		if (n.Stub || !n.Discovered) && s.Expand != nil {
-			if err := s.Expand(ctx, cli, n); err != nil {
+			if err := s.Expand(ctx, cli, root, n); err != nil {
 				return nil, toolError("discovering %q failed: %v", n.FullCommand(), err)
 			}
 		}

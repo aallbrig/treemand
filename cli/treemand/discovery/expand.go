@@ -9,8 +9,8 @@ import (
 )
 
 // ExpandStubs discovers every stub node under root, one level at a time, for
-// the given number of rounds. Children found are left as name-only stubs so
-// each round goes one level deeper. onProgress (optional) is called after
+// the given number of rounds. Children found are left as name-only stubs
+// (but a lone one; see OneLevel) so each round goes one level deeper. onProgress (optional) is called after
 // each node with the running count for the current round.
 //
 // It exists for exporting complete snapshots of very large CLIs (aws, stripe)
@@ -19,6 +19,7 @@ func ExpandStubs(ctx context.Context, root *models.Node, cliName string, rounds,
 	if workers < 1 {
 		workers = 8
 	}
+	e := NewNodeExpander(cliName, ExpandOptions{EagerBelow: OneLevel, MaxDepth: -1, Timeout: perNode})
 	for r := 0; r < rounds; r++ {
 		var stubs []*models.Node
 		root.Walk(func(n *models.Node) {
@@ -26,31 +27,27 @@ func ExpandStubs(ctx context.Context, root *models.Node, cliName string, rounds,
 				stubs = append(stubs, n)
 			}
 		})
-		if len(stubs) == 0 {
+		if len(stubs) == 0 || ctx.Err() != nil {
 			break
 		}
+		results := make([]*models.Node, len(stubs))
 		var (
 			wg   sync.WaitGroup
 			mu   sync.Mutex
 			done int
 		)
 		sem := make(chan struct{}, workers)
-		for _, stub := range stubs {
+		for i, stub := range stubs {
 			if ctx.Err() != nil {
 				break
 			}
 			wg.Add(1)
 			sem <- struct{}{}
-			go func(stub *models.Node) {
+			go func(i int, path []string) {
 				defer wg.Done()
 				defer func() { <-sem }()
-				d := NewHelpDiscoverer(1)
-				d.StubThreshold = 1 // children stay name-only stubs
-				nctx, cancel := context.WithTimeout(ctx, perNode)
-				defer cancel()
-				res, err := d.Discover(nctx, cliName, stub.FullPath[1:])
-				if err == nil && res != nil {
-					adopt(stub, res)
+				if res, err := e.Discover(ctx, path); err == nil {
+					results[i] = res
 				}
 				if onProgress != nil {
 					mu.Lock()
@@ -58,25 +55,12 @@ func ExpandStubs(ctx context.Context, root *models.Node, cliName string, rounds,
 					onProgress(done, len(stubs))
 					mu.Unlock()
 				}
-			}(stub)
+			}(i, stub.FullPath[1:])
 		}
 		wg.Wait()
+		// Merged here, not in the workers: a fill reads the stub's ancestors.
+		for i, stub := range stubs {
+			e.Fill(root, stub, results[i])
+		}
 	}
-	models.MarkInheritedFlags(root)
-}
-
-// adopt copies freshly discovered data into a stub node.
-func adopt(stub, res *models.Node) {
-	stub.Stub = false
-	stub.Discovered = true
-	stub.Children = res.Children
-	if stub.Description == "" {
-		stub.Description = res.Description
-	}
-	if len(res.Flags) > 0 || !allInherited(stub.Flags) {
-		stub.Flags = res.Flags
-	}
-	stub.Positionals = res.Positionals
-	stub.HelpText = res.HelpText
-	stub.DiscoveryErr = res.DiscoveryErr
 }

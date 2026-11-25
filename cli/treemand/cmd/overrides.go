@@ -30,6 +30,15 @@ func overrideKey(o *overrides.Override) string {
 	return ",o=" + o.Hash
 }
 
+// overrideFunc returns the hook that re-applies o after discovery merges a
+// node into the tree, or nil when there is no override.
+func overrideFunc(o *overrides.Override) func(*models.Node) {
+	if o == nil {
+		return nil
+	}
+	return func(root *models.Node) { o.Apply(root) }
+}
+
 // applyOverride merges o into the tree and logs how much it changed.
 func applyOverride(o *overrides.Override, node *models.Node) int {
 	n := o.Apply(node)

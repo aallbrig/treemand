@@ -982,11 +982,11 @@ func TestModel_LazyExpandMsg_error(t *testing.T) {
 	_ = updated.(interface{ View() string }).View()
 }
 
-func TestPatchNode_replacesChildren(t *testing.T) {
+func TestModel_LazyExpandMsg_fillsTheStub(t *testing.T) {
 	root := sampleTreeWithStub()
 	stub := root.Children[0]
-	tree := tui.NewTreeModel(root, config.DefaultConfig())
-	tree.SetSize(80, 20)
+	m := tui.NewModel(root, config.DefaultConfig())
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
 	disc := &models.Node{
 		Name:     "s3",
@@ -996,20 +996,19 @@ func TestPatchNode_replacesChildren(t *testing.T) {
 			{Name: "ls", FullPath: []string{"aws", "s3", "ls"}},
 		},
 	}
-	tree.PatchNode(stub, disc)
+	m.Update(tui.LazyExpandMsg{Stub: stub, Discovered: disc})
 
 	if stub.Stub {
-		t.Error("PatchNode should clear Stub flag")
+		t.Error("an expand result should clear the Stub flag")
 	}
 	if len(stub.Children) != 2 {
 		t.Errorf("expected 2 children after patch, got %d", len(stub.Children))
 	}
 }
 
-func TestPatchNode_nil_noPanic(t *testing.T) {
+func TestNodeChanged_nil_noPanic(t *testing.T) {
 	tree := tui.NewTreeModel(sampleTree(), config.DefaultConfig())
-	tree.PatchNode(nil, nil)                      // no panic
-	tree.PatchNode(sampleTree().Children[0], nil) // no panic
+	tree.NodeChanged(nil) // no panic
 }
 
 func TestModel_ExecuteModal_escCloses(t *testing.T) {
@@ -1262,11 +1261,11 @@ func TestModel_SpaceOnStub(t *testing.T) {
 	_ = cmd
 }
 
-func TestTreeModel_PatchNode_autoExpands(t *testing.T) {
+func TestTreeModel_NodeChanged_autoExpands(t *testing.T) {
 	root := sampleTreeWithStub()
 	stub := root.Children[0]
-	tree := tui.NewTreeModel(root, config.DefaultConfig())
-	tree.SetSize(80, 20)
+	m := tui.NewModel(root, config.DefaultConfig())
+	m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 
 	// Before patch: no children
 	if !stub.Stub {
@@ -1281,10 +1280,13 @@ func TestTreeModel_PatchNode_autoExpands(t *testing.T) {
 			{Name: "cp", FullPath: []string{"aws", "s3", "cp"}},
 		},
 	}
-	tree.PatchNode(stub, disc)
+	m.Update(tui.LazyExpandMsg{Stub: stub, Discovered: disc})
 
 	if stub.Stub {
-		t.Error("Stub should be cleared after PatchNode")
+		t.Error("Stub should be cleared after an expand")
+	}
+	if !strings.Contains(m.View(), "cp") {
+		t.Errorf("the expanded node's child is not shown:\n%s", m.View())
 	}
 	if stub.Description != "S3 service" {
 		t.Errorf("Description should be filled in, got %q", stub.Description)
@@ -3510,13 +3512,12 @@ func TestPatches_countsDiscoveriesSoTheSessionKnowsToSave(t *testing.T) {
 	if tree.Patches() != 0 {
 		t.Fatalf("a fresh tree reports %d patches", tree.Patches())
 	}
-	tree.PatchNode(nil, nil) // nothing discovered, nothing to save
+	tree.NodeChanged(nil) // nothing discovered, nothing to save
 	if tree.Patches() != 0 {
 		t.Errorf("a no-op patch was counted")
 	}
-	disc := &models.Node{Name: "s3", Children: []*models.Node{{Name: "cp"}}}
-	tree.PatchNode(root.Children[0], disc)
-	tree.PatchNodeQuiet(root.Children[0], disc)
+	tree.NodeChanged(root.Children[0])
+	tree.CountChange()
 	if tree.Patches() != 2 {
 		t.Errorf("Patches() = %d after two patches, want 2", tree.Patches())
 	}

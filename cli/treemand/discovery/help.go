@@ -215,7 +215,7 @@ func (h *HelpDiscoverer) cleoListFallback(ctx context.Context, cliName string, n
 // stubThreshold is the subcommand count above which children become stubs.
 func (h *HelpDiscoverer) stubThreshold() int {
 	if h.StubThreshold <= 0 {
-		return 50
+		return DefaultStubThreshold
 	}
 	return h.StubThreshold
 }
@@ -309,7 +309,7 @@ func (h *HelpDiscoverer) discoverChildNode(ctx context.Context, walk childWalk, 
 			DiscoveryErr: fmt.Sprintf("could not get help: %v", err),
 		}
 	}
-	if childHelp == walk.parentHelp {
+	if repeatsParent(walk.parentHelp, childHelp) {
 		// The CLI ignored the subcommand and printed its parent's help:
 		// keep the node, but do not descend into the same help again.
 		childParsed := ParseHelpOutputFor(childHelp, walk.cliName)

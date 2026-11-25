@@ -126,6 +126,19 @@ func MarkInheritedFlags(root *Node) {
 	markInherited(root, map[string]bool{})
 }
 
+// MarkInheritedFlagsBelow marks the subtree at n as MarkInheritedFlags would
+// on the whole tree, given n's ancestors (root first). It costs the subtree,
+// not the tree, so a node filled in by discovery can be marked on its own.
+func MarkInheritedFlagsBelow(ancestors []*Node, n *Node) {
+	names := map[string]bool{}
+	for _, a := range ancestors {
+		for _, f := range a.Flags {
+			names[f.Name] = true
+		}
+	}
+	markInherited(n, names)
+}
+
 func markInherited(n *Node, ancestorFlags map[string]bool) {
 	// Build the set for this node's own flags before marking.
 	// A flag is "inherited" if its name appears in any ancestor.

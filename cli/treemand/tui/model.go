@@ -89,6 +89,7 @@ type Model struct {
 	pendingG     bool                // true after first 'g' press, waiting for second 'g'
 	lastSearch   string              // last filter/search term for n/N cycling
 	crawl        *crawler            // background discovery, when enabled
+	override     func(*models.Node)  // re-applies the CLI's override after a merge
 	hist         *history.Store      // command history; nil when off
 	rm           recentsModal        // Ctrl+R recent commands
 	saved        *savedpresets.Store // saved presets; nil when unavailable
@@ -159,7 +160,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case LazyExpandMsg:
 		if msg.Err == nil && msg.Discovered != nil {
-			m.tree.ApplyDiscovery(msg.Stub, msg.Discovered, msg.Refresh)
+			m.applyExpansion(msg)
 			m.statusMsg = "expanded: " + msg.Stub.Name
 		} else if msg.Err != nil {
 			m.statusMsg = "expand failed: " + msg.Err.Error()
@@ -304,12 +305,16 @@ type RunOptions struct {
 	Presets *savedpresets.Store
 	// Preset, when set, is loaded into the assembled command at start.
 	Preset *savedpresets.Preset
+	// Override, when set, re-applies the CLI's override to the tree after
+	// discovery fills or refreshes a node.
+	Override func(root *models.Node)
 }
 
 // RunWithOptions starts the TUI with the given options.
 func RunWithOptions(root *models.Node, cfg *config.Config, opts RunOptions) error {
 	save := opts.Save
 	m := NewModel(root, cfg)
+	m.override = opts.Override
 	if opts.Crawl != nil {
 		m.EnableCrawl(*opts.Crawl)
 	}

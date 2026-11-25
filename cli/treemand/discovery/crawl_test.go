@@ -71,18 +71,17 @@ func TestCompletePending_stopsWhenNothingCanBeLearned(t *testing.T) {
 	}
 }
 
-func TestDiscoverOne_listsNoChildrenAtMaxDepth(t *testing.T) {
+func TestNodeExpanderDiscover_listsNoChildrenAtMaxDepth(t *testing.T) {
 	bin, _ := formCLI(t, 0, flagOnly)
-	c := NewCrawler(bin, 1)
-	n, err := c.DiscoverOne(context.Background(), []string{"alpha"})
+	n, err := NewNodeExpander(bin, ExpandOptions{MaxDepth: 1}).Discover(context.Background(), []string{"alpha"})
 	if err != nil || n == nil || len(n.Flags) == 0 {
 		t.Fatalf("alpha not discovered: %+v %v", n, err)
 	}
-	root, _ := NewCrawler(bin, 1).DiscoverOne(context.Background(), nil)
+	root, _ := NewNodeExpander(bin, ExpandOptions{MaxDepth: 1}).Discover(context.Background(), nil)
 	if len(root.Children) != 2 || !root.Children[0].Stub {
 		t.Errorf("the root's subcommands should come back as stubs: %+v", root.Children)
 	}
-	deep, _ := NewCrawler(bin, 0).DiscoverOne(context.Background(), nil)
+	deep, _ := NewNodeExpander(bin, ExpandOptions{MaxDepth: 0}).Discover(context.Background(), nil)
 	if len(deep.Children) != 0 {
 		t.Errorf("at max depth no subcommands should be listed, got %d", len(deep.Children))
 	}

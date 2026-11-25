@@ -173,3 +173,20 @@ func TestNode_HasPositionals(t *testing.T) {
 		t.Error("HasPositionals() should be false when empty")
 	}
 }
+
+// A subtree is marked against the flags of the ancestors it is given.
+func TestMarkInheritedFlagsBelow(t *testing.T) {
+	root := &models.Node{Name: "tool", Flags: []models.Flag{{Name: "--verbose"}}}
+	mid := &models.Node{Name: "remote", Flags: []models.Flag{{Name: "--dry-run"}}}
+	leaf := &models.Node{Name: "add", Flags: []models.Flag{{Name: "--verbose"}, {Name: "--dry-run"}, {Name: "--track"}}}
+	mid.Children = []*models.Node{leaf}
+	models.MarkInheritedFlagsBelow([]*models.Node{root}, mid)
+	if mid.Flags[0].Inherited {
+		t.Errorf("--dry-run is remote's own flag")
+	}
+	for _, f := range leaf.Flags {
+		if f.Inherited != (f.Name != "--track") {
+			t.Errorf("%s inherited = %v", f.Name, f.Inherited)
+		}
+	}
+}

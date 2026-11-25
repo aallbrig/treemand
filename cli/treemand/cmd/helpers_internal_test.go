@@ -86,7 +86,7 @@ func TestVersionString_namesCommitAndBuildDate(t *testing.T) {
 
 func TestMCPExpand_leavesTheRootAlone(t *testing.T) {
 	root := &models.Node{Name: "tool", FullPath: []string{"tool"}, Description: "kept"}
-	if err := mcpExpand(context.Background(), "tool", root); err != nil {
+	if err := mcpExpand(context.Background(), "tool", root, root); err != nil {
 		t.Fatal(err)
 	}
 	if root.Description != "kept" || root.Discovered {
