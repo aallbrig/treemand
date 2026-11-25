@@ -8,9 +8,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/aallbrig/treemand/discovery"
-	"github.com/aallbrig/treemand/models"
-	"github.com/aallbrig/treemand/presets"
+	"github.com/aallbrig/treemand/cli/treemand/discovery"
+	"github.com/aallbrig/treemand/cli/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/presets"
 )
 
 // CrawlOptions turns on background discovery: the TUI opens on whatever tree

@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // zshOptionNameRe matches the option name at the start of an _arguments spec

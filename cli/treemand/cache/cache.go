@@ -15,8 +15,8 @@ import (
 
 	_ "modernc.org/sqlite" // pure-Go sqlite driver (works with CGO_ENABLED=0)
 
-	"github.com/aallbrig/treemand/discovery"
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/discovery"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // Cache stores and retrieves discovered CLI trees.

@@ -8,8 +8,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/aallbrig/treemand/models"
-	"github.com/aallbrig/treemand/presets"
+	"github.com/aallbrig/treemand/cli/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/presets"
 )
 
 // fakeModeEnv makes the test binary act as a fake CLI when re-executed, so the

@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // parseFlag tries to parse a flag definition line.

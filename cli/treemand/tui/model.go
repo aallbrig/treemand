@@ -11,11 +11,11 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/aallbrig/treemand/config"
-	"github.com/aallbrig/treemand/history"
-	"github.com/aallbrig/treemand/models"
-	"github.com/aallbrig/treemand/render"
-	"github.com/aallbrig/treemand/savedpresets"
+	"github.com/aallbrig/treemand/cli/treemand/config"
+	"github.com/aallbrig/treemand/cli/treemand/history"
+	"github.com/aallbrig/treemand/cli/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/render"
+	"github.com/aallbrig/treemand/cli/treemand/savedpresets"
 )
 
 // NavScheme is the keyboard navigation scheme.

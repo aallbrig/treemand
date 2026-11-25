@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/viper"
 
-	"github.com/aallbrig/treemand/config"
+	"github.com/aallbrig/treemand/cli/treemand/config"
 )
 
 func TestDiagnostic_String(t *testing.T) {

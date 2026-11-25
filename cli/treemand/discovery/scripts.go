@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // MaxScriptBytes caps how much of a completion script is read. Generated

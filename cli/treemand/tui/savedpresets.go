@@ -7,7 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/aallbrig/treemand/savedpresets"
+	"github.com/aallbrig/treemand/cli/treemand/savedpresets"
 )
 
 // presetsModal is the Ctrl+O list of saved presets: named assembled

@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aallbrig/treemand/discovery"
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/discovery"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 func TestDoctorAddTreeSkipsVirtualAndExcusesStubs(t *testing.T) {

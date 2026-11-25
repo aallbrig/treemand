@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // Kind is the type of graph element an Entry refers to.

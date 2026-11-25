@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/aallbrig/treemand/discovery"
+	"github.com/aallbrig/treemand/cli/treemand/discovery"
 )
 
 func parseFixture(t *testing.T, name, cli string) discovery.ParsedHelp {

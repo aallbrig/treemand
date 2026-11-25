@@ -3,7 +3,7 @@ package models_test
 import (
 	"testing"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 func TestNodeFullCommand(t *testing.T) {

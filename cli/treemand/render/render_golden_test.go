@@ -11,8 +11,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
 
-	"github.com/aallbrig/treemand/models"
-	"github.com/aallbrig/treemand/render"
+	"github.com/aallbrig/treemand/cli/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/render"
 )
 
 var updateTextGolden = flag.Bool("update-text-golden", false, "rewrite testdata/text_render.golden")

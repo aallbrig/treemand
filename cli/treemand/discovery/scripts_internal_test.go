@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 func readScriptFixture(t *testing.T, name string) string {

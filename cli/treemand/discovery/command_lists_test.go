@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/aallbrig/treemand/discovery"
+	"github.com/aallbrig/treemand/cli/treemand/discovery"
 )
 
 // Command-list formats, excerpts from the corpus fixtures.

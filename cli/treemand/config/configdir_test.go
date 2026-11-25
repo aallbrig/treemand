@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/viper"
 
-	"github.com/aallbrig/treemand/config"
+	"github.com/aallbrig/treemand/cli/treemand/config"
 )
 
 // Unix CLIs keep their config under ~/.config, on macOS too; a relative

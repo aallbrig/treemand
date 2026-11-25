@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/aallbrig/treemand/config"
+	"github.com/aallbrig/treemand/cli/treemand/config"
 )
 
 func TestDefaultColors(t *testing.T) {

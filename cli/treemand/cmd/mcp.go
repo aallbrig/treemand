@@ -6,12 +6,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/aallbrig/treemand/config"
-	"github.com/aallbrig/treemand/discovery"
-	"github.com/aallbrig/treemand/mcp"
-	"github.com/aallbrig/treemand/models"
-	"github.com/aallbrig/treemand/presets"
-	"github.com/aallbrig/treemand/treeload"
+	"github.com/aallbrig/treemand/cli/treemand/config"
+	"github.com/aallbrig/treemand/cli/treemand/discovery"
+	"github.com/aallbrig/treemand/cli/treemand/mcp"
+	"github.com/aallbrig/treemand/cli/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/presets"
+	"github.com/aallbrig/treemand/cli/treemand/treeload"
 )
 
 var mcpCmd = &cobra.Command{

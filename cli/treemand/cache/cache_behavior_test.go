@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aallbrig/treemand/cache"
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/cache"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 func openCache(t *testing.T) (*cache.Cache, string) {

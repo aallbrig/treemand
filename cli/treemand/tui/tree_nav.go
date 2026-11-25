@@ -3,7 +3,7 @@ package tui
 import (
 	"strings"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // Cursor movement over treeRows: line, page and jump moves, search matches,

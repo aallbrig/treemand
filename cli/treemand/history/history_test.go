@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aallbrig/treemand/history"
+	"github.com/aallbrig/treemand/cli/treemand/history"
 )
 
 func t0(min int) time.Time {

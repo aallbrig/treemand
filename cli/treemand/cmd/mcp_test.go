@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aallbrig/treemand/cmd"
+	"github.com/aallbrig/treemand/cli/treemand/cmd"
 )
 
 // runMCP sends requests, one JSON-RPC message per line, to `treemand mcp`

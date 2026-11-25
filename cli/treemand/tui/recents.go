@@ -8,7 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/aallbrig/treemand/history"
+	"github.com/aallbrig/treemand/cli/treemand/history"
 )
 
 // recentsModal is the Ctrl+R list of commands copied or run before.

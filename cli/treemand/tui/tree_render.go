@@ -7,8 +7,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/aallbrig/treemand/config"
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/config"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // treeRenderer draws a treeRows in the configured display style. It reads

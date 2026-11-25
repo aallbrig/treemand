@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // Fuzz targets for the parser's line-level hot paths: flag rows, section

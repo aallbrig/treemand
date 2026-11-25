@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/aallbrig/treemand/discovery"
+	"github.com/aallbrig/treemand/cli/treemand/discovery"
 )
 
 // argparse subparsers (issue #81), excerpts from the corpus fixtures.

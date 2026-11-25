@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aallbrig/treemand/discovery"
+	"github.com/aallbrig/treemand/cli/treemand/discovery"
 )
 
 // The regression corpus: sanitized root help text of real CLIs under

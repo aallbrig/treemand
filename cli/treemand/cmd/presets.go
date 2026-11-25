@@ -10,8 +10,8 @@ import (
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v3"
 
-	"github.com/aallbrig/treemand/config"
-	"github.com/aallbrig/treemand/savedpresets"
+	"github.com/aallbrig/treemand/cli/treemand/config"
+	"github.com/aallbrig/treemand/cli/treemand/savedpresets"
 )
 
 // cfgPreset is --preset: open the TUI with this saved preset loaded.

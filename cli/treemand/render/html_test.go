@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aallbrig/treemand/models"
-	"github.com/aallbrig/treemand/render"
+	"github.com/aallbrig/treemand/cli/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/render"
 )
 
 func htmlOf(t *testing.T, root *models.Node, edit func(*render.Options)) string {

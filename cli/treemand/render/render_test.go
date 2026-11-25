@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aallbrig/treemand/config"
-	"github.com/aallbrig/treemand/models"
-	"github.com/aallbrig/treemand/render"
+	"github.com/aallbrig/treemand/cli/treemand/config"
+	"github.com/aallbrig/treemand/cli/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/render"
 )
 
 func sampleTree() *models.Node {

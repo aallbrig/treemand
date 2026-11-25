@@ -3,7 +3,7 @@ package treeload
 import (
 	"testing"
 
-	"github.com/aallbrig/treemand/discovery"
+	"github.com/aallbrig/treemand/cli/treemand/discovery"
 )
 
 // The help discoverers a load builds carry the preset's help-form hint, since

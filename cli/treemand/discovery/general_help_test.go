@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/aallbrig/treemand/discovery"
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/discovery"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // apt's options appear in no help: its man page SYNOPSIS gives them.

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aallbrig/treemand/discovery"
+	"github.com/aallbrig/treemand/cli/treemand/discovery"
 )
 
 const tmuxListCommands = `attach-session (attach) [-dErx] [-c working-directory] [-f flags] [-t target-session]

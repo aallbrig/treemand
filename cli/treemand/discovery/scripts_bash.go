@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // bashFirstWordRe matches a test that the word being completed is the first

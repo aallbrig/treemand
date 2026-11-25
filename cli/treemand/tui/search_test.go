@@ -6,8 +6,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/aallbrig/treemand/config"
-	"github.com/aallbrig/treemand/tui"
+	"github.com/aallbrig/treemand/cli/treemand/config"
+	"github.com/aallbrig/treemand/cli/treemand/tui"
 )
 
 func typeRunes(m *tui.Model, s string) {

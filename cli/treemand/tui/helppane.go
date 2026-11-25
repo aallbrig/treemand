@@ -6,8 +6,8 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/aallbrig/treemand/config"
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/config"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 type helpMode int

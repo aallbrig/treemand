@@ -3,7 +3,7 @@ package discovery_test
 import (
 	"testing"
 
-	"github.com/aallbrig/treemand/discovery"
+	"github.com/aallbrig/treemand/cli/treemand/discovery"
 )
 
 func TestFromHelpText_rootIsParsedAndChildrenAreStubs(t *testing.T) {

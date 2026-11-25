@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aallbrig/treemand/cmd"
+	"github.com/aallbrig/treemand/cli/treemand/cmd"
 )
 
 // runCmdSplit runs treemand and returns stdout and stderr separately.

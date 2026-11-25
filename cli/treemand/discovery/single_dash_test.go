@@ -3,7 +3,7 @@ package discovery_test
 import (
 	"testing"
 
-	"github.com/aallbrig/treemand/discovery"
+	"github.com/aallbrig/treemand/cli/treemand/discovery"
 )
 
 // Single-dash long options (issue #156): Go's flag package and mitchellh/cli.

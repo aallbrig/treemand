@@ -12,8 +12,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
 
-	"github.com/aallbrig/treemand/config"
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/config"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 var updateFlagModalGolden = flag.Bool("update-flag-modal", false, "rewrite testdata/flag_modal.golden")

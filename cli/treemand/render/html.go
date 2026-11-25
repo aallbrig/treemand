@@ -7,7 +7,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // htmlPage is the self-contained page --output=html writes: inline CSS and

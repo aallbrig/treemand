@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aallbrig/treemand/tui"
+	"github.com/aallbrig/treemand/cli/treemand/tui"
 )
 
 func fixtureConfig() Config {

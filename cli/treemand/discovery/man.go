@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // ManDiscoverer uses the system man page to discover flags and subcommands.

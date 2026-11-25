@@ -3,8 +3,8 @@ package presets_test
 import (
 	"testing"
 
-	"github.com/aallbrig/treemand/models"
-	"github.com/aallbrig/treemand/presets"
+	"github.com/aallbrig/treemand/cli/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/presets"
 )
 
 const stripeMap = `stripe

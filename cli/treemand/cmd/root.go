@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime/debug"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -13,15 +14,15 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/aallbrig/treemand/cache"
-	"github.com/aallbrig/treemand/config"
-	"github.com/aallbrig/treemand/discovery"
-	"github.com/aallbrig/treemand/models"
-	"github.com/aallbrig/treemand/overrides"
-	"github.com/aallbrig/treemand/presets"
-	"github.com/aallbrig/treemand/render"
-	"github.com/aallbrig/treemand/treeload"
-	"github.com/aallbrig/treemand/tui"
+	"github.com/aallbrig/treemand/cli/treemand/cache"
+	"github.com/aallbrig/treemand/cli/treemand/config"
+	"github.com/aallbrig/treemand/cli/treemand/discovery"
+	"github.com/aallbrig/treemand/cli/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/overrides"
+	"github.com/aallbrig/treemand/cli/treemand/presets"
+	"github.com/aallbrig/treemand/cli/treemand/render"
+	"github.com/aallbrig/treemand/cli/treemand/treeload"
+	"github.com/aallbrig/treemand/cli/treemand/tui"
 )
 
 var (
@@ -387,6 +388,7 @@ func countStubs(root *models.Node) int {
 func Execute() {
 	// Inject treemand's own version into the cache key so upgrades
 	// automatically invalidate stale entries.
+	Version = resolveVersion(Version, debug.ReadBuildInfo)
 	cache.TreemandVersion = Version
 
 	// Wire --version flag to show the same string as `treemand version`.

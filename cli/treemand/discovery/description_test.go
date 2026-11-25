@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aallbrig/treemand/discovery"
+	"github.com/aallbrig/treemand/cli/treemand/discovery"
 )
 
 // The description is what the tool is, not its banner (issue #155). Each case

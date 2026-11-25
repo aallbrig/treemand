@@ -13,7 +13,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // LatestProtocolVersion is offered to clients that ask for a version this

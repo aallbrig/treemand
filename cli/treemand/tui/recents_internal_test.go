@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aallbrig/treemand/history"
+	"github.com/aallbrig/treemand/cli/treemand/history"
 )
 
 func TestRecents_runIsRecordedAndCtrlRLoadsIt(t *testing.T) {

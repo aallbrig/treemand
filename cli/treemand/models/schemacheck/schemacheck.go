@@ -10,7 +10,7 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v6"
 	"go.yaml.in/yaml/v3"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // Compile parses models.SchemaJSON into a validator.

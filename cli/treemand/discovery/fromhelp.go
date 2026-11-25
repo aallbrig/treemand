@@ -1,7 +1,7 @@
 package discovery
 
 import (
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // FromHelpText builds the tree a help text describes without running

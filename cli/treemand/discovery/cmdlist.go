@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // Some CLIs (tmux) have no per-command help and expose their commands through

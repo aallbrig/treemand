@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // flattenFixture is a tree that exercises every section flattenNode emits:

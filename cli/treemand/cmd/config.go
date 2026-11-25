@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/aallbrig/treemand/config"
+	"github.com/aallbrig/treemand/cli/treemand/config"
 )
 
 var configCmd = &cobra.Command{

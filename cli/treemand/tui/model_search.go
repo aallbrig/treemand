@@ -8,8 +8,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/aallbrig/treemand/fuzzy"
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/fuzzy"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 const searchMaxResults = 200
