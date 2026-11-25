@@ -270,7 +270,7 @@ def record(probe: str, result: Obj) -> None:
     HISTORY.mkdir(parents=True, exist_ok=True)
     rec = {
         "date": dt.datetime.now(dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "version": git("describe", "--tags", "--always") or "unknown",
+        "version": git("describe", "--tags", "--match", "v[0-9]*", "--always") or "unknown",
         "sha": git("rev-parse", "--short", "HEAD"),
         "host": host_name(),
         "load": load_per_cpu(),

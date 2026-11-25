@@ -1,6 +1,7 @@
 #!/bin/sh
 # Verify production for a release tag: the published binary runs and reports the
-# version, and the site answers.   usage: smoke.sh <vX.Y.Z>
+# version, `go install` of the tag reports it too, and the site answers.
+# usage: smoke.sh <vX.Y.Z>
 set -eu
 tag="${1:?usage: smoke.sh <tag>}"
 repo="aallbrig/treemand"
@@ -24,6 +25,24 @@ case "$out" in *"${tag#v}"*) ;; *) echo "smoke: version mismatch (wanted ${tag#v
 if grep -q "could not open cache" "$work/stderr.txt"; then
   echo "smoke: binary cannot open its cache: $(cat "$work/stderr.txt")" >&2
   exit 1
+fi
+
+# The Installation page's Go channel: the proxy fetches the module tag
+# cli/treemand/<tag> on demand, so a missing tag or module path fails here.
+if command -v go >/dev/null 2>&1; then
+  module="github.com/aallbrig/treemand/cli/treemand"
+  echo "smoke: go install $module@$tag"
+  gobin="$work/gobin"
+  ok=""
+  for _ in 1 2 3 4 5 6; do
+    if GOBIN="$gobin" GOPATH="$work/gopath" GOMODCACHE="$work/gopath/pkg/mod" GOFLAGS=-modcacherw \
+      go install "$module@$tag" >"$work/go.log" 2>&1; then ok=1; break; fi
+    sleep 20
+  done
+  [ -n "$ok" ] || { echo "smoke: go install failed: $(tail -3 "$work/go.log")" >&2; exit 1; }
+  out="$("$gobin/treemand" --version)"
+  echo "smoke: go-installed binary says: $out"
+  case "$out" in *"$tag"*) ;; *) echo "smoke: go install version mismatch (wanted $tag)" >&2; exit 1 ;; esac
 fi
 
 echo "smoke: site $site"

@@ -22,10 +22,10 @@ os:
         commands:
           - tar xzf treemand_darwin_arm64.tar.gz
           - mv treemand_darwin_arm64 /usr/local/bin/treemand
-      - title: Go (from source)
-        note: Needs Go 1.26 or newer. Builds the current source; the binary lands in `$GOPATH/bin` (usually `~/go/bin`).
+      - title: Go
+        note: Needs Go 1.26 or newer. Installs the latest release; the binary lands in `$GOPATH/bin` (usually `~/go/bin`).
         commands:
-          - git clone --depth 1 https://github.com/aallbrig/treemand.git && cd treemand/cli/treemand && go install .
+          - go install github.com/aallbrig/treemand/cli/treemand@latest
   - id: linux
     name: Linux
     channels:
@@ -45,10 +45,10 @@ os:
           - sha256sum -c --ignore-missing checksums.txt
           - tar xzf treemand_linux_amd64.tar.gz
           - install -m 0755 treemand_linux_amd64 ~/.local/bin/treemand
-      - title: Go (from source)
-        note: Needs Go 1.26 or newer. Builds the current source; the binary lands in `$GOPATH/bin` (usually `~/go/bin`).
+      - title: Go
+        note: Needs Go 1.26 or newer. Installs the latest release; the binary lands in `$GOPATH/bin` (usually `~/go/bin`).
         commands:
-          - git clone --depth 1 https://github.com/aallbrig/treemand.git && cd treemand/cli/treemand && go install .
+          - go install github.com/aallbrig/treemand/cli/treemand@latest
   - id: windows
     name: Windows
     channels:
@@ -61,7 +61,7 @@ os:
           - Invoke-WebRequest "https://treemand.dev/releases/$v/treemand_windows_amd64.zip" -OutFile treemand.zip
           - Expand-Archive -Force treemand.zip -DestinationPath $dir
           - Move-Item -Force "$dir\treemand_windows_amd64.exe" "$dir\treemand.exe"
-      - title: Go (from source)
-        note: Needs Go 1.26 or newer. Builds the current source; the binary lands in `%GOPATH%\bin`.
+      - title: Go
+        note: Needs Go 1.26 or newer. Installs the latest release; the binary lands in `%GOPATH%\bin`.
         commands:
-          - git clone --depth 1 https://github.com/aallbrig/treemand.git; cd treemand\cli\treemand; go install .
+          - go install github.com/aallbrig/treemand/cli/treemand@latest

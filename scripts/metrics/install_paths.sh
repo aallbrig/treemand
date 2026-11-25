@@ -162,7 +162,7 @@ go_run() { # go_run DIR LOG CWD ARGS...
   set -e
 }
 
-# go-source: the Installation page's "Go (from source)" channel.
+# go-source: the Installation page's "Build from source" section.
 path_go_source() {
   command -v go >/dev/null 2>&1 || { skip go-source "go not installed"; return 0; }
   command -v git >/dev/null 2>&1 || { skip go-source "git not installed"; return 0; }
@@ -176,7 +176,7 @@ path_go_source() {
   judge go-source "$rc" source "" "reports $ver"
 }
 
-# go-latest: the remote `go install` a Go user tries first (issue #135).
+# go-latest: the Installation page's "Go" channel (issue #135).
 path_go_latest() {
   command -v go >/dev/null 2>&1 || { skip go-latest "go not installed"; return 0; }
   reset; d="$work/go-latest"; log="$d/log"

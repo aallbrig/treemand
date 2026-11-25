@@ -61,7 +61,7 @@ sha256sum --check --ignore-missing checksums.txt
 
 ## Build from source
 
-Requires Go 1.26+. (`go install …@latest` doesn't work yet: the Go module lives in `cli/treemand/`, so there is no remote install path. Build from a checkout instead.)
+Requires Go 1.26+. To install the latest release without a checkout, run `go install github.com/aallbrig/treemand/cli/treemand@latest`. To build the current source:
 
 ```bash
 git clone https://github.com/aallbrig/treemand.git
