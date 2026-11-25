@@ -111,3 +111,52 @@ func TestConfigEdit_createsTheDefaultAndOpensTheEditor(t *testing.T) {
 		t.Errorf("editor called with %q, want %q", calls, want)
 	}
 }
+
+// config get prints the effective value: a flag beats the file, the file
+// beats the default.
+func TestConfigGet_flagThenFileThenDefault(t *testing.T) {
+	e := newFakeEnv(t)
+	cfgPath := filepath.Join(e.dir, "config.yaml")
+	if err := os.WriteFile(cfgPath, []byte("icons: ascii\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		args []string
+		want string
+	}{
+		{[]string{"--config=" + cfgPath, "config", "get", "icons"}, "ascii\n"},
+		{[]string{"--config=" + cfgPath, "--icons=nerd", "config", "get", "icons"}, "nerd\n"},
+		{[]string{"--config=" + cfgPath, "--icons=", "config", "get", "tree_style"}, "default\n"},
+	}
+	for _, c := range cases {
+		out, err := runCmd(c.args...)
+		if err != nil || out != c.want {
+			t.Errorf("%v = %q, %v; want %q", c.args, out, err, c.want)
+		}
+	}
+}
+
+func TestConfigGetAndSet_usageErrors(t *testing.T) {
+	newFakeEnv(t)
+	for _, args := range [][]string{
+		{"config", "get"},
+		{"config", "get", "a", "b"},
+		{"config", "get", "icon"},
+		{"config", "set", "depth", "abc"},
+	} {
+		_, err := runCmd(args...)
+		if got := cmd.ExitCodeFor(err); got != cmd.ExitUsage {
+			t.Errorf("%v: exit %d (%v), want usage", args, got, err)
+		}
+	}
+	// A file the writer cannot edit in place is not a usage mistake.
+	e := newFakeEnv(t)
+	cfgPath := filepath.Join(e.dir, "config.yaml")
+	if err := os.WriteFile(cfgPath, []byte("{depth: 3}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := runCmd("--config="+cfgPath, "config", "set", "depth", "4")
+	if err == nil || cmd.ExitCodeFor(err) == cmd.ExitUsage {
+		t.Errorf("set on a flow-style file: %v", err)
+	}
+}
