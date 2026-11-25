@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -18,7 +17,6 @@ import (
 	"unicode"
 
 	"github.com/aallbrig/treemand/models"
-	"github.com/aallbrig/treemand/presets"
 )
 
 // Discoverer is the interface for CLI hierarchy discovery strategies.
@@ -29,7 +27,8 @@ type Discoverer interface {
 
 // HelpDiscoverer uses --help output to discover subcommands and flags.
 type HelpDiscoverer struct {
-	MaxDepth      int
+	MaxDepth int
+	// Timeout bounds each launch of the CLI.
 	Timeout       time.Duration
 	StubThreshold int // max subcommands before creating stubs instead of eager discovery
 	// ChildrenAsStubs lists every subcommand as a name-only stub instead of
@@ -39,6 +38,12 @@ type HelpDiscoverer struct {
 	form atomic.Int32 // helpForm the root answered with; children try it first
 
 	manPages sync.Map // cliName -> its man page as plain text ("" for none)
+
+	// HelpSubcommand: the CLI documents "<cli> [path...] help" as its help
+	// (its preset says so), so that form is asked first.
+	HelpSubcommand bool
+	// Launcher launches the CLI; nil means ExecLauncher.
+	Launcher Launcher
 }
 
 // NewHelpDiscoverer creates a HelpDiscoverer with sensible defaults.
@@ -196,7 +201,8 @@ func (h *HelpDiscoverer) cleoListFallback(ctx context.Context, cliName string, n
 		return helpText, parsed
 	}
 	var timedOut atomic.Bool
-	out := h.runOne(ctx, resolveBinary(cliName), []string{"list"}, &timedOut)
+	p := Probe{Args: []string{"list"}, Basis: Documented, DocumentedIn: helpText}
+	out := h.runOne(ctx, resolveBinary(cliName), p, &timedOut)
 	if out == "" || isErrorOutput(out) {
 		return helpText, parsed
 	}
@@ -376,97 +382,13 @@ func CheckAvailable(cliName string) error {
 	return err
 }
 
-// pagerEnv are environment variable overrides appended to every help command
-// so that tools that pipe through a pager (AWS, man, etc.) emit plain text.
-var pagerEnv = []string{
-	"AWS_PAGER=",
-	"PAGER=cat",
-	"MANPAGER=cat",
-	"GIT_PAGER=cat",
-	// Man pages (git <cmd> --help) wrap to the terminal's width; a fixed width
-	// makes what is parsed, and cached, the same in any terminal.
-	"MANWIDTH=80",
-}
-
 // truncatedHelpRe matches messages that indicate --help output is abbreviated
 // and a more complete form is available (e.g. curl's "use --help all").
 var truncatedHelpRe = regexp.MustCompile(`(?i)--help all|--help <category>|not the full help`)
 
-// killWaitDelay bounds how long we wait for a command's output pipes to close
-// after its context ends. Without it, an orphaned child that inherited stdout
-// keeps CombinedOutput blocked long after the timeout.
-const killWaitDelay = time.Second
-
-// helpSlots bounds how many help processes run at once across the whole
-// discovery, however deep or wide the tree is.
-var helpSlots atomic.Pointer[chan struct{}]
-
-// DefaultMaxConcurrentHelp is the default cap: twice the CPU count, within 4..16.
-func DefaultMaxConcurrentHelp() int {
-	n := runtime.NumCPU() * 2
-	if n < 4 {
-		n = 4
-	}
-	if n > 16 {
-		n = 16
-	}
-	return n
-}
-
-// SetMaxConcurrentHelp sets the cap on concurrent help processes; n <= 0
-// restores the default.
-func SetMaxConcurrentHelp(n int) {
-	if n <= 0 {
-		n = DefaultMaxConcurrentHelp()
-	}
-	ch := make(chan struct{}, n)
-	helpSlots.Store(&ch)
-}
-
-// acquireHelpSlot waits for a free process slot (or ctx to end) and returns
-// the function that gives it back.
-func acquireHelpSlot(ctx context.Context) (func(), bool) {
-	p := helpSlots.Load()
-	if p == nil {
-		SetMaxConcurrentHelp(0)
-		p = helpSlots.Load()
-	}
-	ch := *p
-	select {
-	case ch <- struct{}{}:
-		return func() { <-ch }, true
-	case <-ctx.Done():
-		return nil, false
-	}
-}
-
 // ErrHelpTimedOut reports that every help form of a command ran out of its
 // own time: the CLI may be overloaded, not refusing.
 var ErrHelpTimedOut = errors.New("timed out")
-
-// rootRetryScale multiplies the per-command budget for the one retry of a
-// root whose help timed out.
-const rootRetryScale = 3
-
-type budgetScaleKey struct{}
-
-// withRootRetryBudget returns ctx with each help command's budget scaled up
-// for the root's retry; the run's own deadline still bounds it.
-func withRootRetryBudget(ctx context.Context) context.Context {
-	return context.WithValue(ctx, budgetScaleKey{}, rootRetryScale)
-}
-
-// commandTimeout is the time allowed for one help command.
-func (h *HelpDiscoverer) commandTimeout(ctx context.Context) time.Duration {
-	t := h.Timeout
-	if t <= 0 {
-		t = 5 * time.Second
-	}
-	if scale, ok := ctx.Value(budgetScaleKey{}).(int); ok && scale > 1 {
-		t *= time.Duration(scale)
-	}
-	return t
-}
 
 // helpForm is one way of asking a CLI for help. The order is the priority:
 // when several forms work, the earlier one wins.
@@ -523,8 +445,8 @@ func (h *HelpDiscoverer) runHelp(ctx context.Context, cliName string, args []str
 	var at formAttempts
 	// A preset may document "<cli> [path...] help" as the CLI's help (aws):
 	// ask that first, one call instead of two failing flag forms before it.
-	if p, ok := presets.Lookup(cliName); ok && p.HelpSubcommand {
-		if s := h.tryForm(ctx, resolved, args, formSuffix, &at); s != "" {
+	if h.HelpSubcommand {
+		if s := h.tryForm(ctx, resolved, args, formSuffix, Declared, &at); s != "" {
 			return s, nil
 		}
 	}
@@ -555,11 +477,11 @@ func (h *HelpDiscoverer) runHelp(ctx context.Context, cliName string, args []str
 		return s, nil
 	}
 
-	if s := h.tryForm(ctx, resolved, args, formSuffix, &at); s != "" {
+	if s := h.tryForm(ctx, resolved, args, formSuffix, HelpFallback, &at); s != "" {
 		return s, nil
 	}
 	if len(args) > 0 {
-		if s := h.tryForm(ctx, resolved, args, formPrefix, &at); s != "" {
+		if s := h.tryForm(ctx, resolved, args, formPrefix, HelpFallback, &at); s != "" {
 			return s, nil
 		}
 	}
@@ -580,7 +502,7 @@ func (h *HelpDiscoverer) raceForms(ctx context.Context, resolved string, args []
 		return "", formUnknown
 	}
 	if len(forms) == 1 {
-		return h.tryForm(ctx, resolved, args, forms[0], at), forms[0]
+		return h.tryForm(ctx, resolved, args, forms[0], NoWords, at), forms[0]
 	}
 	rctx, cancel := context.WithCancel(ctx)
 	// Cancel the losers and wait for them: a form still running after
@@ -595,7 +517,7 @@ func (h *HelpDiscoverer) raceForms(ctx context.Context, resolved string, args []
 		wg.Add(1)
 		go func(ch chan<- string, f helpForm) {
 			defer wg.Done()
-			ch <- h.tryForm(rctx, resolved, args, f, at)
+			ch <- h.tryForm(rctx, resolved, args, f, NoWords, at)
 		}(results[i], forms[i])
 	}
 	// Hedge: the preferred form gets a head start, so a CLI that answers it
@@ -631,7 +553,7 @@ func (h *HelpDiscoverer) raceForms(ctx context.Context, resolved string, args []
 // answers, or when one times out (a timeout is no refusal).
 func (h *HelpDiscoverer) formsInTurn(ctx context.Context, resolved string, args []string, forms []helpForm, at *formAttempts) (string, helpForm) {
 	for _, f := range forms {
-		if s := h.tryForm(ctx, resolved, args, f, at); s != "" {
+		if s := h.tryForm(ctx, resolved, args, f, NoWords, at); s != "" {
 			return s, f
 		}
 		if at.timedOut.Load() || ctx.Err() != nil {
@@ -682,8 +604,9 @@ func (a *formAttempts) refusedUsage() string {
 var usageLineRe = regexp.MustCompile(`(?im)^[ \t]*usage:[ \t]+\S`)
 
 // tryForm runs one help form and returns its sanitized output, or "" when the
-// command printed nothing or an error instead of help.
-func (h *HelpDiscoverer) tryForm(ctx context.Context, resolved string, args []string, f helpForm, at *formAttempts) string {
+// command printed nothing or an error instead of help. basis is why a
+// positional form may send "help" (flag forms send no word).
+func (h *HelpDiscoverer) tryForm(ctx context.Context, resolved string, args []string, f helpForm, basis Basis, at *formAttempts) string {
 	var cmdArgs []string
 	switch f {
 	case formFlag:
@@ -697,7 +620,7 @@ func (h *HelpDiscoverer) tryForm(ctx context.Context, resolved string, args []st
 	default:
 		return ""
 	}
-	s := h.runOne(ctx, resolved, cmdArgs, &at.timedOut)
+	s := h.runOne(ctx, resolved, Probe{Path: args, Args: cmdArgs, Basis: basis}, &at.timedOut)
 	if s == "" {
 		return ""
 	}
@@ -716,12 +639,14 @@ func (h *HelpDiscoverer) tryForm(ctx context.Context, resolved string, args []st
 // form, which is the CLI's own, so it is safe to ask.
 func (h *HelpDiscoverer) fullerHelp(ctx context.Context, resolved string, args []string, f helpForm, s string, at *formAttempts) string {
 	if f == formFlag && truncatedHelpRe.MatchString(s) {
-		if all := h.runOne(ctx, resolved, append(append([]string{}, args...), "--help", "all"), &at.timedOut); all != "" {
+		p := Probe{Path: args, Args: append(slices.Clone(args), "--help", "all"), Basis: Documented, DocumentedIn: s}
+		if all := h.runOne(ctx, resolved, p, &at.timedOut); all != "" {
 			return all
 		}
 	}
 	if (f == formFlag || f == formShort) && pointsToHelpPrefix(s, resolved, args) {
-		if full := h.runOne(ctx, resolved, append([]string{"help"}, args...), &at.timedOut); full != "" && !isErrorOutput(full) {
+		p := Probe{Path: args, Args: append([]string{"help"}, args...), Basis: Documented, DocumentedIn: s}
+		if full := h.runOne(ctx, resolved, p, &at.timedOut); full != "" && !isErrorOutput(full) {
 			return full
 		}
 	}
@@ -752,28 +677,26 @@ func pointsToHelpPrefix(s, resolved string, args []string) bool {
 	return false
 }
 
-// runOne runs a single help command with the pager variables set and returns
-// its sanitized output. h.Timeout bounds this one command only: a deadline
-// shared by a group of children would starve the later ones.
-func (h *HelpDiscoverer) runOne(ctx context.Context, resolved string, cmdArgs []string, timedOut *atomic.Bool) string {
-	// Take a process slot first: time spent waiting for one must not count
-	// against the command's own timeout.
-	release, ok := acquireHelpSlot(ctx)
-	if !ok {
+// runner is the probe runner this discoverer launches the CLI through.
+func (h *HelpDiscoverer) runner() Runner {
+	return Runner{Launcher: h.Launcher, Timeout: h.Timeout}
+}
+
+// runOne launches one help probe and returns its sanitized output, or ""
+// when it was refused, cancelled (by a race winner or the caller) or timed
+// out, which it notes in timedOut.
+func (h *HelpDiscoverer) runOne(ctx context.Context, resolved string, p Probe, timedOut *atomic.Bool) string {
+	r := h.runner().Run(ctx, resolved, p)
+	switch {
+	case r.Cancelled:
 		return ""
-	}
-	defer release()
-	cctx, cancel := context.WithTimeout(ctx, h.commandTimeout(ctx))
-	defer cancel()
-	out, _, _ := runCapped(cctx, resolved, cmdArgs, pagerEnv, MaxHelpBytes)
-	if cctx.Err() != nil && ctx.Err() != nil {
-		return "" // cancelled by a race winner or the caller, not a real answer
-	}
-	if cctx.Err() == context.DeadlineExceeded {
+	case r.TimedOut:
 		timedOut.Store(true)
 		return ""
+	case errors.Is(r.Err, ErrUndocumentedWord):
+		return ""
 	}
-	return SanitizeHelp(string(out))
+	return SanitizeHelp(r.Out)
 }
 
 // ParsedHelp holds structured results of parsing --help output.

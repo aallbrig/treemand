@@ -31,6 +31,11 @@ type ExpandOptions struct {
 	// Override, when set, re-applies the CLI's override to the whole tree
 	// after each merge, since a result carries none of its corrections.
 	Override func(root *models.Node)
+	// HelpSubcommand: the CLI documents "<cli> [path...] help" as its help
+	// (its preset says so); see HelpDiscoverer.HelpSubcommand.
+	HelpSubcommand bool
+	// Launcher launches the CLI; nil means ExecLauncher.
+	Launcher Launcher
 }
 
 // NodeExpander discovers single nodes of one CLI and merges each result into
@@ -50,6 +55,8 @@ func NewNodeExpander(cliName string, opts ExpandOptions) *NodeExpander {
 		opts.Timeout = DefaultExpandTimeout
 	}
 	d := NewHelpDiscoverer(1)
+	d.HelpSubcommand = opts.HelpSubcommand
+	d.Launcher = opts.Launcher
 	if opts.EagerBelow > 0 {
 		d.StubThreshold = opts.EagerBelow
 	} else {

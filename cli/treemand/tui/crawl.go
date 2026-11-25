@@ -10,6 +10,7 @@ import (
 
 	"github.com/aallbrig/treemand/discovery"
 	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/presets"
 )
 
 // CrawlOptions turns on background discovery: the TUI opens on whatever tree
@@ -66,8 +67,10 @@ func newCrawler(cliName string, opts CrawlOptions, override func(*models.Node)) 
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cr := &crawler{
-		opts:    opts,
-		exp:     discovery.NewNodeExpander(cliName, discovery.ExpandOptions{MaxDepth: opts.MaxDepth, Override: override}),
+		opts: opts,
+		exp: discovery.NewNodeExpander(cliName, discovery.ExpandOptions{
+			MaxDepth: opts.MaxDepth, Override: override, HelpSubcommand: presets.HelpSubcommand(cliName),
+		}),
 		ctx:     ctx,
 		cancel:  cancel,
 		results: make(chan crawlMsg, opts.Workers),

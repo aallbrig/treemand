@@ -48,10 +48,8 @@ linters:
         discovery:
           files:
             - "**/cli/treemand/discovery/**"
-          # The one exemption: discovery imports presets in the help-attempt
-          # chain. TODO(#481): the probe runner removes that import; then add
-          # presets to this list.
           deny:
+            - {pkg: github.com/aallbrig/treemand/presets, desc: "discovery imports nothing above it; callers pass a preset's hints in"}
             - {pkg: github.com/aallbrig/treemand/overrides, desc: "discovery imports nothing above it"}
             - {pkg: github.com/aallbrig/treemand/cache, desc: "discovery imports nothing above it"}
             - {pkg: github.com/aallbrig/treemand/mcp, desc: "discovery imports nothing above it"}

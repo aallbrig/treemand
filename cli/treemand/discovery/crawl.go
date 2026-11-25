@@ -40,9 +40,11 @@ func PendingStubs(root *models.Node, maxDepth, stubThreshold int) []*models.Node
 
 // CompletePending discovers every pending stub below root (and the pending
 // stubs those reveal) with up to workers in flight, filling them in place.
-// It makes a tree saved mid-crawl whole again. Returns the number filled.
-func CompletePending(ctx context.Context, root *models.Node, cliName string, maxDepth, stubThreshold, workers int) int {
-	e := NewNodeExpander(cliName, ExpandOptions{MaxDepth: maxDepth})
+// It makes a tree saved mid-crawl whole again. opts.MaxDepth is the deepest
+// path a stub is pending at. Returns the number filled.
+func CompletePending(ctx context.Context, root *models.Node, cliName string, opts ExpandOptions, stubThreshold, workers int) int {
+	maxDepth := opts.MaxDepth
+	e := NewNodeExpander(cliName, opts)
 	filled := 0
 	for {
 		batch := PendingStubs(root, maxDepth, stubThreshold)

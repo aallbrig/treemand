@@ -2,6 +2,7 @@ package discovery
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/aallbrig/treemand/models"
@@ -15,7 +16,10 @@ import (
 //
 // The result is a root node with stub children for each discovered subcommand.
 // This is intentionally shallow — it discovers only the top-level subcommands.
-type CompletionsDiscoverer struct{}
+type CompletionsDiscoverer struct {
+	// Launcher launches the CLI; nil means ExecLauncher.
+	Launcher Launcher
+}
 
 // NewCompletionsDiscoverer creates a CompletionsDiscoverer.
 func NewCompletionsDiscoverer() *CompletionsDiscoverer { return &CompletionsDiscoverer{} }
@@ -25,13 +29,14 @@ func (c *CompletionsDiscoverer) Name() string { return "completions" }
 // Discover runs <cliName> __complete "" and parses the output.
 // Returns nil, nil when the CLI does not support __complete (not an error).
 func (c *CompletionsDiscoverer) Discover(ctx context.Context, cliName string, args []string) (*models.Node, error) {
-	cmdArgs := append(args, "__complete", "") //nolint:gocritic
-	out, err := runCommand(ctx, cliName, cmdArgs)
-	if err != nil {
+	// The user chose this strategy, which sends cobra's hidden "__complete".
+	p := Probe{Path: args, Args: append(slices.Clone(args), "__complete", ""), Basis: Declared}
+	r := Runner{Launcher: c.Launcher}.Run(ctx, resolveBinary(cliName), p)
+	if r.Err != nil {
 		return nil, nil //nolint:nilerr // __complete unsupported means no completions, not a failure
 	}
 
-	children := ParseCompletionOutput(out, append([]string{cliName}, args...))
+	children := ParseCompletionOutput(strings.TrimSpace(r.Out), append([]string{cliName}, args...))
 	if len(children) == 0 {
 		return nil, nil
 	}
@@ -44,13 +49,6 @@ func (c *CompletionsDiscoverer) Discover(ctx context.Context, cliName string, ar
 		Children: children,
 	}
 	return root, nil
-}
-
-// runCommand executes cliName with args and returns combined stdout+stderr.
-func runCommand(ctx context.Context, cliName string, args []string) (string, error) {
-	resolved := resolveBinary(cliName)
-	out, _, err := runCapped(ctx, resolved, args, nil, MaxHelpBytes)
-	return strings.TrimSpace(string(out)), err
 }
 
 // ParseCompletionOutput converts Cobra __complete output to stub child nodes.

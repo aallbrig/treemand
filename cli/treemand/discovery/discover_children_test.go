@@ -3,6 +3,7 @@ package discovery
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
@@ -12,12 +13,15 @@ import (
 // A root whose children cover each way a child's help can come back: none
 // (broken), the root's own help again (same: the CLI ignores its arguments),
 // and help of its own (real).
-const childCasesCLI = `case "$*" in *broken*) exit 1;; esac
-case "$1" in
-real) printf 'Run the real thing.\n\nUsage:\n  formcli real [flags]\n\nFlags:\n  --force  force it\n';;
-*) printf 'A fake tool.\n\nUsage:\n  formcli <command>\n\nAvailable Commands:\n  broken  Is broken.\n  real    Has help.\n  same    Ignores its arguments.\n\nFlags:\n  --verbose  be loud\n';;
-esac
-`
+func childCasesCLI(args []string) reply {
+	if slices.Contains(args, "broken") {
+		return reply{exit: 1}
+	}
+	if firstArg(args) == "real" {
+		return reply{out: "Run the real thing.\n\nUsage:\n  formcli real [flags]\n\nFlags:\n  --force  force it\n"}
+	}
+	return reply{out: "A fake tool.\n\nUsage:\n  formcli <command>\n\nAvailable Commands:\n  broken  Is broken.\n  real    Has help.\n  same    Ignores its arguments.\n\nFlags:\n  --verbose  be loud\n"}
+}
 
 // childLine is one line per child: every field discoverWithHelp sets.
 func childLine(root, c *models.Node) string {
@@ -35,8 +39,8 @@ func childLine(root, c *models.Node) string {
 }
 
 func TestDiscover_childHelpCases(t *testing.T) {
-	bin, _ := formCLI(t, 0, childCasesCLI)
-	root, err := NewHelpDiscoverer(2).Discover(context.Background(), bin, nil)
+	cli := &fakeCLI{answer: childCasesCLI}
+	root, err := cli.discoverer(2).Discover(context.Background(), "formcli", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,10 +59,10 @@ func TestDiscover_childHelpCases(t *testing.T) {
 }
 
 func TestDiscover_wideCommandsGetStubChildren(t *testing.T) {
-	bin, logPath := formCLI(t, 0, childCasesCLI)
-	d := NewHelpDiscoverer(2)
+	cli := &fakeCLI{answer: childCasesCLI}
+	d := cli.discoverer(2)
 	d.StubThreshold = 2
-	root, err := d.Discover(context.Background(), bin, nil)
+	root, err := d.Discover(context.Background(), "formcli", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +78,7 @@ func TestDiscover_wideCommandsGetStubChildren(t *testing.T) {
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Errorf("children:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
-	for _, call := range calls(t, logPath) {
+	for _, call := range cli.calls() {
 		if strings.HasPrefix(call, "broken") || strings.HasPrefix(call, "real") || strings.HasPrefix(call, "same") {
 			t.Errorf("stub children must not be run; got call %q", call)
 		}

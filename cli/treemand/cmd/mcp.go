@@ -10,6 +10,7 @@ import (
 	"github.com/aallbrig/treemand/discovery"
 	"github.com/aallbrig/treemand/mcp"
 	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/presets"
 	"github.com/aallbrig/treemand/treeload"
 )
 
@@ -94,6 +95,8 @@ func mcpExpand(ctx context.Context, cli string, root, node *models.Node) error {
 	if err != nil {
 		return err
 	}
-	return discovery.NewNodeExpander(cli, discovery.ExpandOptions{EagerBelow: discovery.OneLevel, MaxDepth: -1, Override: overrideFunc(ov)}).
+	return discovery.NewNodeExpander(cli, discovery.ExpandOptions{
+		EagerBelow: discovery.OneLevel, MaxDepth: -1, Override: overrideFunc(ov), HelpSubcommand: presets.HelpSubcommand(cli),
+	}).
 		Expand(ctx, root, node)
 }

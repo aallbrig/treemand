@@ -53,6 +53,13 @@ func Lookup(cli string) (*Preset, bool) {
 	return p, ok
 }
 
+// HelpSubcommand reports whether cli's preset says it documents
+// "<cli> [path...] help" as its help.
+func HelpSubcommand(cli string) bool {
+	p, ok := Lookup(cli)
+	return ok && p.HelpSubcommand
+}
+
 // Names lists registered preset names.
 func Names() []string {
 	out := make([]string, 0, len(registry))
