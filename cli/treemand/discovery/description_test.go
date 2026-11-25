@@ -62,3 +62,18 @@ func TestParseHelp_clapVersionLineIsNotADescription(t *testing.T) {
 		}
 	}
 }
+
+// A rejected-option line printed before a usage synopsis is an error, never
+// the description (issue #275): BSD ls says "ls: unrecognized option `--help'".
+func TestParseHelp_usageErrorLineIsNotADescription(t *testing.T) {
+	cases := []string{
+		"ls: unrecognized option `--help'\nusage: ls [-@ABC] [--color=when] [-D format] [file ...]\n",
+		"tool: invalid option -- 'h'\nusage: tool [-ab] [file ...]\n",
+		"tool: unknown option --help\nusage: tool [-ab] [file ...]\n",
+	}
+	for _, help := range cases {
+		if d := discovery.ParseHelpOutputFor(help, "ls").Description; d != "" {
+			t.Errorf("description = %q, want empty", d)
+		}
+	}
+}

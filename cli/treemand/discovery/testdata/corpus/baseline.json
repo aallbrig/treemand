@@ -230,7 +230,7 @@
   "ls@bsd": {
     "subcommands": 0,
     "flags": 46,
-    "has_description": true,
+    "has_description": false,
     "description_is_synopsis": false
   },
   "make": {

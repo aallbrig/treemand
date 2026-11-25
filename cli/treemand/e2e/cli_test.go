@@ -154,6 +154,17 @@ func TestSynopsisOnly_flagsComeFromTheUsageLine(t *testing.T) {
 	}
 }
 
+func TestSynopsisOnly_usageErrorIsNotTheDescription(t *testing.T) {
+	r := run(t, limit, nil, "--no-cache", "--output=json", "fakebsdls")
+	root := parseJSON(t, r.stdout)
+	if strings.Contains(root.Description, "unrecognized option") {
+		t.Errorf("description = %q, the error line became the description", root.Description)
+	}
+	if !root.hasFlag("-a") || !root.hasFlag("--color") {
+		t.Errorf("flags %+v, want -a and --color from the usage line", root.Flags)
+	}
+}
+
 func TestClap_childDescriptionsComeFromTheSubcommandList(t *testing.T) {
 	r := run(t, limit, nil, "--no-cache", "--output=json", "fakeclap")
 	root := parseJSON(t, r.stdout)

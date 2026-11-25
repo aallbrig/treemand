@@ -340,6 +340,7 @@ func (p *helpParser) isProse(l helpLine) bool {
 		!introducesIndentedList(p.lines, l.i) && !listRowRe.MatchString(l.raw) &&
 		!manpageHeaderRe.MatchString(l.trimmed) && // "GIT-CLONE(1)   Git Manual"
 		!strings.HasPrefix(l.trimmed, "-") &&
+		!isUsageErrorLine(l.lower) &&
 		!strings.HasSuffix(l.trimmed, " -") && // empty man NAME body: "aws -"
 		!isUsageLine(l.trimmed, p.selfName) &&
 		!strings.HasSuffix(l.trimmed, ":") && // section header, not prose
@@ -348,6 +349,20 @@ func (p *helpParser) isProse(l helpLine) bool {
 		!strings.HasPrefix(l.lower, "name") &&
 		!strings.HasPrefix(l.lower, "synopsis") &&
 		l.lower != "description"
+}
+
+// isUsageErrorLine: the line is an argument parser rejecting an option
+// ("ls: unrecognized option `--help'", "error: unknown flag"), which BSD and
+// getopt tools print before their usage. It is an error, never a description.
+// The marker must open the line or follow a "prog: " prefix, so prose that
+// mentions one ("Ignore unknown options") still counts.
+func isUsageErrorLine(lower string) bool {
+	for _, m := range usageErrorMarkers {
+		if strings.HasPrefix(lower, m) || strings.Contains(lower, ": "+m) {
+			return true
+		}
+	}
+	return false
 }
 
 // collectUsageAndURL keeps usage / synopsis lines, with the indented lines
