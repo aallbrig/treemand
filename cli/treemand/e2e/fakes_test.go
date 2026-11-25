@@ -16,6 +16,15 @@ alpha|beta)
 esac
 `,
 
+	// Its "sprout" command gains --grown-flag once the file $FAKE_GROWN exists,
+	// like a CLI upgraded while the TUI is open.
+	"fakegrow": `case "$1" in
+sprout) printf 'Sprout things\n\nUsage:\n  fakegrow sprout [flags]\n\nFlags:\n  -h, --help   help for sprout\n      --old-flag     there from the start\n'
+  [ -n "$FAKE_GROWN" ] && [ -e "$FAKE_GROWN" ] && printf '      --grown-flag   added by the upgrade\n';;
+*) printf 'fakegrow grows things\n\nUsage:\n  fakegrow [command]\n\nAvailable Commands:\n  sprout      Sprout things\n\nFlags:\n  -h, --help   help for fakegrow\n';;
+esac
+`,
+
 	// Logs every invocation to $FAKE_LOG, so cache tests can prove a run never
 	// touched the CLI. Three cobra-style commands, each with one subcommand.
 	"fakecache": `[ -n "$FAKE_LOG" ] && echo "$*" >>"$FAKE_LOG"

@@ -76,7 +76,7 @@ func (m *Model) forceExpandSelected() tea.Cmd {
 		defer cancel()
 
 		result, err := d.Discover(ctx, cliName, args)
-		return LazyExpandMsg{Stub: node, Discovered: result, Err: err}
+		return LazyExpandMsg{Stub: node, Discovered: result, Err: err, Refresh: true}
 	}
 }
 

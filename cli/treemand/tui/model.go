@@ -42,6 +42,9 @@ type LazyExpandMsg struct {
 	Stub       *models.Node // original stub node (pointer identity for patching)
 	Discovered *models.Node // freshly-discovered tree rooted at that node
 	Err        error
+	// Refresh marks a re-discovery the user asked for: the result replaces
+	// what the node held instead of filling only what it lacked.
+	Refresh bool
 }
 
 // executeModal is the Ctrl+E dialog for running or copying the built command.
@@ -162,7 +165,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case LazyExpandMsg:
 		if msg.Err == nil && msg.Discovered != nil {
-			m.tree.PatchNode(msg.Stub, msg.Discovered)
+			m.tree.ApplyDiscovery(msg.Stub, msg.Discovered, msg.Refresh)
 			m.statusMsg = "expanded: " + msg.Stub.Name
 		} else if msg.Err != nil {
 			m.statusMsg = "expand failed: " + msg.Err.Error()

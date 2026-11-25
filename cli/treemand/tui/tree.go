@@ -696,10 +696,25 @@ func (t *TreeModel) ToggleSectionAtY(y int) {
 // PatchNode replaces a stub node's children with discovered children and clears
 // the Stub flag. The node is matched by pointer identity.
 func (t *TreeModel) PatchNode(stub *models.Node, discovered *models.Node) {
+	t.patchAndExpand(stub, discovered, copyDiscovered)
+}
+
+// ApplyDiscovery is PatchNode for an expand result. With refresh (a
+// re-discovery the user asked for) the node takes the fresh result whole,
+// dropping the flags, positionals and help it had before.
+func (t *TreeModel) ApplyDiscovery(node, discovered *models.Node, refresh bool) {
+	if refresh {
+		t.patchAndExpand(node, discovered, discovery.Refresh)
+		return
+	}
+	t.PatchNode(node, discovered)
+}
+
+func (t *TreeModel) patchAndExpand(stub, discovered *models.Node, merge func(stub, discovered *models.Node)) {
 	if stub == nil || discovered == nil {
 		return
 	}
-	copyDiscovered(stub, discovered)
+	merge(stub, discovered)
 	t.patches++
 	// Auto-expand the freshly-discovered node.
 	key := t.findNodeKey(stub)
