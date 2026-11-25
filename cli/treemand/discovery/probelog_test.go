@@ -41,6 +41,7 @@ func TestProbeLogRecordsEachOutcome(t *testing.T) {
 				i, got[i].Args, got[i].Outcome, got[i].ExitCode, got[i].Truncated, w.outcome, w.exit, w.truncated)
 		}
 	}
+	//nolint:gocritic // timing: a lower bound; a probe killed at its timeout cannot take less time, however loaded the host
 	if got[2].Duration < 50*time.Millisecond {
 		t.Errorf("timed-out probe took %v, want at least its 50ms timeout", got[2].Duration)
 	}

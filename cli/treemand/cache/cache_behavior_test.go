@@ -2,6 +2,7 @@ package cache_test
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -204,12 +205,15 @@ func TestBinaryFingerprint_followsSymlinkRetargets(t *testing.T) {
 
 // largeTree is shaped like a cached aws run: a root with 18 flags and 422
 // service nodes.
-func largeTree() *models.Node {
+func largeTree() *models.Node { return treeOf(422) }
+
+// treeOf is an aws-like root with n stub services.
+func treeOf(n int) *models.Node {
 	root := &models.Node{Name: "aws", FullPath: []string{"aws"}, Discovered: true, HelpText: strings.Repeat("The AWS command line interface.\n", 1500)}
 	for i := 0; i < 18; i++ {
 		root.Flags = append(root.Flags, models.Flag{Name: "--global-" + strings.Repeat("x", i%5+1), ValueType: "string", Description: "a global flag"})
 	}
-	for i := 0; i < 422; i++ {
+	for i := 0; i < n; i++ {
 		name := "svc" + strings.Repeat("a", i%7+1) + string(rune('a'+i%26))
 		root.Children = append(root.Children, &models.Node{Name: name, FullPath: []string{"aws", name}, Stub: true, Description: "service " + name})
 	}
@@ -237,26 +241,26 @@ func BenchmarkGetLargeTree(b *testing.B) {
 	}
 }
 
-// A hit on a 400-node tree must stay far below the 300ms budget for a whole
-// warm run; this guards the cache read itself.
-func TestGetLargeTreeIsFast(t *testing.T) {
+// A hit must cost in proportion to the tree: reading a tree 4x larger may
+// allocate at most about 4x as much, so no read path is quadratic. The time
+// of a hit (a few milliseconds; BenchmarkGetLargeTree) is the perf probe's to
+// judge, not a unit test's.
+func TestGetLargeTreeScalesLinearly(t *testing.T) {
 	c, _ := openCache(t)
-	key := cache.Key("aws", "t", []string{"help"})
-	if err := c.Put(key, "aws", "t", "help", largeTree()); err != nil {
-		t.Fatal(err)
-	}
-	best := time.Hour
-	for i := 0; i < 5; i++ {
-		start := time.Now()
-		got, err := c.Get(key, 0)
-		if err != nil || got == nil || len(got.Children) != 422 {
-			t.Fatalf("Get returned %v, %v", got, err)
+	allocs := func(n int) float64 {
+		key := cache.Key("aws", fmt.Sprint(n), []string{"help"})
+		if err := c.Put(key, "aws", fmt.Sprint(n), "help", treeOf(n)); err != nil {
+			t.Fatal(err)
 		}
-		if d := time.Since(start); d < best {
-			best = d
-		}
+		return testing.AllocsPerRun(5, func() {
+			got, err := c.Get(key, 0)
+			if err != nil || got == nil || len(got.Children) != n {
+				t.Fatalf("Get returned %v, %v", got, err)
+			}
+		})
 	}
-	if best > 100*time.Millisecond {
-		t.Errorf("cache read of a 422-node tree took %v, want well under 100ms", best)
+	small, large := allocs(422), allocs(4*422)
+	if ratio := large / small; ratio > 5 {
+		t.Errorf("a 4x tree costs %.1fx the allocations (%.0f vs %.0f); want at most 5x", ratio, large, small)
 	}
 }

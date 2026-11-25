@@ -157,18 +157,19 @@ esac
 `
 
 func TestRunHelp_learnedShortFlagIsTriedFirstAndFlagsRace(t *testing.T) {
-	// Each call takes 600ms. Trying --help then -h in turn costs 1.2s per
-	// node: 2.4s for the root and its children. Racing the flags at the root
-	// and asking children -h first costs about 0.85s + 0.6s.
-	bin, logPath := formCLI(t, 600*time.Millisecond, shortOnly)
-	start := time.Now()
+	// The root's calls take 2s and log "done <args>" as they end. Racing the
+	// flags starts -h while --help still runs (the hedge fires at 250ms, far
+	// inside the 2s); trying them in turn would log "done --help" before "-h".
+	bin, logPath := formCLI(t, 0, `case "$*" in --help|-h)
+sleep 2; echo "done $*" >>"$(dirname "$0")/calls.log";;
+esac
+`+shortOnly)
 	root, err := NewHelpDiscoverer(2).Discover(context.Background(), bin, nil)
-	elapsed := time.Since(start)
 	if err != nil || len(root.Children) != 3 || len(root.Children[0].Flags) == 0 {
 		t.Fatalf("discovery failed: %v %+v", err, root)
 	}
-	if elapsed > 2*time.Second {
-		t.Errorf("root + children took %v; trying flags in turn takes 2.4s", elapsed)
+	if log := calls(t, logPath); !rootFlagsOverlap(log) {
+		t.Errorf("the root's --help and -h did not run at once; calls: %q", log)
 	}
 	// Children ask the learned -h first (a slow -h may still let --help join
 	// it after the hedge delay, which is fine).
@@ -182,6 +183,21 @@ func TestRunHelp_learnedShortFlagIsTriedFirstAndFlagsRace(t *testing.T) {
 			}
 		}
 	}
+}
+
+// rootFlagsOverlap reports whether the root's --help and -h both started
+// before either of them finished.
+func rootFlagsOverlap(log []string) bool {
+	started := 0
+	for _, c := range log {
+		switch c {
+		case "--help", "-h":
+			started++
+		case "done --help", "done -h":
+			return started == 2
+		}
+	}
+	return false
 }
 
 func TestRunHelp_childFallsBackWhenTheLearnedFormFails(t *testing.T) {

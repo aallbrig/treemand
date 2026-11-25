@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -699,14 +698,11 @@ func TestExitCodeFor_plainErrorsAreFailures(t *testing.T) {
 }
 
 func TestOutputFormatIsValidatedBeforeDiscovery(t *testing.T) {
-	// A bad format must fail at once, not after probing the CLI.
-	start := time.Now()
+	// A bad format must fail at once, not after probing the CLI: the error is
+	// the format's, not the missing CLI's.
 	_, err := runCmd("--no-cache", "--output=xml", "definitely-not-installed-xyz")
 	if err == nil || !strings.Contains(err.Error(), "unknown output format") {
 		t.Fatalf("error = %v, want the output-format error (not 'command not found')", err)
-	}
-	if time.Since(start) > 2*time.Second {
-		t.Errorf("validation took %v", time.Since(start))
 	}
 }
 

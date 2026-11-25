@@ -1,6 +1,10 @@
 version: "2"
 run:
   modules-download-mode: readonly
+# Show every finding, not the first three of each kind.
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
 linters:
   enable:
     - gosec
@@ -88,8 +92,15 @@ linters:
           deny:
             - {pkg: github.com/aallbrig/treemand/cmd, desc: "only main imports cmd"}
     gocritic:
+      enabled-checks:
+        - ruleguard
       disabled-checks:
         - ifElseChain # style only
+      settings:
+        ruleguard:
+          # wallClockBound: no wall-clock asserts in unit tests (#477).
+          rules: "${base-path}/cli/treemand/lintrules/*.go"
+          failOn: all
     gosec:
       excludes:
         - G304

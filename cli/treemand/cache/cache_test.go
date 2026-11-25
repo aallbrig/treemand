@@ -331,6 +331,7 @@ func TestCLIVersion_aHangingVersionCommandTimesOut(t *testing.T) {
 	}
 	start := time.Now()
 	got := cache.CLIVersion(bin)
+	//nolint:gocritic // timing: only a kill ends sleep 60, so any bound well under it proves the timeout
 	if elapsed := time.Since(start); elapsed > cache.VersionTimeout+2*time.Second {
 		t.Errorf("CLIVersion took %v on a hanging --version; it must give up after %v", elapsed, cache.VersionTimeout)
 	}

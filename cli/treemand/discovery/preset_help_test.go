@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 )
 
 // aws documents "aws <path> help" as its help and answers neither --help nor
@@ -23,21 +22,17 @@ func TestRunHelp_presetDocumentedHelpSubcommandIsAskedFirst(t *testing.T) {
 	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	start := time.Now()
 	d := NewHelpDiscoverer(1)
 	d.ChildrenAsStubs = true
 	root, err := d.Discover(context.Background(), bin, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if elapsed := time.Since(start); elapsed > time.Second {
-		t.Errorf("root help took %v; asking the documented form first takes one fast call", elapsed)
-	}
 	if len(root.Children) != 2 {
 		t.Errorf("services not discovered: %+v", root.Children)
 	}
 	b, _ := os.ReadFile(logPath)
-	if first := strings.SplitN(strings.TrimSpace(string(b)), "\n", 2)[0]; first != "help" {
-		t.Errorf("first call was %q, want the documented \"help\"", first)
+	if got := strings.Split(strings.TrimSpace(string(b)), "\n"); len(got) != 1 || got[0] != "help" {
+		t.Errorf("calls = %q, want one: the documented \"help\"", got)
 	}
 }

@@ -53,6 +53,12 @@ tasks:
       - shellcheck --shell=sh scripts/dev/layering_test.sh
       - dash scripts/dev/layering_test.sh
 
+  lint:timing:test:
+    desc: Test the wallClockBound ruleguard rule - the tree passes, a planted wall-clock assert in a unit test fails
+    cmds:
+      - shellcheck --shell=sh scripts/dev/timing_lint_test.sh
+      - dash scripts/dev/timing_lint_test.sh
+
   lint-fix:
     desc: Run golangci-lint with auto-fix enabled
     cmds:
@@ -617,6 +623,7 @@ tasks:
       - task: vet
       - task: lint
       - task: lint:layering:test
+      - task: lint:timing:test
       - task: vuln
       - task: test-race
       - task: fuzz:smoke
