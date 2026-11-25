@@ -32,7 +32,7 @@ jobs:
         # setup-go above installs go.mod's toolchain, so govulncheck judges the
         # standard library treemand is built with.
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
+          go install golang.org/x/vuln/cmd/govulncheck@v1.10.0
           PATH="$(go env GOPATH)/bin:$PATH" python3 -I scripts/metrics/measure.py dependency-health --findings >dependency-health.json
       - name: test-effectiveness
         # Mutation testing is too slow for every PR (about ten minutes). The
