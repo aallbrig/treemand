@@ -141,6 +141,19 @@ func TestArgparse_subcommandsAreDiscovered(t *testing.T) {
 	}
 }
 
+func TestSynopsisOnly_flagsComeFromTheUsageLine(t *testing.T) {
+	r := run(t, limit, nil, "--no-cache", "--output=json", "fakebsd")
+	root := parseJSON(t, r.stdout)
+	for _, name := range []string{"-H", "-L", "-P", "-E", "-X", "-d", "-s", "-x", "-f"} {
+		if !root.hasFlag(name) {
+			t.Errorf("flag %s missing from %+v", name, root.Flags)
+		}
+	}
+	if root.hasFlag("-EXdsx") || len(root.Children) != 0 {
+		t.Errorf("root = %+v, want single-letter flags and no subcommands", root)
+	}
+}
+
 func TestClap_childDescriptionsComeFromTheSubcommandList(t *testing.T) {
 	r := run(t, limit, nil, "--no-cache", "--output=json", "fakeclap")
 	root := parseJSON(t, r.stdout)
