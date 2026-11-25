@@ -1,7 +1,6 @@
 package config
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -108,7 +107,12 @@ func (s *Settings) Set(key, value string) error {
 			return err
 		}
 	}
-	data, err := os.ReadFile(s.Path)
+	// Write through a symlink (a dotfiles-managed config), not over it.
+	path := s.Path
+	if p, err := filepath.EvalSymlinks(s.Path); err == nil {
+		path = p
+	}
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("read config: %w", err)
 	}
@@ -116,7 +120,7 @@ func (s *Settings) Set(key, value string) error {
 	if err != nil {
 		return err
 	}
-	return writeFileAtomic(s.Path, out)
+	return writeFileAtomic(path, out)
 }
 
 func lookup(key string) (SchemaEntry, error) {
@@ -173,77 +177,17 @@ func collectScalars(prefix string, n *yaml.Node, out map[string]string) {
 	}
 	for i := 0; i+1 < len(n.Content); i += 2 {
 		key := prefix + n.Content[i].Value
-		switch v := n.Content[i+1]; v.Kind {
+		v := n.Content[i+1]
+		if v.Kind == yaml.AliasNode && v.Alias != nil {
+			v = v.Alias
+		}
+		switch v.Kind {
 		case yaml.ScalarNode:
 			out[key] = v.Value
 		case yaml.MappingNode:
 			collectScalars(key+".", v, out)
 		}
 	}
-}
-
-// setYAML returns data with e's key set to value, creating the mappings on
-// its dot path as needed. Everything else in the document is kept.
-func setYAML(data []byte, e SchemaEntry, value string) ([]byte, error) {
-	var doc yaml.Node
-	if err := yaml.Unmarshal(data, &doc); err != nil {
-		return nil, fmt.Errorf("parse config: %w", err)
-	}
-	if len(doc.Content) == 0 {
-		doc = yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{{Kind: yaml.MappingNode}}}
-	}
-	n := doc.Content[0]
-	if n.Kind != yaml.MappingNode {
-		return nil, fmt.Errorf("parse config: the top level is not a mapping")
-	}
-	parts := strings.Split(e.Key, ".")
-	for _, p := range parts[:len(parts)-1] {
-		n = childMapping(n, p)
-		if n == nil {
-			return nil, fmt.Errorf("parse config: %q is not a mapping", p)
-		}
-	}
-	leaf := mappingValue(n, parts[len(parts)-1])
-	leaf.Kind, leaf.Tag, leaf.Value, leaf.Style = yaml.ScalarNode, scalarTag(e.Type), value, 0
-	leaf.Content = nil
-	if e.Type == TypeHexColor {
-		leaf.Style = yaml.DoubleQuotedStyle
-	}
-	var buf bytes.Buffer
-	enc := yaml.NewEncoder(&buf)
-	enc.SetIndent(2)
-	if err := enc.Encode(&doc); err != nil {
-		return nil, fmt.Errorf("write config: %w", err)
-	}
-	if err := enc.Close(); err != nil {
-		return nil, fmt.Errorf("write config: %w", err)
-	}
-	return buf.Bytes(), nil
-}
-
-// mappingValue returns key's value node in m, appending the key if absent.
-func mappingValue(m *yaml.Node, key string) *yaml.Node {
-	for i := 0; i+1 < len(m.Content); i += 2 {
-		if m.Content[i].Value == key {
-			return m.Content[i+1]
-		}
-	}
-	v := &yaml.Node{Kind: yaml.ScalarNode}
-	m.Content = append(m.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key}, v)
-	return v
-}
-
-// childMapping returns key's mapping in m, creating it when absent or empty,
-// and nil when key holds something else.
-func childMapping(m *yaml.Node, key string) *yaml.Node {
-	v := mappingValue(m, key)
-	if v.Kind == yaml.ScalarNode && (v.Tag == "" || v.Tag == "!!null") {
-		v.Kind, v.Tag, v.Value = yaml.MappingNode, "!!map", ""
-	}
-	if v.Kind != yaml.MappingNode {
-		return nil
-	}
-	return v
 }
 
 func scalarTag(t KeyType) string {

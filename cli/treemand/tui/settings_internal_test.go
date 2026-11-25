@@ -79,6 +79,13 @@ func TestSettings_flagStillWinsAndEditCanBeAbandoned(t *testing.T) {
 	if !strings.Contains(m.st.note, "this run's flag still wins") || m.cfg.IconPreset == "ascii" {
 		t.Errorf("note = %q preset = %q", m.st.note, m.cfg.IconPreset)
 	}
+	selectSetting(t, m, "no_history")
+	press(m, "enter", "ctrl+u")
+	typeText(m, "TRUE")
+	press(m, "enter")
+	if !strings.Contains(m.st.note, "no_history = true") {
+		t.Errorf("the note should show the stored value: %q", m.st.note)
+	}
 
 	press(m, "enter", "esc")
 	if m.st.editing || !m.st.active {
@@ -113,7 +120,7 @@ func TestSettings_writeFailureIsShown(t *testing.T) {
 		t.Fatal(err)
 	}
 	press(m, "enter", "enter")
-	if !m.st.editing || !strings.Contains(m.View(), "not a mapping") {
+	if !m.st.editing || !strings.Contains(m.View(), "not a block mapping") {
 		t.Errorf("a refused write should keep the prompt open with the reason:\n%s", m.View())
 	}
 }

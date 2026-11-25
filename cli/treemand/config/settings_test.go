@@ -169,3 +169,95 @@ func TestApplyLive_themeAndLayoutOnly(t *testing.T) {
 		}
 	}
 }
+
+// Review findings on #266: the file's text is edited in place.
+func TestSettings_setEditsTheTextInPlace(t *testing.T) {
+	cases := []struct {
+		name, in, key, value, want string
+	}{
+		{"blank lines and comments kept", "# a\n\nicons: ascii  # b\n\ndepth: 3\n", "depth", "5",
+			"# a\n\nicons: ascii  # b\n\ndepth: 5\n"},
+		{"comment-only file", "# only a comment\n# icons: nerd\n", "icons", "nerd",
+			"# only a comment\n# icons: nerd\nicons: nerd\n"},
+		{"bare document marker", "---\n", "depth", "4", "---\ndepth: 4\n"},
+		{"no trailing newline", "icons: ascii", "depth", "4", "icons: ascii\ndepth: 4\n"},
+		{"quoted values", "a: 'x'\ncolors:\n  base: \"#111\" # c\n  pos: '#222'\n", "colors.pos", "#ABC",
+			"a: 'x'\ncolors:\n  base: \"#111\" # c\n  pos: \"#ABC\"\n"},
+		{"new nested key under a parent", "colors:\n    base: \"#111\"\ndepth: 3\n", "colors.pos", "#ABC",
+			"colors:\n    base: \"#111\"\n    pos: \"#ABC\"\ndepth: 3\n"},
+		{"new parent", "depth: 3\n", "colors.pos", "#ABC", "depth: 3\ncolors:\n  pos: \"#ABC\"\n"},
+		{"alias replaced, anchor kept", "depth: &d 3\nstub_threshold: *d\n", "stub_threshold", "9",
+			"depth: &d 3\nstub_threshold: 9\n"},
+		{"string that needs quoting", "strategies: help\n", "strategies", "help, man # x",
+			"strategies: 'help, man # x'\n"},
+		{"crlf kept", "icons: ascii\r\ndepth: 3\r\n", "icons", "nerd", "icons: nerd\r\ndepth: 3\r\n"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			s := newSettings(t, c.in)
+			if err := s.Set(c.key, c.value); err != nil {
+				t.Fatal(err)
+			}
+			if got := readFile(t, s.Path); got != c.want {
+				t.Errorf("file =\n%q\nwant\n%q", got, c.want)
+			}
+		})
+	}
+}
+
+func TestSettings_setRefusesWhatItCannotEditInPlace(t *testing.T) {
+	for name, in := range map[string]string{
+		"anchored value":   "depth: &d 3\nstub_threshold: *d\n",
+		"flow parent":      "colors: {base: \"#111\"}\n",
+		"flow top":         "{depth: 3}\n",
+		"null top":         "~\n",
+		"block scalar":     "depth: |\n  3\n",
+		"multi-line quote": "depth: \"3\n  \"\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			s := newSettings(t, in)
+			key := "depth"
+			if strings.Contains(in, "colors") {
+				key = "colors.pos"
+			}
+			if err := s.Set(key, "4"); err == nil && key == "depth" {
+				t.Errorf("Set: want an error, file now %q", readFile(t, s.Path))
+			}
+			if key == "colors.pos" {
+				if err := s.Set(key, "#FFF"); err == nil {
+					t.Errorf("Set: want an error, file now %q", readFile(t, s.Path))
+				}
+			}
+			if got := readFile(t, s.Path); got != in {
+				t.Errorf("a refused Set changed the file to %q", got)
+			}
+		})
+	}
+}
+
+func TestSettings_aliasIsReadAndSymlinkWrittenThrough(t *testing.T) {
+	s := newSettings(t, "depth: &d 3\nstub_threshold: *d\n")
+	if got, _ := s.Get("stub_threshold"); got.Value != "3" || got.Source != config.SourceFile {
+		t.Errorf("aliased stub_threshold = %+v", got)
+	}
+
+	dir := t.TempDir()
+	target := filepath.Join(dir, "dotfiles.yaml")
+	if err := os.WriteFile(target, []byte("icons: ascii\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "config.yaml")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skip("no symlinks here:", err)
+	}
+	s = &config.Settings{Path: link, Getenv: func(string) string { return "" }}
+	if err := s.Set("icons", "nerd"); err != nil {
+		t.Fatal(err)
+	}
+	if fi, err := os.Lstat(link); err != nil || fi.Mode()&os.ModeSymlink == 0 {
+		t.Errorf("the link was replaced: %v %v", fi, err)
+	}
+	if got := readFile(t, target); got != "icons: nerd\n" {
+		t.Errorf("target = %q", got)
+	}
+}

@@ -104,7 +104,7 @@ func (m *Model) saveSetting(value string) {
 		return
 	}
 	m.st.list, m.st.editing, m.st.err = list, false, ""
-	m.st.note = "saved " + key + " = " + value
+	m.st.note = "saved " + key + " = " + list[m.st.cursor].Value
 	switch {
 	case list[m.st.cursor].Source == config.SourceFlag || list[m.st.cursor].Source == config.SourceEnv:
 		m.st.note += "; this run's " + string(list[m.st.cursor].Source) + " still wins"
@@ -129,7 +129,7 @@ func (m *Model) renderSettingsModal() string {
 	var sb strings.Builder
 	pos := fmt.Sprintf("%d/%d", m.st.cursor+1, len(m.st.list))
 	sb.WriteString(titleStyle.Render("Settings") + " " + pos + "  " +
-		hintStyle.Render(truncate(m.settings.Path, max(0, inner-12-len(pos)))) + "\n\n")
+		hintStyle.Render(truncate(m.settings.Path, max(1, inner-12-len(pos)))) + "\n\n")
 	m.renderSettingRows(&sb, inner, selStyle)
 	if m.st.cursor < len(m.st.list) {
 		what, values := settingDetail(m.st.list[m.st.cursor])
@@ -176,7 +176,7 @@ func (m *Model) renderSettingRows(sb *strings.Builder, inner int, selStyle lipgl
 		keyW = max(keyW, len(s.Key))
 	}
 	keyW = min(keyW, inner/2)
-	rows := max(3, min(15, m.height-14))
+	rows := max(1, min(15, m.height-16))
 	first := max(0, m.st.cursor-rows+1)
 	end := min(len(m.st.list), first+rows)
 	for i := first; i < end; i++ {
