@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Probe: code complexity of treemand's Go code (tests excluded).
-#   metrics: cognitive complexity (max, average, functions over 15 and 30),
+#   metrics: cognitive complexity (max and functions over 15 and 30 of non-test
+#            code; cognitive_avg still averages test functions too, as its
+#            history does, until a gates:loosen PR redefines it, #475),
 #            non-test Go lines, files over 800 lines and the length of each
 #            (file_lines.<path>), clone groups of 50+ tokens (dupl_clones),
 #            if statements of nesting complexity 4+ (nestif_over_3)
@@ -12,7 +14,7 @@ cd "$(dirname "$0")/../../.."
 root="${COMPLEXITY_ROOT:-cli/treemand}"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
-GOFLAGS='' go run github.com/uudashr/gocognit/cmd/gocognit@v1.3.0 -test=false -json "$root" >"$work/cog.json" 2>/dev/null || true
+GOFLAGS='' go run github.com/uudashr/gocognit/cmd/gocognit@v1.3.0 -json "$root" >"$work/cog.json" 2>/dev/null || true
 churn="$(git log --since=90.days --numstat --format= -- cli/treemand | awk 'NF==3 && $3 ~ /\.go$/ && $3 !~ /_test\.go$/ {c[$3]+=$1+$2} END {for (f in c) print c[f] "\t" f}')"
 find "$root" -name '*.go' ! -name '*_test.go' >"$work/files.txt"
 loc="$(tr '\n' '\0' <"$work/files.txt" | xargs -0 wc -l | awk '$2 != "total" {print $1 "\t" $2}')"
@@ -32,7 +34,8 @@ def tsv(name):
     with open(os.path.join(work, name)) as f:
         return {p: int(n) for n, p in (l.rstrip("\n").split("\t") for l in f if l.strip())}
 with open(os.path.join(work, "cog.json")) as f:
-    funcs = json.loads(f.read() or "[]")
+    all_funcs = json.loads(f.read() or "[]")
+funcs = [f for f in all_funcs if not f["Pos"]["Filename"].endswith("_test.go")]
 churn, loc = tsv("churn.tsv"), tsv("loc.tsv")
 with open(os.path.join(work, "nestif.json")) as f:
     nests = json.loads(f.read() or "null") or []
@@ -63,7 +66,7 @@ print(json.dumps({
     "probe": "complexity",
     "metrics": {
         "cognitive_max": max(cx, default=0),
-        "cognitive_avg": round(sum(cx) / len(cx), 2) if cx else 0,
+        "cognitive_avg": round(sum(f["Complexity"] for f in all_funcs) / len(all_funcs), 2) if all_funcs else 0,
         "functions_over_15": sum(c > 15 for c in cx),
         "functions_over_30": sum(c > 30 for c in cx),
         "go_loc": sum(loc.values()),

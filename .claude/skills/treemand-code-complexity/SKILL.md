@@ -7,7 +7,7 @@ description: Measure treemand's code complexity and churn hotspots and decide wh
 
 Follow **treemand-measure** for running, recording and filing; this skill is the complexity playbook.
 
-**Measure**: `task measure -- complexity` (gocognit over non-test Go code, git churn over 90 days). Metrics: `cognitive_max`, `cognitive_avg`, `functions_over_15`, `functions_over_30`, `files_over_800_lines`, `go_loc`, and the depth ratchets (none may grow): `file_lines.<path>` for each file over 800 lines, `dupl_clones` (clone groups of 50+ tokens, mibk/dupl) and `nestif_over_3` (ifs of nesting complexity 4+). `details` holds the top functions, the nested ifs and the **hotspots**: churn × the file's worst complexity.
+**Measure**: `task measure -- complexity` (gocognit over non-test Go code, except `cognitive_avg`, which still averages test functions too, as its history does; git churn over 90 days). Metrics: `cognitive_max`, `cognitive_avg`, `functions_over_15`, `functions_over_30`, `files_over_800_lines`, `go_loc`, and the depth ratchets (none may grow): `file_lines.<path>` for each file over 800 lines, `dupl_clones` (clone groups of 50+ tokens, mibk/dupl) and `nestif_over_3` (ifs of nesting complexity 4+). `details` holds the top functions, the nested ifs and the **hotspots**: churn × the file's worst complexity.
 
 **Choose by hotspot, not by maximum.** A complex function nobody changes costs little; the top hotspot is where every change is slow and risky. Refactor the top hotspot first, and one function per change. Splitting a function into one helper per case lowers the score without making anything deeper: shrink the interface or move duplicated policy into one module instead.
 
