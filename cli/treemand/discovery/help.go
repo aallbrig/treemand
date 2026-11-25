@@ -18,7 +18,6 @@ import (
 	"unicode"
 
 	"github.com/aallbrig/treemand/models"
-	// Layering exemption (.golangci.yml depguard): TODO(#481) removes it.
 	"github.com/aallbrig/treemand/presets"
 )
 
