@@ -7,6 +7,8 @@
 #                      the packages that hold them
 #   staged shell       shellcheck at warning severity, POSIX sh unless the
 #                      script's #! names bash (as task shell:check does)
+#   staged JavaScript  Biome on the staged .js and .mjs files (task js:lint);
+#                      files biome.jsonc excludes are skipped
 #   staged infra/      cfn-lint and checkov (task infra:lint)
 #
 # The tools read the files on disk, so a partly staged file is checked as it
@@ -81,6 +83,15 @@ if [ -n "$posix$other" ]; then
   [ -z "$posix" ] || run shellcheck -x --shell=sh -S warning $posix
   # shellcheck disable=SC2086
   [ -z "$other" ] || run shellcheck -x -S warning $other
+fi
+
+js_files="$(printf '%s\n' "$staged" | grep -E '\.m?js$')"
+if [ -n "$js_files" ]; then
+  need npx
+  step "biome on $(printf '%s\n' "$js_files" | grep -c .) staged JavaScript file(s)"
+  # One path per line; tracked script names have no spaces.
+  # shellcheck disable=SC2086
+  run sh scripts/dev/js_lint.sh $js_files
 fi
 
 if printf '%s\n' "$touched" | grep -q '^infra/'; then

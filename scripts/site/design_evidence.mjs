@@ -161,7 +161,7 @@ if (PEERS) {
   }
 }
 
-writeFileSync(join(OUT, "manifest.json"), JSON.stringify({ base: BASE || null, views: VIEWS, pages: records }, null, 1) + "\n");
+writeFileSync(join(OUT, "manifest.json"), `${JSON.stringify({ base: BASE || null, views: VIEWS, pages: records }, null, 1)}\n`);
 const md = ["# Design evidence", "", `Target: ${BASE || "(peers only)"}`, "",
   "| site | page | status | load ms | KB | first screen (desktop light) |", "| --- | --- | --- | --- | --- | --- |",
   ...records.map((r) => `| ${r.site} | ${r.page} | ${r.status || r.error || ""} | ${r.load_ms ?? ""} | ${r.transfer_kb ?? ""} | ${r.views["desktop-light"]?.tiles[0] ?? ""} |`), ""];

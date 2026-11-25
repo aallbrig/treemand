@@ -2,7 +2,7 @@
 (() => {
   // The page passes the base path on the script tag (no inline script; see the CSP
   // in infra/site.yaml).
-  const BASE = (document.currentScript && document.currentScript.dataset.base) || 'try/';
+  const BASE = document.currentScript?.dataset.base || 'try/';
   const IDEAS = {
     git: ['Press <kbd>Ctrl+F</kbd> and type <code>force push</code> — finds flags by description',
           'Search <code>stash pop</code> or <code>worktree</code>', 'Press <kbd>?</kbd> for every key binding'],
@@ -60,7 +60,7 @@
   }
 
   function setActive() {
-    picker.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.cli === current));
+    for (const b of picker.querySelectorAll('button')) b.classList.toggle('active', b.dataset.cli === current);
   }
 
   async function startCli(name) {
@@ -77,13 +77,13 @@
       const r = await fetch(`${BASE}trees/${name}.json`);
       if (!r.ok) throw new Error(r.status);
       json = await r.text();
-    } catch (e) {
+    } catch (_e) {
       statusEl.textContent = `Could not load the ${name} snapshot.`;
       return;
     }
     fitTerm();
     const err = treemandStart(json, term.cols, term.rows);
-    if (err) { statusEl.textContent = 'Error: ' + err; return; }
+    if (err) { statusEl.textContent = `Error: ${err}`; return; }
     started = true;
     statusEl.hidden = true;
     term.focus();
@@ -98,7 +98,7 @@
     const ready = new Promise((res) => { window.treemandReady = res; });
     let inst;
     try {
-      const url = BASE + 'treemand.wasm';
+      const url = `${BASE}treemand.wasm`;
       if (WebAssembly.instantiateStreaming) {
         try { inst = (await WebAssembly.instantiateStreaming(fetch(url), go.importObject)).instance; }
         catch (_) { /* wrong MIME type: fall back */ }
@@ -108,7 +108,7 @@
         inst = (await WebAssembly.instantiate(buf, go.importObject)).instance;
       }
     } catch (e) {
-      statusEl.textContent = 'Could not load treemand.wasm: ' + e.message;
+      statusEl.textContent = `Could not load treemand.wasm: ${e.message}`;
       return;
     }
     go.run(inst);
