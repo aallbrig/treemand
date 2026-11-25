@@ -121,7 +121,9 @@ func (l Loader) Load(ctx context.Context, req Request) (Result, error) {
 	}
 	if req.ExpandStubs > 0 {
 		progress(req, "expanding stubs…", func() {
-			discovery.ExpandStubs(ctx, node, req.CLI, req.ExpandStubs, 16, 30*time.Second, nil)
+			discovery.ExpandStubs(ctx, node, req.CLI, req.ExpandStubs, 16, discovery.ExpandOptions{
+				Timeout: 30 * time.Second, HelpSubcommand: presets.HelpSubcommand(req.CLI),
+			}, nil)
 		})
 	}
 	res.Tree = node
@@ -151,13 +153,21 @@ func (l Loader) discoverers(req Request) []discovery.Discoverer {
 	if l.NewDiscoverers != nil {
 		return l.NewDiscoverers(req, RootOnly(req))
 	}
+	var ds []discovery.Discoverer
 	if RootOnly(req) {
 		d := discovery.NewHelpDiscoverer(1)
 		d.ChildrenAsStubs = true
 		d.StubThreshold = req.StubThreshold
-		return []discovery.Discoverer{d}
+		ds = []discovery.Discoverer{d}
+	} else {
+		ds = discovery.BuildDiscoverersWithThreshold(req.Strategies, CrawlDepth(req.Depth), req.StubThreshold)
 	}
-	return discovery.BuildDiscoverersWithThreshold(req.Strategies, CrawlDepth(req.Depth), req.StubThreshold)
+	for _, d := range ds {
+		if h, ok := d.(*discovery.HelpDiscoverer); ok {
+			h.HelpSubcommand = presets.HelpSubcommand(req.CLI)
+		}
+	}
+	return ds
 }
 
 func discover(ctx context.Context, req Request, ds []discovery.Discoverer) (*models.Node, error) {
@@ -198,7 +208,8 @@ func (l Loader) finishPartial(ctx context.Context, req Request, node *models.Nod
 		return
 	}
 	progress(req, "discovering "+req.CLI+"…", func() {
-		discovery.CompletePending(ctx, node, req.CLI, depth, req.StubThreshold, discovery.DefaultMaxConcurrentHelp())
+		opts := discovery.ExpandOptions{MaxDepth: depth, HelpSubcommand: presets.HelpSubcommand(req.CLI)}
+		discovery.CompletePending(ctx, node, req.CLI, opts, req.StubThreshold, discovery.DefaultMaxConcurrentHelp())
 	})
 	if err := SaveTo(e.c, e.key, e.cli, e.strategy)(node); err != nil {
 		log.Warn().Err(err).Msg("cache write failed")

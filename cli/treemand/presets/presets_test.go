@@ -65,3 +65,11 @@ func TestLookup(t *testing.T) {
 		t.Error("git should have no preset")
 	}
 }
+
+func TestHelpSubcommand(t *testing.T) {
+	for cli, want := range map[string]bool{"aws": true, "/usr/local/bin/aws": true, "stripe": false, "git": false} {
+		if got := presets.HelpSubcommand(cli); got != want {
+			t.Errorf("HelpSubcommand(%q) = %v, want %v", cli, got, want)
+		}
+	}
+}

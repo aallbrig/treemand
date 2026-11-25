@@ -27,7 +27,7 @@ esac
 	stub := &models.Node{Name: "sub", FullPath: []string{"fakecli", "sub"}, Stub: true}
 	root := &models.Node{Name: "fakecli", FullPath: []string{"fakecli"}, Children: []*models.Node{stub}}
 
-	discovery.ExpandStubs(context.Background(), root, "fakecli", 1, 2, 5*time.Second, nil)
+	discovery.ExpandStubs(context.Background(), root, "fakecli", 1, 2, discovery.ExpandOptions{Timeout: 5 * time.Second}, nil)
 
 	if stub.Stub || !stub.Discovered {
 		t.Fatalf("stub not expanded: %+v", stub)

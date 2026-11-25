@@ -2,8 +2,6 @@ package discovery
 
 import (
 	"context"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -46,16 +44,13 @@ Available commands:
 `
 
 func TestDiscover_cleoAppsListTheirCommandsThroughList(t *testing.T) {
-	bin, logPath := formCLI(t, 0, `case "$1" in
-list) cat <<'L'
-`+cleoList+`L
-;;
-*) cat <<'H'
-`+cleoHelp+`H
-;;
-esac
-`)
-	root, err := NewHelpDiscoverer(1).Discover(context.Background(), bin, nil)
+	cli := &fakeCLI{answer: func(args []string) reply {
+		if firstArg(args) == "list" {
+			return reply{out: cleoList}
+		}
+		return reply{out: cleoHelp}
+	}}
+	root, err := cli.discoverer(1).Discover(context.Background(), "formcli", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,19 +66,16 @@ esac
 	if !strings.Contains(root.HelpText, "Available commands:") {
 		t.Errorf("the root's help text should be the command list")
 	}
-	_ = logPath
 }
 
 func TestDiscover_listIsNeverSentToACLIWhoseHelpIsNotTheListCommand(t *testing.T) {
-	dir := t.TempDir()
-	marker := filepath.Join(dir, "acted")
-	bin, _ := formCLI(t, 0, `if [ "$1" = list ]; then touch '`+marker+`'; fi
-printf 'Usage: plain [OPTIONS] FILE\n\nOptions:\n  -v, --verbose  verbose\n'
-`)
-	if _, err := NewHelpDiscoverer(1).Discover(context.Background(), bin, nil); err != nil {
+	cli := &fakeCLI{answer: func([]string) reply {
+		return reply{out: "Usage: plain [OPTIONS] FILE\n\nOptions:\n  -v, --verbose  verbose\n"}
+	}}
+	if _, err := cli.discoverer(1).Discover(context.Background(), "formcli", nil); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(marker); err == nil {
-		t.Error("list was passed to a CLI whose help does not describe the list command")
+	if slices.Contains(cli.calls(), "list") {
+		t.Errorf("list was passed to a CLI whose help does not describe the list command: %q", cli.calls())
 	}
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/aallbrig/treemand/discovery"
 	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/presets"
 )
 
 // Offline disables live discovery (lazy stub expansion, re-discovery and
@@ -73,6 +74,7 @@ func (m *Model) forceExpandSelected() tea.Cmd {
 func (m *Model) nodeExpander(eagerBelow int) *discovery.NodeExpander {
 	return discovery.NewNodeExpander(m.root.Name, discovery.ExpandOptions{
 		EagerBelow: eagerBelow, MaxDepth: -1, Override: m.override,
+		HelpSubcommand: presets.HelpSubcommand(m.root.Name),
 	})
 }
 

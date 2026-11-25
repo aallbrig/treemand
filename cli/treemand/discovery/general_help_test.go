@@ -148,7 +148,7 @@ func TestCrawler_aptLike_stubsKeepTheOptions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := discovery.CompletePending(context.Background(), root, "aptlike", 3, 150, 4); got != 4 {
+	if got := discovery.CompletePending(context.Background(), root, "aptlike", discovery.ExpandOptions{MaxDepth: 3}, 150, 4); got != 4 {
 		t.Fatalf("filled %d stubs, want 4", got)
 	}
 	for _, c := range root.Children {

@@ -152,19 +152,16 @@ func (h *HelpDiscoverer) commandListChildren(ctx context.Context, cliName, helpT
 		return nil
 	}
 	// "list-commands" is an argument, and a CLI without such a command acts
-	// on it: "touch list-commands" creates a file, "mkdir" a directory. Only
-	// ask a CLI that documents the command (tmux does, in its help or man page).
+	// on it: "touch list-commands" creates a file, "mkdir" a directory. The
+	// runner sends it only to a CLI that documents the command (tmux does, in
+	// its help or man page).
 	man := h.manPage(ctx, cliName)
-	if !strings.Contains(helpText, "list-commands") && !strings.Contains(man, "list-commands") {
+	p := Probe{Args: []string{"list-commands"}, Basis: Documented, DocumentedIn: helpText + "\n" + man}
+	r := h.runner().Run(ctx, resolveBinary(cliName), p)
+	if r.Err != nil {
 		return nil
 	}
-	cctx, cancel := context.WithTimeout(ctx, h.Timeout)
-	defer cancel()
-	out, _, err := runCapped(cctx, resolveBinary(cliName), []string{"list-commands"}, nil, MaxHelpBytes)
-	if err != nil {
-		return nil
-	}
-	entries := ParseCommandList(string(out))
+	entries := ParseCommandList(r.Out)
 	if entries == nil {
 		return nil
 	}

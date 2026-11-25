@@ -2,107 +2,52 @@ package discovery
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 )
 
-// formCLI writes a fake CLI that logs each invocation to calls.log, sleeps
-// delay, and answers help only in the shapes the body allows. It returns the
-// executable path and the log path.
-func formCLI(t *testing.T, delay time.Duration, body string) (string, string) {
-	t.Helper()
-	dir := t.TempDir()
-	logPath := filepath.Join(dir, "calls.log")
-	script := "#!/bin/sh\n" +
-		"echo \"$*\" >>'" + logPath + "'\n" +
-		"sleep " + fmt.Sprintf("%.3f", delay.Seconds()) + "\n" +
-		body
-	bin := filepath.Join(dir, "formcli")
-	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
-		t.Fatal(err)
+// slowFlagWithSideEffects answers --help after 600ms (well past the hedge)
+// and treats a positional "help" as an action, the way "git branch help"
+// creates a branch.
+func slowFlagWithSideEffects(args []string) reply {
+	switch {
+	case slices.Contains(args, "--help"):
+		r := cobraHelp(args)
+		r.delay = 600 * time.Millisecond
+		return r
+	case slices.Contains(args, "-h"):
+		return refused("error: unknown shorthand flag")
+	case slices.Contains(args, "help"):
+		return reply{out: "did something to help\n"}
 	}
-	return bin, logPath
+	return refused("error")
 }
-
-func calls(t *testing.T, logPath string) []string {
-	t.Helper()
-	b, err := os.ReadFile(logPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return strings.Split(strings.TrimSpace(string(b)), "\n")
-}
-
-// suffixOnly answers only "<path> help", like aws; --help and -h are errors.
-const suffixOnly = `last=""; for a in "$@"; do last="$a"; done
-if [ "$last" != help ]; then echo "error: unknown option $last" >&2; exit 2; fi
-case "$1" in
-alpha|beta|gamma) printf 'NAME\n  %s - does %s\n\nOPTIONS\n  --force  force it\n' "$1" "$1";;
-*) printf 'formcli - a fake aws-style tool\n\nAvailable Commands:\n  alpha  first\n  beta   second\n  gamma  third\n';;
-esac
-`
-
-// flagOnly answers --help everywhere, like cobra tools.
-const flagOnly = `case "$*" in
-*--help*) ;;
-*) echo "error: unknown command" >&2; exit 2;;
-esac
-case "$1" in
-alpha|beta) printf 'Usage:\n  formcli %s [flags]\n\nFlags:\n  -f, --force  force it\n' "$1";;
-*) printf 'formcli does things\n\nUsage:\n  formcli [command]\n\nAvailable Commands:\n  alpha  first\n  beta   second\n\nFlags:\n  -v, --verbose  verbose\n';;
-esac
-`
-
-// slowFlagWithSideEffects answers --help after 600ms (well past the hedge) and
-// treats a positional "help" as an action with a side effect, the way
-// "git branch help" creates a branch: it touches $MARKER.
-const slowFlagWithSideEffects = `case "$*" in
-*--help*) sleep 0.6;;
-*-h*) echo "error: unknown shorthand flag" >&2; exit 2;;
-*help*) touch "$MARKER"; echo "did something to help"; exit 0;;
-*) echo "error" >&2; exit 2;;
-esac
-case "$1" in
-alpha|beta) printf 'Usage:\n  formcli %s [flags]\n\nFlags:\n  -f, --force  force it\n' "$1";;
-*) printf 'formcli does things\n\nUsage:\n  formcli [command]\n\nAvailable Commands:\n  alpha  first\n  beta   second\n\nFlags:\n  -v, --verbose  verbose\n';;
-esac
-`
 
 func TestRunHelp_neverPassesHelpAsAnArgumentWhileAFlagFormWorks(t *testing.T) {
-	bin, logPath := formCLI(t, 0, slowFlagWithSideEffects)
-	marker := filepath.Join(t.TempDir(), "side-effect")
-	t.Setenv("MARKER", marker)
-
-	if _, err := NewHelpDiscoverer(2).Discover(context.Background(), bin, nil); err != nil {
+	cli := &fakeCLI{answer: slowFlagWithSideEffects}
+	if _, err := cli.discoverer(2).Discover(context.Background(), "formcli", nil); err != nil {
 		t.Fatal(err)
 	}
 	// The crawler starts many nodes at once before any form is learned.
-	d := NewHelpDiscoverer(1)
+	d := cli.discoverer(1)
 	d.ChildrenAsStubs = true
-	root, err := d.Discover(context.Background(), bin, nil)
+	root, err := d.Discover(context.Background(), "formcli", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	CompletePending(context.Background(), root, bin, 2, 50, 8)
+	CompletePending(context.Background(), root, "formcli", ExpandOptions{MaxDepth: 2, Launcher: cli}, 50, 8)
 
-	if _, err := os.Stat(marker); err == nil {
-		t.Errorf("a positional help form ran although --help works; calls: %q", calls(t, logPath))
-	}
-	for _, c := range calls(t, logPath) {
-		if f := strings.Fields(c); len(f) > 0 && (f[len(f)-1] == "help" || f[0] == "help") {
-			t.Errorf("positional help form invoked: %q", c)
-		}
+	if got := cli.sentPositionalHelp(); len(got) > 0 {
+		t.Errorf("positional help form invoked although --help works: %q", got)
 	}
 }
 
 func TestRunHelp_positionalFormsRunOnlyAfterBothFlagsFail(t *testing.T) {
-	bin, logPath := formCLI(t, 0, suffixOnly)
-	root, err := NewHelpDiscoverer(2).Discover(context.Background(), bin, nil)
+	cli := &fakeCLI{answer: suffixOnly}
+	root, err := cli.discoverer(2).Discover(context.Background(), "formcli", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,29 +56,25 @@ func TestRunHelp_positionalFormsRunOnlyAfterBothFlagsFail(t *testing.T) {
 	}
 	// For each node, "help" must come after both flag forms in the log.
 	seen := map[string]map[string]bool{}
-	for _, c := range calls(t, logPath) {
+	for _, c := range cli.calls() {
 		f := strings.Fields(c)
 		node, form := strings.Join(f[:len(f)-1], " "), f[len(f)-1]
 		if seen[node] == nil {
 			seen[node] = map[string]bool{}
 		}
 		if form == "help" && (!seen[node]["--help"] || !seen[node]["-h"]) {
-			t.Errorf("%q ran before both flag forms for %q: %q", c, node, calls(t, logPath))
+			t.Errorf("%q ran before both flag forms for %q: %q", c, node, cli.calls())
 		}
 		seen[node][form] = true
 	}
 }
 
 func TestRunHelp_fastPreferredFormStartsNoAlternatives(t *testing.T) {
-	// "Fast" means inside the hedge window; widen it so a loaded machine's
-	// slow fork does not look like a slow CLI.
-	defer func(d time.Duration) { hedgeDelay = d }(hedgeDelay)
-	hedgeDelay = 5 * time.Second
-	bin, logPath := formCLI(t, 0, flagOnly)
-	if _, err := NewHelpDiscoverer(2).Discover(context.Background(), bin, nil); err != nil {
+	cli := &fakeCLI{answer: flagOnly}
+	if _, err := cli.discoverer(2).Discover(context.Background(), "formcli", nil); err != nil {
 		t.Fatal(err)
 	}
-	got := calls(t, logPath)
+	got := cli.calls()
 	if len(got) != 3 {
 		t.Errorf("a --help CLI should cost one process per node (3), got %d: %q", len(got), got)
 	}
@@ -144,37 +85,28 @@ func TestRunHelp_fastPreferredFormStartsNoAlternatives(t *testing.T) {
 	}
 }
 
-// shortOnly answers only -h; --help is an error.
-const shortOnly = `case "$*" in
-*--help*) echo "error: unknown flag: --help" >&2; exit 2;;
-*-h*) ;;
-*) echo "error" >&2; exit 2;;
-esac
-case "$1" in
-alpha|beta|gamma) printf 'Usage: formcli %s [-f]\n\nOptions:\n  -f, --force  force it\n' "$1";;
-*) printf 'Usage: formcli <command>\n\nCommands:\n  alpha  first\n  beta   second\n  gamma  third\n'
-esac
-`
-
 func TestRunHelp_learnedShortFlagIsTriedFirstAndFlagsRace(t *testing.T) {
-	// The root's calls take 2s and log "done <args>" as they end. Racing the
-	// flags starts -h while --help still runs (the hedge fires at 250ms, far
-	// inside the 2s); trying them in turn would log "done --help" before "-h".
-	bin, logPath := formCLI(t, 0, `case "$*" in --help|-h)
-sleep 2; echo "done $*" >>"$(dirname "$0")/calls.log";;
-esac
-`+shortOnly)
-	root, err := NewHelpDiscoverer(2).Discover(context.Background(), bin, nil)
+	// The root's calls take 1s. Racing the flags starts -h while --help still
+	// runs (the hedge fires at 250ms); trying them in turn would end --help
+	// before -h starts.
+	cli := &fakeCLI{answer: func(args []string) reply {
+		r := shortOnly(args)
+		if len(args) == 1 {
+			r.delay = time.Second
+		}
+		return r
+	}}
+	root, err := cli.discoverer(2).Discover(context.Background(), "formcli", nil)
 	if err != nil || len(root.Children) != 3 || len(root.Children[0].Flags) == 0 {
 		t.Fatalf("discovery failed: %v %+v", err, root)
 	}
-	if log := calls(t, logPath); !rootFlagsOverlap(log) {
-		t.Errorf("the root's --help and -h did not run at once; calls: %q", log)
+	if !rootFlagsOverlap(cli.events) {
+		t.Errorf("the root's --help and -h did not run at once; events: %q", cli.events)
 	}
 	// Children ask the learned -h first (a slow -h may still let --help join
 	// it after the hedge delay, which is fine).
 	for _, child := range []string{"alpha", "beta", "gamma"} {
-		for _, c := range calls(t, logPath) {
+		for _, c := range cli.calls() {
 			if strings.HasPrefix(c, child+" ") {
 				if c != child+" -h" {
 					t.Errorf("%s was first asked %q; want the learned -h", child, c)
@@ -186,14 +118,14 @@ esac
 }
 
 // rootFlagsOverlap reports whether the root's --help and -h both started
-// before either of them finished.
-func rootFlagsOverlap(log []string) bool {
+// before either of them ended.
+func rootFlagsOverlap(events []string) bool {
 	started := 0
-	for _, c := range log {
-		switch c {
-		case "--help", "-h":
+	for _, e := range events {
+		switch e {
+		case "start --help", "start -h":
 			started++
-		case "done --help", "done -h":
+		case "end --help", "end -h":
 			return started == 2
 		}
 	}
@@ -203,14 +135,18 @@ func rootFlagsOverlap(log []string) bool {
 func TestRunHelp_childFallsBackWhenTheLearnedFormFails(t *testing.T) {
 	// go-style: the root answers --help, but subcommands only answer
 	// "help <sub>".
-	bin, _ := formCLI(t, 0, `case "$*" in
-"--help") printf 'Usage:\n  formcli <command>\n\nThe commands are:\n\n  mod  module maintenance\n';;
-"help mod") printf 'usage: formcli mod <command>\n\nThe commands are:\n\n  tidy  add missing modules\n';;
-"help mod tidy") printf 'usage: formcli mod tidy [-v]\n';;
-*) echo "formcli: unknown command" >&2; exit 2;;
-esac
-`)
-	root, err := NewHelpDiscoverer(3).Discover(context.Background(), bin, nil)
+	cli := &fakeCLI{answer: func(args []string) reply {
+		switch strings.Join(args, " ") {
+		case "--help":
+			return reply{out: "Usage:\n  formcli <command>\n\nThe commands are:\n\n  mod  module maintenance\n"}
+		case "help mod":
+			return reply{out: "usage: formcli mod <command>\n\nThe commands are:\n\n  tidy  add missing modules\n"}
+		case "help mod tidy":
+			return reply{out: "usage: formcli mod tidy [-v]\n"}
+		}
+		return refused("formcli: unknown command")
+	}}
+	root, err := cli.discoverer(3).Discover(context.Background(), "formcli", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,16 +160,16 @@ esac
 }
 
 func TestRaceForms_noLoserOutlivesTheDiscovery(t *testing.T) {
-	// --help wins after 600ms. The losing -h leaves a child holding its stdout,
-	// so after it is killed its reader waits for the pipe (up to 1s). That
-	// goroutine must be finished when Discover returns: one still running
-	// outlived the discovery and reported into the next test's hooks.
-	bin, _ := formCLI(t, 0, `case "$*" in
-*--help*) sleep 0.6; printf 'Usage: formcli\n\nOptions:\n  -v, --verbose  verbose\n';;
-*-h*) sleep 5 & sleep 5;;
-esac
-`)
-	if _, err := NewHelpDiscoverer(1).Discover(context.Background(), bin, nil); err != nil {
+	// --help wins after 600ms while -h would run for 5s. The losing form must
+	// be finished when Discover returns: one still running outlived the
+	// discovery and reported into the next test's hooks.
+	cli := &fakeCLI{answer: func(args []string) reply {
+		if slices.Contains(args, "--help") {
+			return reply{out: "Usage: formcli\n\nOptions:\n  -v, --verbose  verbose\n", delay: 600 * time.Millisecond}
+		}
+		return reply{delay: 5 * time.Second}
+	}}
+	if _, err := cli.discoverer(1).Discover(context.Background(), "formcli", nil); err != nil {
 		t.Fatal(err)
 	}
 	if n := runningForms(); n > 0 {
@@ -251,18 +187,17 @@ func runningForms() int {
 func TestRunHelp_aTimedOutFlagFormNeverLeadsToPositionalHelp(t *testing.T) {
 	// --help and -h hang (an overloaded CLI); "help" as an argument would act,
 	// as "npm prune help" prunes. A timeout is not a refusal.
-	bin, logPath := formCLI(t, 0, `case "$*" in
-*--help*|*-h*) sleep 5;;
-*help*) touch "$MARKER";;
-esac
-`)
-	marker := filepath.Join(t.TempDir(), "acted")
-	t.Setenv("MARKER", marker)
-	d := NewHelpDiscoverer(1)
+	cli := &fakeCLI{answer: func(args []string) reply {
+		if slices.Contains(args, "--help") || slices.Contains(args, "-h") {
+			return reply{delay: 5 * time.Second}
+		}
+		return reply{out: "pruned\n"}
+	}}
+	d := cli.discoverer(1)
 	d.Timeout = 300 * time.Millisecond
-	_, _ = d.Discover(context.Background(), bin, []string{"prune"})
-	if _, err := os.Stat(marker); err == nil {
-		t.Errorf("positional help ran after the flag forms timed out; calls: %q", calls(t, logPath))
+	_, _ = d.Discover(context.Background(), "formcli", []string{"prune"})
+	if got := cli.sentPositionalHelp(); len(got) > 0 {
+		t.Errorf("positional help ran after the flag forms timed out: %q", got)
 	}
 }
 
@@ -270,41 +205,40 @@ func TestRunHelp_aLearnedFormIsAskedAloneOnSlowChildren(t *testing.T) {
 	// Each call takes 400ms, past the hedge delay. Once the root has shown
 	// that --help works, a child must not also be asked -h: on a slow CLI
 	// that doubled the processes on every node (gh: 457 for 236 nodes, #216).
-	bin, logPath := formCLI(t, 400*time.Millisecond, flagOnly)
-	if _, err := NewHelpDiscoverer(2).Discover(context.Background(), bin, nil); err != nil {
+	cli := &fakeCLI{answer: func(args []string) reply {
+		r := flagOnly(args)
+		r.delay = 400 * time.Millisecond
+		return r
+	}}
+	if _, err := cli.discoverer(2).Discover(context.Background(), "formcli", nil); err != nil {
 		t.Fatal(err)
 	}
-	for _, c := range calls(t, logPath) {
+	for _, c := range cli.calls() {
 		if f := strings.Fields(c); len(f) == 2 && f[1] == "-h" {
-			t.Errorf("child asked %q although --help was learned; calls: %q", c, calls(t, logPath))
+			t.Errorf("child asked %q although --help was learned; calls: %q", c, cli.calls())
 		}
 	}
 }
 
 // bsdOperandCLI behaves like BSD mkdir: every flag form is rejected with an
-// "illegal option" line followed by the usage synopsis, on stderr with exit
-// 64, and every other argument is an operand it acts on (mkdir creates a
-// directory named "help").
-const bsdOperandCLI = `for a in "$@"; do case "$a" in
--*) printf 'formcli: illegal option -- %s\nusage: formcli [-pv] [-m mode] directory_name ...\n' "${a#-}" >&2; exit 64;;
-esac; done
-for a in "$@"; do touch "$MARKER"; done
-`
+// "illegal option" line followed by the usage synopsis, exit 64, and every
+// other argument is an operand it acts on (mkdir creates a directory named
+// "help").
+func bsdOperandCLI(args []string) reply {
+	for _, a := range args {
+		if strings.HasPrefix(a, "-") {
+			return reply{out: "formcli: illegal option -- " + a[1:] + "\nusage: formcli [-pv] [-m mode] directory_name ...\n", exit: 64}
+		}
+	}
+	return reply{}
+}
 
 func TestRunHelp_usageAfterAnIllegalOptionIsHelpAndNoPositionalFormRuns(t *testing.T) {
 	for _, args := range [][]string{nil, {"sub"}} {
-		bin, logPath := formCLI(t, 0, bsdOperandCLI)
-		marker := filepath.Join(t.TempDir(), "acted")
-		t.Setenv("MARKER", marker)
-
-		node, err := NewHelpDiscoverer(1).Discover(context.Background(), bin, args)
-		if _, serr := os.Stat(marker); serr == nil {
-			t.Errorf("args %q: a positional help form ran although the flag form printed a usage synopsis; calls: %q", args, calls(t, logPath))
-		}
-		for _, c := range calls(t, logPath) {
-			if f := strings.Fields(c); len(f) > 0 && (f[len(f)-1] == "help" || f[0] == "help") {
-				t.Errorf("args %q: positional help form invoked: %q", args, c)
-			}
+		cli := &fakeCLI{answer: bsdOperandCLI}
+		node, err := cli.discoverer(1).Discover(context.Background(), "formcli", args)
+		if got := cli.sentPositionalHelp(); len(got) > 0 {
+			t.Errorf("args %q: a positional help form ran although the flag form printed a usage synopsis: %q", args, got)
 		}
 		if err != nil || node == nil || !strings.Contains(node.HelpText, "usage: formcli [-pv]") {
 			t.Errorf("args %q: the usage synopsis was not used as help: err=%v node=%+v", args, err, node)
@@ -314,22 +248,26 @@ func TestRunHelp_usageAfterAnIllegalOptionIsHelpAndNoPositionalFormRuns(t *testi
 
 // goStyle answers "<cmd> --help" with only a usage line and a pointer to
 // "help <cmd>", like the go command, and "help <cmd>" with the full text.
-const goStyle = `case "$1 $2" in
-"help build") printf 'usage: formcli build [-o output] [packages]\n\nBuild compiles packages.\n\n\t-race\n\t\tenable data race detection.\n';;
-"build --help") printf "usage: formcli build [-o output] [packages]\nRun 'formcli help build' for details.\n";;
-"help doc") printf 'usage: formcli doc [doc flags]\n\n\t-all\n\t\tShow all the documentation.\n';;
-"doc --help") printf 'Usage of [formcli] doc:\n\tformcli doc <pkg>\nFor more information run\n\tformcli help doc\n\n';;
-"build "*) echo "built $2"; exit 0;;
-*) printf 'Formcli manages source.\n\nUsage:\n\n\tformcli <command> [arguments]\n\nThe commands are:\n\n\tbuild       compile packages\n\tdoc         show documentation\n';;
-esac
-`
+func goStyle(args []string) reply {
+	switch strings.Join(args, " ") {
+	case "help build":
+		return reply{out: "usage: formcli build [-o output] [packages]\n\nBuild compiles packages.\n\n\t-race\n\t\tenable data race detection.\n"}
+	case "build --help":
+		return reply{out: "usage: formcli build [-o output] [packages]\nRun 'formcli help build' for details.\n"}
+	case "help doc":
+		return reply{out: "usage: formcli doc [doc flags]\n\n\t-all\n\t\tShow all the documentation.\n"}
+	case "doc --help":
+		return reply{out: "Usage of [formcli] doc:\n\tformcli doc <pkg>\nFor more information run\n\tformcli help doc\n\n"}
+	}
+	if firstArg(args) == "build" {
+		return reply{out: "built " + strings.Join(args[1:], " ") + "\n"}
+	}
+	return reply{out: "Formcli manages source.\n\nUsage:\n\n\tformcli <command> [arguments]\n\nThe commands are:\n\n\tbuild       compile packages\n\tdoc         show documentation\n"}
+}
 
 func TestRunHelp_followsAPointerToTheFullHelp(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("shell-script fake CLI")
-	}
-	bin, logPath := formCLI(t, 0, goStyle)
-	root, err := NewHelpDiscoverer(2).Discover(context.Background(), bin, nil)
+	cli := &fakeCLI{answer: goStyle}
+	root, err := cli.discoverer(2).Discover(context.Background(), "formcli", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -343,11 +281,36 @@ func TestRunHelp_followsAPointerToTheFullHelp(t *testing.T) {
 		}
 	}
 	if !got["build -race"] || !got["build -o"] || !got["doc -all"] {
-		t.Errorf("build flags %v, want build -race (from help build), build -o and doc -all (from help doc); calls: %q", got, calls(t, logPath))
+		t.Errorf("build flags %v, want build -race (from help build), build -o and doc -all (from help doc); calls: %q", got, cli.calls())
 	}
-	for _, c := range calls(t, logPath) {
+	for _, c := range cli.calls() {
 		if c == "build" || strings.HasPrefix(c, "build help") {
 			t.Errorf("ran a form the CLI did not name: %q", c)
 		}
+	}
+}
+
+// aws documents "aws <path> help" as its help and answers neither --help nor
+// -h (each fails after ~2.4 s). The aws preset says so, and discovery asks the
+// documented form first: one call instead of three in a row (#215).
+func TestRunHelp_presetDocumentedHelpSubcommandIsAskedFirst(t *testing.T) {
+	cli := &fakeCLI{answer: func(args []string) reply {
+		if lastArg(args) != "help" {
+			return reply{out: "error: argument operation: Invalid choice\n", exit: 252, delay: 2 * time.Second}
+		}
+		return reply{out: "AWS()\n\nNAME\n       aws -\n\nDESCRIPTION\n       The AWS Command Line Interface.\n\nAVAILABLE SERVICES\n       o s3\n\n       o ec2\n"}
+	}}
+	d := cli.discoverer(1)
+	d.ChildrenAsStubs = true
+	d.HelpSubcommand = true
+	root, err := d.Discover(context.Background(), "aws", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(root.Children) != 2 {
+		t.Errorf("services not discovered: %+v", root.Children)
+	}
+	if got := cli.calls(); len(got) != 1 || got[0] != "help" {
+		t.Errorf("calls = %q, want one: the documented \"help\"", got)
 	}
 }

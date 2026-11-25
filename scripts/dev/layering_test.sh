@@ -39,18 +39,12 @@ plant() {
 plant history discovery "a leaf package imports nothing above it"
 plant savedpresets render "a leaf package stays below render"
 plant discovery overrides "discovery stays below overrides"
-plant fuzzy presets "only discovery is exempt for presets"
+plant fuzzy presets "fuzzy stays below presets"
+plant discovery presets "discovery stays below presets: callers pass a preset's hints in"
 plant presets mcp "presets stays below the front ends"
 plant e2e cmd "only main imports cmd"
 plant mcp tui "mcp does not import tui"
 plant tui mcp "tui does not import mcp"
 plant e2e tui "only cmd and the tools import tui"
-
-# The single exemption: discovery may still import presets.
-if grep -rq "\"$mod/presets\"" "$work/cli/treemand/discovery" && lint discovery; then
-	ok "discovery's presets import is the one exemption"
-else
-	bad "discovery's presets import no longer passes (or no longer exists: drop the exemption)"
-fi
 
 exit "$fail"

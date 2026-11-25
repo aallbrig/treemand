@@ -3,7 +3,6 @@ package discovery
 import (
 	"context"
 	"sync"
-	"time"
 
 	"github.com/aallbrig/treemand/models"
 )
@@ -14,12 +13,14 @@ import (
 // each node with the running count for the current round.
 //
 // It exists for exporting complete snapshots of very large CLIs (aws, stripe)
-// whose trees are otherwise created lazily.
-func ExpandStubs(ctx context.Context, root *models.Node, cliName string, rounds, workers int, perNode time.Duration, onProgress func(done, total int)) {
+// whose trees are otherwise created lazily. opts.Timeout bounds each node;
+// its depth and eagerness are set here.
+func ExpandStubs(ctx context.Context, root *models.Node, cliName string, rounds, workers int, opts ExpandOptions, onProgress func(done, total int)) {
 	if workers < 1 {
 		workers = 8
 	}
-	e := NewNodeExpander(cliName, ExpandOptions{EagerBelow: OneLevel, MaxDepth: -1, Timeout: perNode})
+	opts.EagerBelow, opts.MaxDepth = OneLevel, -1
+	e := NewNodeExpander(cliName, opts)
 	for r := 0; r < rounds; r++ {
 		var stubs []*models.Node
 		root.Walk(func(n *models.Node) {
