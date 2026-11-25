@@ -114,6 +114,9 @@ type helpParser struct {
 	choiceIndent, choiceRowIndent int
 	lastGridRow                   bool
 	inGrammar                     bool // inside "OBJECT := { a | b … }" (ip, #160)
+	// invoked are the commands that example rows run ("  brew install X"),
+	// in order; a fallback command list for help without one (#276).
+	invoked []string
 }
 
 func (p *helpParser) line(l helpLine) {
@@ -123,6 +126,9 @@ func (p *helpParser) line(l helpLine) {
 		return
 	}
 	p.maybeResetSection(l)
+	if w := p.selfInvocation(l); w != "" && !slices.Contains(p.invoked, w) {
+		p.invoked = append(p.invoked, w)
+	}
 	p.captureDescription(l)
 	p.collectUsageAndURL(l)
 
@@ -193,7 +199,7 @@ func (p *helpParser) sectionHeader(l helpLine) bool {
 	describesRow := p.section == secCommands &&
 		(indentOf(l.raw) >= 4 || (indentOf(l.raw) >= 1 && !strings.ContainsAny(l.trimmed, " :")))
 	sec := detectSection(l.lower)
-	if sec == secNone || awsBulletRe.MatchString(l.raw) || describesRow {
+	if sec == secNone || awsBulletRe.MatchString(l.raw) || describesRow || p.invokesSelf(l) {
 		return false
 	}
 	// A named flag group ("General options:") groups the flags under it.
@@ -341,13 +347,40 @@ func (p *helpParser) isProse(l helpLine) bool {
 		!manpageHeaderRe.MatchString(l.trimmed) && // "GIT-CLONE(1)   Git Manual"
 		!strings.HasPrefix(l.trimmed, "-") &&
 		!strings.HasSuffix(l.trimmed, " -") && // empty man NAME body: "aws -"
-		!isUsageLine(l.trimmed, p.selfName) &&
+		!isUsageLine(l.trimmed, p.selfName) && p.selfInvocation(l) == "" &&
 		!strings.HasSuffix(l.trimmed, ":") && // section header, not prose
 		!strings.HasPrefix(l.lower, "usage") &&
 		!strings.HasPrefix(l.lower, "use ") &&
 		!strings.HasPrefix(l.lower, "name") &&
 		!strings.HasPrefix(l.lower, "synopsis") &&
 		l.lower != "description"
+}
+
+// selfInvocation returns the command an example row runs: in a usage,
+// examples or unknown-header list, an indented "  brew install FORMULA" row
+// that starts with the program's own name runs the word after it. Such rows
+// are never the description, and a help text with no command list names its
+// commands this way (brew, #276).
+func (p *helpParser) selfInvocation(l helpLine) string {
+	switch p.section {
+	case secUsage, secExamples, secValues:
+	default:
+		return ""
+	}
+	if !p.invokesSelf(l) {
+		return ""
+	}
+	word, _, _ := strings.Cut(strings.TrimPrefix(l.trimmed, p.selfName+" "), " ")
+	if !validCmdNameRe.MatchString(word) {
+		return ""
+	}
+	return word
+}
+
+// invokesSelf: an indented row that runs the program ("  brew config") is a
+// command line, never a header, though its last word may be a header keyword.
+func (p *helpParser) invokesSelf(l helpLine) bool {
+	return p.selfName != "" && indentOf(l.raw) > 0 && strings.HasPrefix(l.trimmed, p.selfName+" ")
 }
 
 // collectUsageAndURL keeps usage / synopsis lines, with the indented lines
@@ -627,6 +660,13 @@ func (p *helpParser) finish() ParsedHelp {
 		p.addFlag(f)
 	}
 	r.Description = strings.Join(strings.Fields(r.Description), " ")
+	// Example rows are the command list only when there is no other and they
+	// run several commands: a subcommand's examples repeat its own name.
+	if len(r.Subcommands) == 0 && len(p.invoked) >= 3 {
+		for _, w := range p.invoked {
+			p.addSub(w)
+		}
+	}
 	// A man-page bullet list ("o service") is authoritative: prose elsewhere in
 	// the page ("... help each ...") must not add phantom subcommands.
 	if len(p.bulletSubs) >= 3 {
