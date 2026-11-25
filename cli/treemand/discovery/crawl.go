@@ -124,6 +124,23 @@ func FillUnder(parent, stub, discovered *models.Node) {
 	Fill(stub, discovered)
 }
 
+// Refresh replaces a node's discovered data with a fresh result. Unlike Fill,
+// it keeps nothing learned before: a re-discovery asked for by the user must
+// show what the CLI's help says now. Only a description the new result lacks
+// is kept, since the parent's one-liner still describes the command.
+func Refresh(node, discovered *models.Node) {
+	node.Stub = false
+	node.Discovered = true
+	node.Children = discovered.Children
+	if discovered.Description != "" {
+		node.Description = discovered.Description
+	}
+	node.Flags = discovered.Flags
+	node.Positionals = discovered.Positionals
+	node.HelpText = discovered.HelpText
+	node.DiscoveryErr = discovered.DiscoveryErr
+}
+
 // Fill copies a discovery result into the stub it was made for.
 func Fill(stub, discovered *models.Node) {
 	stub.Stub = false

@@ -193,3 +193,26 @@ func TestFill_ownFlagsReplaceInheritedOnes(t *testing.T) {
 		t.Errorf("flags = %v, want the inherited -o kept", kept.Flags)
 	}
 }
+
+// A re-discovery replaces what a populated node held (#471); Fill would keep it.
+func TestRefresh_replacesAPopulatedNode(t *testing.T) {
+	node := &models.Node{
+		Name: "x", Discovered: true, Description: "one-liner", HelpText: "old help",
+		Flags:        []models.Flag{{Name: "--old"}},
+		Positionals:  []models.Positional{{Name: "OLD"}},
+		DiscoveryErr: "timed out",
+	}
+	discovery.Refresh(node, &models.Node{
+		Name: "x", HelpText: "new help",
+		Flags: []models.Flag{{Name: "--old"}, {Name: "--new"}},
+	})
+	if names := flagNames(node.Flags); !names["--new"] || !names["--old"] || len(node.Flags) != 2 {
+		t.Errorf("flags = %v, want --old and --new", node.Flags)
+	}
+	if node.HelpText != "new help" || len(node.Positionals) != 0 || node.DiscoveryErr != "" {
+		t.Errorf("help %q, positionals %v, err %q: want the fresh result's", node.HelpText, node.Positionals, node.DiscoveryErr)
+	}
+	if node.Description != "one-liner" || !node.Discovered || node.Stub {
+		t.Errorf("description %q discovered %v stub %v: want the old description kept", node.Description, node.Discovered, node.Stub)
+	}
+}
