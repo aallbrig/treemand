@@ -230,8 +230,9 @@ tasks:
       - python3 -I scripts/metrics/measure.py shell-portability --gate
 
   measure:gate:test:
-    desc: Test that measure:gate fails on a complexity regression and is the only probe list task ci and the CI measure job use
+    desc: Test the complexity probe on a fixture, that measure:gate fails on a complexity regression, and that it is the only probe list task ci and the CI measure job use
     cmds:
+      - dash scripts/metrics/complexity_probe_test.sh
       - dash scripts/metrics/measure_gate_test.sh
 
   channels:check:

@@ -27,6 +27,8 @@ Escalation is the last rung of a ladder ([references/escalation.md](references/e
   Go edit it reports a file that does not parse or is not gofmt-formatted, and any
   function over cognitive complexity 15 that is new or worse than on `origin/main`.
   Act on it before moving on; CI fails on the same things.
+  Never pass a complexity ratchet by splitting a function into per-case helpers;
+  shrink the interface or move the policy into one module instead.
 - **PreCompact** keeps the work line, branch, step and open failures in the summary.
 
 After `end-cycle` the supervisor runs a token-free work check and types `/clear`
