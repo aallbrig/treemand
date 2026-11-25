@@ -293,9 +293,9 @@ tasks:
       - go test {{.GO_PKGS}}
 
   test-race:
-    desc: Run all tests with race detector
+    desc: Run all tests once with the race detector and coverage (cli/treemand/coverage.out for codecov, coverage.txt for coverage:check)
     cmds:
-      - go test -race {{.GO_PKGS}}
+      - sh scripts/dev/test_race.sh
 
   # ── composite ────────────────────────────────────────────────────────────
 
@@ -517,7 +517,9 @@ tasks:
       - go test -cover ./...
 
   coverage:check:
-    desc: Fail if any package is below its floor in scripts/coverage_floor.tsv
+    desc: Fail if any package is below its floor in scripts/coverage_floor.tsv (runs the tests unless COVERAGE_OUTPUT names a test-race output to judge)
+    env:
+      COVERAGE_OUTPUT: '{{.COVERAGE_OUTPUT}}'
     cmds:
       - sh scripts/check_coverage.sh
 
@@ -600,7 +602,32 @@ tasks:
       - task: fmt
 
   ci:
-    desc: All quality gates; needs no live services
+    desc: All quality gates; needs no live services. CI runs the same three parts in separate jobs, each check once
+    cmds:
+      - task: ci:go
+      - task: ci:gates
+      - task: measure:gate
+      # Last: reached only when every step above passed. pre-push skips these
+      # steps for this exact tree (scripts/dev/proof.sh).
+      - sh scripts/dev/proof.sh stamp coverage:check measure:gate test-race
+
+  ci:go:
+    desc: The Go checks (CI's Test & Lint job) - fmt, vet, lint and its rule tests, vuln, one race test run whose output the coverage floor reuses, build
+    cmds:
+      - task: fmt:check
+      - task: vet
+      - task: lint
+      - task: lint:layering:test
+      - task: lint:timing:test
+      - task: vuln
+      - task: test-race
+      - task: coverage:check
+        vars:
+          COVERAGE_OUTPUT: cli/treemand/coverage.txt
+      - task: build
+
+  ci:gates:
+    desc: Every gate besides the Go checks and the measurement gate (CI's Task ci job)
     cmds:
       - task: secrets:history
       - task: infra:lint
@@ -619,15 +646,7 @@ tasks:
       - task: measure:gate:test
       - task: fuzz:test
       - task: channels:test
-      - task: fmt:check
-      - task: vet
-      - task: lint
-      - task: lint:layering:test
-      - task: lint:timing:test
-      - task: vuln
-      - task: test-race
       - task: fuzz:smoke
-      - task: build
       - task: dev:check
       - task: dev:test
       - task: prod:test
@@ -648,14 +667,8 @@ tasks:
       - task: install:test
       - task: install:probe:test
       - task: release:health:test
-      - task: corpus:test
-      - task: coverage:check
-      - task: measure:gate
       - task: chaos
       - task: loop:test-session
-      # Last: reached only when every step above passed. pre-push skips these
-      # steps for this exact tree (scripts/dev/proof.sh).
-      - sh scripts/dev/proof.sh stamp coverage:check measure:gate test-race
 
   fmt:check:
     desc: Fail if any Go file needs formatting
@@ -673,6 +686,8 @@ tasks:
       - dash scripts/shell_portability_test.sh
       - dash scripts/metrics/cli_ux_test.sh
       - dash scripts/check_coverage_test.sh
+      - dash scripts/dev/test_race_test.sh
+      - dash scripts/dev/ci_jobs_test.sh
       - dash scripts/ship_test.sh
 
   taskfile:check:

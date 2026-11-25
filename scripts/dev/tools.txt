@@ -18,8 +18,8 @@ curl|required|curl|curl|curl|url:https://curl.se/download.html
 python3|required|python@3.12|python3|python3|url:https://www.python.org/downloads/
 pipx|required|pipx|pipx|pipx|url:https://pipx.pypa.io/stable/installation/
 task|required|go-task|-|-|go:github.com/go-task/task/v3/cmd/task@latest
-golangci-lint|required|golangci-lint|-|-|go:github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
-govulncheck|required|-|-|-|go:golang.org/x/vuln/cmd/govulncheck@latest
+golangci-lint|required|golangci-lint|-|-|go:github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
+govulncheck|required|-|-|-|go:golang.org/x/vuln/cmd/govulncheck@v1.10.0
 gh|required|gh|gh|gh|url:https://cli.github.com/
 jq|required|jq|jq|jq|url:https://jqlang.org/download/
 shellcheck|required|shellcheck|shellcheck|ShellCheck|url:https://github.com/koalaman/shellcheck#installing
