@@ -164,6 +164,14 @@ esac
 	// Prints errors and exits non-zero for any help request.
 	"fakenohelp": "echo 'unknown flag' >&2\nexit 2\n",
 
+	// BSD find (#274): rejects --help and prints only a usage synopsis, with
+	// clustered letters, alternatives and a wrapped second form, to stderr.
+	"fakebsd": `echo 'fakebsd: illegal option -- -' >&2
+echo 'usage: fakebsd [-H | -L | -P] [-EXdsx] [-f path] path ... [expression]' >&2
+echo '       fakebsd [-H | -L | -P] [-EXdsx] -f path [path ...] [expression]' >&2
+exit 1
+`,
+
 	// apt (#65): no help lists an option. Its commands print the general
 	// help of the tool they forward to, or fail when the Linux Mint wrapper
 	// needs sudo; only the man page names the options (fakeAptMan).
