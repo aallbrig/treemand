@@ -338,14 +338,19 @@ func usageOptionFlag(name, value string, lonePerLetter bool) (models.Flag, bool)
 	return f, true
 }
 
+// usagePrefixRe finds the "usage:" prefix of a synopsis line, in any case.
+var usagePrefixRe = regexp.MustCompile(`(?i)usage:`)
+
 // parsePositionals extracts positional args from a usage line.
 func parsePositionals(line string) []models.Positional {
 	var result []models.Positional
 	seen := map[string]bool{}
-	// Skip the "usage:" prefix for matching
+	// Skip the "usage:" prefix for matching. The match indexes line itself:
+	// lowering a copy first can change its length (an invalid UTF-8 byte
+	// becomes a 3-byte U+FFFD), and the index then overruns line.
 	searchLine := line
-	if idx := strings.Index(strings.ToLower(line), "usage:"); idx >= 0 {
-		searchLine = line[idx+6:]
+	if loc := usagePrefixRe.FindStringIndex(line); loc != nil {
+		searchLine = line[loc[1]:]
 	}
 	// Strip [--option] bracket patterns to avoid false positives from
 	// lines like "git [--exec-path[=<path>]]".
