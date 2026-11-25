@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aallbrig/treemand/config"
 	"github.com/aallbrig/treemand/models"
 )
 
@@ -64,15 +63,15 @@ func rowDump(rows []treeRow) string {
 }
 
 func TestFlattenRows(t *testing.T) {
-	expandAll := func(tm *TreeModel) { tm.ExpandAll() }
+	expandAll := func(tm *treeRows) { tm.ExpandAll() }
 	cases := []struct {
 		name  string
-		setup func(*TreeModel)
+		setup func(*treeRows)
 		want  string
 	}{
 		{
 			name:  "root expanded by default",
-			setup: func(*TreeModel) {},
+			setup: func(*treeRows) {},
 			want: `0 cmd app prefix="" last=true
 1  section Flags (2) default=true key=app@0/flags
 2   flag --verbose owner=app@0 in=app@0/flags
@@ -113,7 +112,7 @@ func TestFlattenRows(t *testing.T) {
 		},
 		{
 			name: "sections hidden",
-			setup: func(tm *TreeModel) {
+			setup: func(tm *treeRows) {
 				tm.ExpandAll()
 				tm.ToggleSections()
 			},
@@ -138,7 +137,7 @@ func TestFlattenRows(t *testing.T) {
 		},
 		{
 			name:  "filtered keeps matches and their ancestors",
-			setup: func(tm *TreeModel) { tm.SetFilter("deep") },
+			setup: func(tm *treeRows) { tm.SetFilter("deep") },
 			want: `0 cmd app prefix="" last=false
 1  cmd sub prefix="" last=false
 2   cmd deep prefix="" last=false
@@ -147,7 +146,7 @@ func TestFlattenRows(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			tm := NewTreeModel(flattenFixture(), config.DefaultConfig())
+			tm := newTreeRows(flattenFixture())
 			tc.setup(tm)
 			if got := rowDump(tm.rows); got != tc.want {
 				t.Errorf("rows:\n%s\nwant:\n%s", got, tc.want)
