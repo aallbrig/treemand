@@ -13,7 +13,7 @@ bad() { echo "  FAIL $1"; fail=1; }
 mkdir -p "$work/cli"
 cp go.work .golangci.yml "$work/"
 cp -R cli/treemand "$work/cli/treemand"
-mod=github.com/aallbrig/treemand
+mod=github.com/aallbrig/treemand/cli/treemand
 
 lint() { (cd "$work" && golangci-lint run --enable-only depguard "./cli/treemand/$1/...") >"$work/out" 2>&1; }
 
