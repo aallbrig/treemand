@@ -20,13 +20,11 @@ into the `## Summary` section by the loop.
 - Cycles 33-34 (#214, v0.9.1 and v0.9.2): split complex functions one per release, behind a characterization test committed first that dumps every row field, with its golden pinned from real output. Budget issues ship as "Part of" and go back to ready. A timing failure under host load gets confirmed on main once, then retried in a quiet minute.
 - Cycles 35-42 (#214 v0.9.3 to v0.9.9, #46 v0.10.0, #229 v0.10.1): six functions over cognitive 30 went under 15, one per release, each behind a characterization test (a %q golden under a forced TrueColor profile pins styling as well as layout). Label the PR `release:patch` when you open it; `wait.sh` may print `none` when the tag lands on the changelog commit, so confirm with `gh release list`. Run `task pr:merge` in the background, `task ci` with Node 24 on PATH, and `measure.py complexity --gate` before pushing. `fuzz:smoke` can trip on or double-count the known #338 crasher: rerun the job, and delete the untracked `discovery/testdata/fuzz` it leaves. Keep release changes behind the `Release snapshot` job.
 - Cycle 43 (#51, v0.10.2): third-party actions are pinned by SHA (resolve with `gh api repos/<o>/<r>/commits/<tag>`, rewrite refs with Python, not BSD sed), workflows default to `contents: read`, and releases carry build provenance.
+- Cycle 44 (#49, v0.11.0): `treemand mcp` is a dependency-free stdio MCP server tested end to end against the fake CLIs; a timed-out discovery is returned labelled partial. Site headings that collide with page ids (`search`) need explicit `{#ids}`; run `task site:audit` after any docs change.
 
 ## Recent cycles
 
 <!-- Retro appends below: ### Cycle N — YYYY-MM-DD — outcome — #issue vX.Y.Z -->
-
-### Cycle 44 - 2026-11-22 - released - #49 v0.11.0
-`treemand mcp` ships a dependency-free stdio MCP server with `discover`, `search` and `assemble`, tested end to end over stdio against the fake CLIs. A timed-out discovery returns a partial tree without failing, so the server labels it partial instead of passing it off as complete. `assemble` keeps flags the help does not list, with a warning, because help text misses flags (`go test`). In site markdown, a heading named `search` gets `id="search"` and fails the CI site audit's duplicate-id check, so give such headings explicit `{#ids}`. Run `task site:audit` after any docs change, not only before it.
 
 ### Cycle 45 - 2026-11-22 - released - #65 v0.11.1
 apt prints no options in any help, so the issue's premise ("a layout the parser does not read") was wrong. Its options exist only in man pages, so a root whose help lists none now takes them from `man` and passes them, marked inherited, to commands that have no flags of their own. Review caught that the TUI's stub/crawl path skipped the eager-only rule: test new discovery rules through `ChildrenAsStubs` + `CompletePending` as well as `--output=json`. Check an issue's premise in a `debian:bookworm` container (`docker run`) when the CLI is not on this host. The guard blocks any command text containing sudo.
@@ -103,3 +101,6 @@ The complexity probe ratchets `dupl_clones`, `nestif_over_3` and `file_lines.<pa
 
 ### Cycle 74 - 2026-11-25 - merged, no release - #476
 depguard now enforces the package layering, and `scripts/dev/layering_test.sh` (in `task ci`) plants upward imports in a temp copy of the module. Pick plants that create no import cycle, or typecheck fails before depguard runs; a package's own black-box tests import it, so a deny rule must not name the package it covers. A Skill run from the home worktree reviews an empty diff, so start `/code-review` from the issue's worktree or review the diff yourself. A TODO in a ratcheted file over 800 lines fails `measure:gate`, so put it in the config.
+
+### Cycle 75 - 2026-11-25 - merged, no release - #477
+A ruleguard rule (`cli/treemand/lintrules`, run by gocritic) flags unit tests that compare a measured duration with a constant; opt out with `//nolint:gocritic // timing: <reason>`. Ruleguard needs its `dsl` import resolvable, so the rules live inside the module, and pre-commit must skip that tag-only directory. golangci-lint's cache does not notice a changed rules file: run `golangci-lint cache clean` after editing one. Prove a race from the fake CLI's call log (start and `done` lines) rather than a time bound. Untrusted issues: 0.
