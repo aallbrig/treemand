@@ -212,10 +212,6 @@ func (h *HelpDiscoverer) cleoListFallback(ctx context.Context, cliName string, n
 	return out, listed
 }
 
-// DefaultStubThreshold is the subcommand count above which children become
-// stubs when no threshold is set.
-const DefaultStubThreshold = 50
-
 // stubThreshold is the subcommand count above which children become stubs.
 func (h *HelpDiscoverer) stubThreshold() int {
 	if h.StubThreshold <= 0 {

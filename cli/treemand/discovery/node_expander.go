@@ -10,6 +10,10 @@ import (
 // DefaultExpandTimeout bounds the discovery of one node.
 const DefaultExpandTimeout = 30 * time.Second
 
+// DefaultStubThreshold is the subcommand count above which a HelpDiscoverer
+// lists children as stubs when no threshold is set.
+const DefaultStubThreshold = 50
+
 // OneLevel is the EagerBelow for expanding one level at a time: a node's
 // subcommands stay stubs, except a lone one, which is discovered with it.
 const OneLevel = 1
