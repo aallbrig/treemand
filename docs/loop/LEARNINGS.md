@@ -25,16 +25,11 @@ into the `## Summary` section by the loop.
 - Cycle 46 (#85, v0.11.2): `--timeout=0` means no overall limit (each help command keeps its own) and a negative value is a usage error; `mcp` uses negative for no limit because its zero is the 30s default. After a `cd` into `cli/treemand`, pass `gh --body-file` an absolute path.
 - Cycle 47 (#82, v0.11.3): clap's version and author lines are not prose, so a description comes from the next prose line. The `parser` probe counts descriptions, not correct ones, so prove a description fix by diffing every corpus root description against main. Put PR bodies under the ignored `.loop/`: the guard blocks Write outside the repo.
 - Cycle 48 (#76): a test binary re-executed as a fake CLI (`TestMain` + an env var) runs on every OS without shell scripts. `task coverage:update-floor` rewrites every package from local numbers, so keep only the issue's own line. A test-only PR carries no release label, so `wait.sh` prints `none`.
+- Cycles 49-50 (#75, #74): tui coverage 82 to 88% and cmd coverage 67 to 87% with internal key-driven tests on `Model` and hermetic tests where the test binary, copied under a CLI's name, is the fake CLI and fake `$EDITOR`. The Measurement gate counts test functions in `functions_over_15`, so run `gocognit -over 15` on new tests. Cobra flags stay set between `runCmd` calls on shared commands, so pass `--help=false`. `site:audit` needs Node 22+ (`nvm use`).
 
 ## Recent cycles
 
 <!-- Retro appends below: ### Cycle N — YYYY-MM-DD — outcome — #issue vX.Y.Z -->
-
-### Cycle 49 - 2026-11-22 - merged, no release - #75
-tui coverage went from 82.4% to 88.3% (floor 76 to 88) with internal key-driven tests on `Model`. The PR's Measurement gate counts test functions in the `complexity` ratchet (`functions_over_15`), so run `gocognit -over 15` on new test files before pushing and split long scenario tests. With help-pane focus, `G`, `g`, PgUp/PgDn and Ctrl+D/U are taken by the tree's global keys first, so those `updateHelpPaneKeys` branches never run (noted in #433, not filed).
-
-### Cycle 50 - 2026-11-22 - merged, no release - #74
-cmd coverage went from 66.8% to 87.0% (floor 64 to 85) with hermetic tests: the test binary, copied under a CLI's name (`stripe`, `faketool`) and re-run with an env var, serves as the fake CLI and fake `$EDITOR`, so coverage is the same with only `/usr/bin:/bin` on PATH. Subcommand flags such as `--help` and `--force` stay set between `runCmd` calls on the shared cobra commands, so pass `--help=false` explicitly, and `NewRootCmd` lacked `--refresh` until this cycle. `task ci`'s `site:audit` needs Node 22+ (`nvm use`), and `TestRunHelp_fastPreferredFormStartsNoAlternatives` still flakes under the load of a full `task ci` (#288, #322).
 
 ### Cycle 51 - 2026-11-23 - released - #66 v0.11.4
 go subcommands without flags went from 33/33 to 10/33: follow the `Run 'go help <cmd>' for details` pointer, then read tab-indented rows, one-per-bracket usage options and "The -x flag" prose. The issue's under-25% target was below the real floor (9 go nodes have no flags at all), so the PR reports 30% and why. The ratchet also counts functions that cross 15 through a new branch (`tryForm` went 15 to 17), so run `gocognit -over 15` on touched packages before pushing. The local `nvm use` in a subshell does not reach `task ci`; prefix PATH with a Node 22+ bin directory instead.
@@ -108,3 +103,6 @@ A ruleguard rule (`cli/treemand/lintrules`, run by gocritic) flags unit tests th
 
 ### Cycle 79 - 2026-11-25 - released - #481 v0.20.1
 Every target-CLI launch goes through `discovery.Runner` (positional gate, slot, timeout, pager env); test the help chain with the in-memory `fakeCLI` (`fake_cli_test.go`), not forked scripts, and set `HelpDiscoverer.Launcher` / `ExpandOptions.Launcher`. A preset hint is now a field callers set (`presets.HelpSubcommand`), so a new caller that builds a discoverer must pass it. New exported plumbing in treeload and presets drops their coverage below the floor: add the unit test before `task ci`. Splitting a file by line range with a go/ast decl lister worked; delete unused imports bottom-up. Untrusted issues: 0.
+
+### Cycle 80 - 2026-11-25 - released - #483 v0.20.2
+The tree pane is now `treeRows` (rows, expansion, filter, cursor; no styling, `newTreeRows(root)`) plus `treeRenderer` (one command-row renderer per style), with `TreeModel` embedding the rows. For a behaviour-preserving split, write the golden test against `origin/main` in a detached worktree and copy it to the branch: then the golden shows the old and new code draw the same bytes. A gate self-test that names a real long file breaks when the split succeeds; give it a `COMPLEXITY_ROOT` fixture. The loop shell's Node is 20, so source nvm before `task ci`. Untrusted issues: 0.
