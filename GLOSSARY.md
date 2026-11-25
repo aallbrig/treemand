@@ -17,6 +17,11 @@ argparse, man-page, BSD utilities). Parser quality is judged per family.
 **Discovery**: reading a target CLI's own help to build its command tree.
 _Avoid_: introspection, scanning, crawling.
 
+**Tree load**: getting a target CLI's command tree from the cache or from
+discovery, with its preset and override applied. The CLI, the TUI, `treemand
+mcp`, `treemand doctor` and `--stdin` all go through one tree load
+(`cli/treemand/treeload`). _Avoid_: fetch, resolve.
+
 **Strategy**: one source discovery reads: help output, shell completions, the
 man page, or the installed shell completion script.
 

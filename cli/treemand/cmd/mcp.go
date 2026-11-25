@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -11,7 +10,7 @@ import (
 	"github.com/aallbrig/treemand/discovery"
 	"github.com/aallbrig/treemand/mcp"
 	"github.com/aallbrig/treemand/models"
-	"github.com/aallbrig/treemand/presets"
+	"github.com/aallbrig/treemand/treeload"
 )
 
 var mcpCmd = &cobra.Command{
@@ -60,49 +59,30 @@ func runMCP(cmd *cobra.Command, _ []string) error {
 	return s.Serve(cmd.Context(), cmd.InOrStdin(), cmd.OutOrStdout())
 }
 
-// mcpDiscover discovers cli to depth through the same cache as a CLI run.
-func mcpDiscover(ctx context.Context, cli string, depth int) (*models.Node, error) {
-	if err := discovery.CheckAvailable(cli); err != nil {
+// mcpDiscover loads a tool call's tree through the same Tree load as a CLI
+// run, so the CLI and an agent get the same tree for the same request.
+func mcpDiscover(ctx context.Context, tr mcp.TreeRequest) (*models.Node, error) {
+	if err := discovery.CheckAvailable(tr.CLI); err != nil {
 		return nil, err
 	}
 	cfg := config.DefaultConfig()
 	config.ApplyViper(cfg)
-	cfg.NoCache = cfgNoCache || cfg.NoCache
-	cfg.Depth = depth
-	strategies := []string{"help"}
-	preset, ok := presets.Lookup(cli)
-	if !ok {
-		preset = nil
-	}
-	ov, err := loadOverride(cli)
+	ov, err := loadOverride(tr.CLI)
 	if err != nil {
 		return nil, err
 	}
-	rc := openRunCache(cfg, cli, strategies, cacheKeyExtra(cfg, preset)+overrideKey(ov))
-	if rc != nil {
-		defer rc.c.Close()
-	}
-	if node := rc.cached(cfg); node != nil {
-		if save := rc.saver(); save != nil {
-			finishPartialTree(ctx, node, cli, cfg, save)
-		}
-		applyOverride(ov, node)
-		return node, nil
-	}
-	versionCh := rc.readVersion()
-	node, err := discovery.Run(ctx, discovery.BuildDiscoverersWithThreshold(strategies, depth, cfg.StubThreshold), cli)
-	if err != nil {
-		return nil, fmt.Errorf("discovery failed: %w", err)
-	}
-	if node == nil {
-		return nil, fmt.Errorf("no results from discovery for %q", cli)
-	}
-	if preset != nil && preset.Seed != nil {
-		seedFromPreset(ctx, node, cli, preset)
-	}
-	applyOverride(ov, node)
-	rc.put(node, versionCh)
-	return node, nil
+	res, err := treeload.Load(ctx, treeload.Request{
+		CLI:           tr.CLI,
+		Depth:         tr.Depth,
+		StubThreshold: cfg.StubThreshold,
+		Strategies:    []string{"help"},
+		Preset:        lookupPreset(tr.CLI),
+		Override:      ov,
+		Cache:         cachePolicy(cfgNoCache || cfg.NoCache, tr.Refresh),
+		CacheDir:      cfg.CacheDir,
+		CacheTTL:      cfg.CacheTTL,
+	})
+	return res.Tree, err
 }
 
 // mcpExpand discovers one stub node of root's tree in place, one level deep.

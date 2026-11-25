@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -201,5 +202,43 @@ func TestMCP_toolCallTimesOut(t *testing.T) {
 	mustContain(t, "timed-out discover", text, `"name": "fakeslow"`, "timed out after 1s", "partial")
 	if d := time.Since(start); d > 4*time.Second {
 		t.Errorf("timeout took %v", d)
+	}
+}
+
+// The CLI and an agent asking for the same tree share one Tree load: the
+// agent's call is a hit on the CLI's cache entry and returns the same tree,
+// and refresh re-discovers like --refresh.
+func TestMCP_discoverReturnsTheCLIsTreeAndRefreshRediscovers(t *testing.T) {
+	envs, logPath, _ := cacheEnv(t)
+	cli := run(t, 20*time.Second, envs, "--output=json", "--depth=2", "fakecache")
+	if cli.exit != 0 {
+		t.Fatalf("cli run: exit %d\n%s", cli.exit, cli.stderr)
+	}
+	resetLog(t, logPath)
+
+	s := startMCP(t, envs)
+	text, isErr := s.tool("discover", map[string]any{"cli": "fakecache", "depth": 2, "include_help": true})
+	if isErr {
+		t.Fatalf("discover: %s", text)
+	}
+	if n := invocations(t, logPath); n != 0 {
+		t.Errorf("the agent's call re-ran the CLI %d times instead of using the CLI's entry", n)
+	}
+	var fromCLI, fromMCP any
+	if err := json.Unmarshal([]byte(cli.stdout), &fromCLI); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal([]byte(text), &fromMCP); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(fromCLI, fromMCP) {
+		t.Errorf("the CLI and MCP trees differ\ncli: %s\nmcp: %s", cli.stdout, text)
+	}
+
+	if text, isErr := s.tool("discover", map[string]any{"cli": "fakecache", "depth": 2, "refresh": true}); isErr {
+		t.Fatalf("discover with refresh: %s", text)
+	}
+	if invocations(t, logPath) == 0 {
+		t.Error("refresh did not re-discover the CLI")
 	}
 }

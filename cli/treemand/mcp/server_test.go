@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -39,9 +40,9 @@ func fakeTree() *models.Node {
 func newTestServer() *Server {
 	return &Server{
 		Name: "treemand", Version: "test",
-		Discover: func(_ context.Context, cli string, _ int) (*models.Node, error) {
-			if cli != "tool" {
-				return nil, errors.New("command not found: " + cli)
+		Discover: func(_ context.Context, req TreeRequest) (*models.Node, error) {
+			if req.CLI != "tool" {
+				return nil, errors.New("command not found: " + req.CLI)
 			}
 			return fakeTree(), nil
 		},
@@ -201,7 +202,7 @@ func TestDiscover_rejectsUnsafeOrMissingCLI(t *testing.T) {
 func TestDiscover_timesOut(t *testing.T) {
 	s := newTestServer()
 	s.Timeout = 20 * time.Millisecond
-	s.Discover = func(ctx context.Context, _ string, _ int) (*models.Node, error) {
+	s.Discover = func(ctx context.Context, _ TreeRequest) (*models.Node, error) {
 		<-ctx.Done()
 		return nil, ctx.Err()
 	}
@@ -215,7 +216,7 @@ func TestDiscover_timesOut(t *testing.T) {
 func TestDiscover_negativeTimeoutMeansNoLimit(t *testing.T) {
 	s := newTestServer()
 	s.Timeout = -1
-	s.Discover = func(ctx context.Context, _ string, _ int) (*models.Node, error) {
+	s.Discover = func(ctx context.Context, _ TreeRequest) (*models.Node, error) {
 		if _, ok := ctx.Deadline(); ok {
 			return nil, errors.New("call has a deadline")
 		}
@@ -297,5 +298,21 @@ func TestShellQuote(t *testing.T) {
 		if got := ShellQuote(in); got != want {
 			t.Errorf("ShellQuote(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestDiscover_passesRefreshOnlyFromDiscover(t *testing.T) {
+	s := newTestServer()
+	var got []TreeRequest
+	s.Discover = func(_ context.Context, req TreeRequest) (*models.Node, error) {
+		got = append(got, req)
+		return fakeTree(), nil
+	}
+	exchange(t, s, call(1, "discover", map[string]any{"cli": "tool", "depth": 3, "refresh": true}))
+	exchange(t, s, call(2, "discover", map[string]any{"cli": "tool"}))
+	exchange(t, s, call(3, "search", map[string]any{"cli": "tool", "query": "x"}))
+	want := []TreeRequest{{CLI: "tool", Depth: 3, Refresh: true}, {CLI: "tool", Depth: defaultDepth}, {CLI: "tool", Depth: searchDepth}}
+	if !slices.Equal(got, want) {
+		t.Errorf("requests = %+v, want %+v", got, want)
 	}
 }

@@ -35,8 +35,16 @@ const (
 // maxMessage caps one incoming line, so a runaway client cannot grow memory.
 const maxMessage = 4 << 20
 
-// Discoverer returns the command tree of cli, discovered depth levels deep.
-type Discoverer func(ctx context.Context, cli string, depth int) (*models.Node, error)
+// TreeRequest is the tree a tool call asks for: CLI discovered Depth levels
+// deep, from the cache unless Refresh asks for a fresh discovery.
+type TreeRequest struct {
+	CLI     string
+	Depth   int
+	Refresh bool
+}
+
+// Discoverer returns the command tree a request asks for.
+type Discoverer func(ctx context.Context, req TreeRequest) (*models.Node, error)
 
 // Expander discovers one stub node of cli's tree in place (its flags,
 // positionals and children).
