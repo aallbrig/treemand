@@ -9,7 +9,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/aallbrig/treemand/config"
-	"github.com/aallbrig/treemand/discovery"
 	"github.com/aallbrig/treemand/fuzzy"
 	"github.com/aallbrig/treemand/models"
 )
@@ -693,49 +692,22 @@ func (t *TreeModel) ToggleSectionAtY(y int) {
 	t.rebuild()
 }
 
-// PatchNode replaces a stub node's children with discovered children and clears
-// the Stub flag. The node is matched by pointer identity.
-func (t *TreeModel) PatchNode(stub *models.Node, discovered *models.Node) {
-	t.patchAndExpand(stub, discovered, copyDiscovered)
-}
-
-// ApplyDiscovery is PatchNode for an expand result. With refresh (a
-// re-discovery the user asked for) the node takes the fresh result whole,
-// dropping the flags, positionals and help it had before.
-func (t *TreeModel) ApplyDiscovery(node, discovered *models.Node, refresh bool) {
-	if refresh {
-		t.patchAndExpand(node, discovered, discovery.Refresh)
+// NodeChanged records that discovery filled or refreshed node (merged by
+// discovery.NodeExpander), expands it and rebuilds the rows.
+func (t *TreeModel) NodeChanged(node *models.Node) {
+	if node == nil {
 		return
 	}
-	t.PatchNode(node, discovered)
-}
-
-func (t *TreeModel) patchAndExpand(stub, discovered *models.Node, merge func(stub, discovered *models.Node)) {
-	if stub == nil || discovered == nil {
-		return
-	}
-	merge(stub, discovered)
 	t.patches++
-	// Auto-expand the freshly-discovered node.
-	key := t.findNodeKey(stub)
-	if key != "" {
+	if key := t.findNodeKey(node); key != "" {
 		t.nodeExpanded[key] = true
 	}
 	t.rebuild()
 }
 
-// copyDiscovered fills a stub with freshly discovered data (no tree rebuild).
-func copyDiscovered(stub, discovered *models.Node) { discovery.Fill(stub, discovered) }
-
-// PatchNodeQuiet fills a stub like PatchNode but neither expands it nor
-// rebuilds rows; used for bulk background indexing. Call Rebuild afterwards.
-func (t *TreeModel) PatchNodeQuiet(stub, discovered *models.Node) {
-	if stub == nil || discovered == nil {
-		return
-	}
-	copyDiscovered(stub, discovered)
-	t.patches++
-}
+// CountChange records a node filled in by background discovery without
+// expanding it or rebuilding rows. Call Rebuild afterwards.
+func (t *TreeModel) CountChange() { t.patches++ }
 
 // Patches reports how many nodes were filled in by discovery since the tree
 // was built; a non-zero count means the tree differs from what was loaded.

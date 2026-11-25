@@ -17,6 +17,7 @@ import (
 	"github.com/aallbrig/treemand/config"
 	"github.com/aallbrig/treemand/discovery"
 	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/overrides"
 	"github.com/aallbrig/treemand/presets"
 	"github.com/aallbrig/treemand/render"
 	"github.com/aallbrig/treemand/tui"
@@ -191,7 +192,7 @@ func runRoot(cmd *cobra.Command, args []string) error {
 			finishPartialTree(ctx, node, cliName, cfg, save)
 		}
 		applyOverride(ov, node)
-		return output(cmd, node, cfg, save)
+		return output(cmd, node, cfg, save, ov)
 	}
 
 	// The version string is only shown by `cache list`. Read it while discovery
@@ -213,7 +214,7 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	applyOverride(ov, node)
 
 	rc.put(node, versionCh)
-	return output(cmd, node, cfg, rc.saver())
+	return output(cmd, node, cfg, rc.saver(), ov)
 }
 
 // checkAvailable reports a CLI treemand must not or cannot run. A missing
@@ -397,7 +398,6 @@ func finishPartialTree(ctx context.Context, node *models.Node, cliName string, c
 	}
 	withSpinner("discovering "+cliName+"…", func() {
 		discovery.CompletePending(ctx, node, cliName, crawlDepth(cfg), cfg.StubThreshold, discovery.DefaultMaxConcurrentHelp())
-		models.MarkInheritedFlags(node)
 	})
 	if err := save(node); err != nil {
 		log.Warn().Err(err).Msg("cache write failed")
@@ -484,7 +484,7 @@ func saveExpansions(c *cache.Cache, key, cliName, strategy string) func(*models.
 	}
 }
 
-func output(cmd *cobra.Command, node *models.Node, cfg *config.Config, save func(*models.Node) error) error {
+func output(cmd *cobra.Command, node *models.Node, cfg *config.Config, save func(*models.Node) error, ov *overrides.Override) error {
 	if cfgInteractive {
 		var crawl *tui.CrawlOptions
 		if !tui.Offline {
@@ -493,6 +493,7 @@ func output(cmd *cobra.Command, node *models.Node, cfg *config.Config, save func
 		return tui.RunWithOptions(node, cfg, tui.RunOptions{
 			Save: save, Crawl: crawl, History: historyStore(cfg, node.Name),
 			Presets: tuiPresets(node.Name), Preset: startPreset,
+			Override: overrideFunc(ov),
 		})
 	}
 	opts := render.Options{

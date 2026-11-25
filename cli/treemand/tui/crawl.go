@@ -24,9 +24,8 @@ type CrawlOptions struct {
 // crawlJob is one stub to discover. The worker only reads path, never the
 // node: the tree belongs to the UI goroutine.
 type crawlJob struct {
-	stub   *models.Node
-	parent *models.Node // UI goroutine only
-	path   []string
+	stub *models.Node
+	path []string
 }
 
 // crawlMsg is one finished job.
@@ -44,7 +43,7 @@ type crawlBatchMsg []crawlMsg
 // UI goroutine never blocks when it enqueues a node's children.
 type crawler struct {
 	opts    CrawlOptions
-	c       *discovery.Crawler
+	exp     *discovery.NodeExpander
 	ctx     context.Context
 	cancel  context.CancelFunc
 	results chan crawlMsg
@@ -61,14 +60,14 @@ type crawler struct {
 	finished    bool
 }
 
-func newCrawler(cliName string, opts CrawlOptions) *crawler {
+func newCrawler(cliName string, opts CrawlOptions, override func(*models.Node)) *crawler {
 	if opts.Workers <= 0 {
 		opts.Workers = discovery.DefaultMaxConcurrentHelp()
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cr := &crawler{
 		opts:    opts,
-		c:       discovery.NewCrawler(cliName, opts.MaxDepth),
+		exp:     discovery.NewNodeExpander(cliName, discovery.ExpandOptions{MaxDepth: opts.MaxDepth, Override: override}),
 		ctx:     ctx,
 		cancel:  cancel,
 		results: make(chan crawlMsg, opts.Workers),
@@ -87,7 +86,7 @@ func (cr *crawler) work() {
 		if !ok {
 			return
 		}
-		n, err := cr.c.DiscoverOne(cr.ctx, job.path)
+		n, err := cr.exp.Discover(cr.ctx, job.path)
 		select {
 		case cr.results <- crawlMsg{job: job, discovered: n, err: err}:
 		case <-cr.ctx.Done():
@@ -111,14 +110,14 @@ func (cr *crawler) next() (crawlJob, bool) {
 	return job, true
 }
 
-// enqueue queues a parent's stubs for discovery. UI goroutine only.
-func (cr *crawler) enqueue(parent *models.Node, stubs []*models.Node) {
+// enqueue queues stubs for discovery. UI goroutine only.
+func (cr *crawler) enqueue(stubs []*models.Node) {
 	if len(stubs) == 0 {
 		return
 	}
 	cr.mu.Lock()
 	for _, s := range stubs {
-		cr.queue = append(cr.queue, crawlJob{stub: s, parent: parent, path: append([]string(nil), s.FullPath[1:]...)})
+		cr.queue = append(cr.queue, crawlJob{stub: s, path: append([]string(nil), s.FullPath[1:]...)})
 	}
 	cr.mu.Unlock()
 	cr.outstanding += len(stubs)
@@ -161,7 +160,7 @@ func (m *Model) EnableCrawl(opts CrawlOptions) {
 	if Offline {
 		return
 	}
-	m.crawl = newCrawler(m.root.Name, opts)
+	m.crawl = newCrawler(m.root.Name, opts, m.override)
 	m.root.Walk(func(n *models.Node) {
 		var pending []*models.Node
 		for _, c := range n.Children {
@@ -169,7 +168,7 @@ func (m *Model) EnableCrawl(opts CrawlOptions) {
 				pending = append(pending, c)
 			}
 		}
-		m.crawl.enqueue(n, pending)
+		m.crawl.enqueue(pending)
 	})
 	if m.crawl.outstanding == 0 {
 		m.crawl.finished = true
@@ -209,10 +208,8 @@ func (m *Model) handleCrawlBatch(batch crawlBatchMsg) tea.Cmd {
 		if !stub.Stub || msg.err != nil || msg.discovered == nil {
 			continue
 		}
-		if p := msg.job.parent; p != nil && msg.discovered.HelpText != "" && msg.discovered.HelpText == p.HelpText {
-			msg.discovered.Children = nil // repeats its parent's help: see discovery.FillUnder
-		}
-		m.tree.PatchNodeQuiet(stub, msg.discovered)
+		cr.exp.Fill(m.root, stub, msg.discovered)
+		m.tree.CountChange()
 		changed = true
 		var next []*models.Node
 		for _, c := range stub.Children {
@@ -220,7 +217,7 @@ func (m *Model) handleCrawlBatch(batch crawlBatchMsg) tea.Cmd {
 				next = append(next, c)
 			}
 		}
-		cr.enqueue(stub, next)
+		cr.enqueue(next)
 		if sel == stub {
 			m.preview.SetNode(stub)
 			m.helpPane.SetNode(stub)
@@ -232,7 +229,6 @@ func (m *Model) handleCrawlBatch(batch crawlBatchMsg) tea.Cmd {
 	if cr.outstanding <= 0 {
 		cr.finished = true
 		cr.stop()
-		models.MarkInheritedFlags(m.root)
 		m.tree.Rebuild()
 		m.setTimedMsg(fmt.Sprintf("discovered %d commands in %.1fs", cr.done, time.Since(cr.started).Seconds()))
 		return m.timedMsgCmd()

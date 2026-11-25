@@ -58,7 +58,7 @@ func runFromStdin(cmd *cobra.Command, cliName string) error {
 	}
 	node := discovery.FromHelpText(cliName, text)
 	applyOverride(ov, node)
-	return output(cmd, node, configFromFlags(), nil)
+	return output(cmd, node, configFromFlags(), nil, ov)
 }
 
 // isTerminal reports whether f is a character device such as a terminal.

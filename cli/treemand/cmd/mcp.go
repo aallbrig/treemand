@@ -105,28 +105,15 @@ func mcpDiscover(ctx context.Context, cli string, depth int) (*models.Node, erro
 	return node, nil
 }
 
-// mcpExpand discovers one stub node in place, one level deep.
-func mcpExpand(ctx context.Context, cli string, node *models.Node) error {
+// mcpExpand discovers one stub node of root's tree in place, one level deep.
+func mcpExpand(ctx context.Context, cli string, root, node *models.Node) error {
 	if len(node.FullPath) < 2 {
 		return nil // the root is always discovered
 	}
-	d := discovery.NewHelpDiscoverer(1)
-	d.StubThreshold = 1 // its children stay name-only stubs
-	res, err := d.Discover(ctx, cli, node.FullPath[1:])
+	ov, err := loadOverride(cli)
 	if err != nil {
 		return err
 	}
-	if res == nil {
-		return nil
-	}
-	node.Stub, node.Discovered = false, true
-	if len(node.Children) == 0 {
-		node.Children = res.Children
-	}
-	if node.Description == "" {
-		node.Description = res.Description
-	}
-	node.Flags, node.Positionals = res.Flags, res.Positionals
-	node.HelpText, node.DiscoveryErr = res.HelpText, res.DiscoveryErr
-	return nil
+	return discovery.NewNodeExpander(cli, discovery.ExpandOptions{EagerBelow: discovery.OneLevel, MaxDepth: -1, Override: overrideFunc(ov)}).
+		Expand(ctx, root, node)
 }

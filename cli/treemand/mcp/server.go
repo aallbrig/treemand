@@ -40,7 +40,7 @@ type Discoverer func(ctx context.Context, cli string, depth int) (*models.Node, 
 
 // Expander discovers one stub node of cli's tree in place (its flags,
 // positionals and children).
-type Expander func(ctx context.Context, cli string, node *models.Node) error
+type Expander func(ctx context.Context, cli string, root, node *models.Node) error
 
 // Server answers MCP requests. Discover is required; Expand is optional and
 // lets assemble reach commands below a stub.
