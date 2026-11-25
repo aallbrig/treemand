@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // fakeTree is a small two-level CLI: tool {build, remote {add}}.

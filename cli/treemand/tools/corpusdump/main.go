@@ -14,7 +14,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/aallbrig/treemand/discovery"
+	"github.com/aallbrig/treemand/cli/treemand/discovery"
 )
 
 func main() {

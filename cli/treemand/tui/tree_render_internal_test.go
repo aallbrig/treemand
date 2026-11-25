@@ -11,8 +11,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
 
-	"github.com/aallbrig/treemand/config"
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/config"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 var updateTreeStylesGolden = flag.Bool("update-tree-styles", false, "rewrite testdata/tree_styles.golden")

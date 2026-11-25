@@ -11,9 +11,9 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/aallbrig/treemand/config"
-	"github.com/aallbrig/treemand/models"
-	"github.com/aallbrig/treemand/tui"
+	"github.com/aallbrig/treemand/cli/treemand/config"
+	"github.com/aallbrig/treemand/cli/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/tui"
 )
 
 // scaleTree builds an aws-shaped tree. With cmds == 0 the services are

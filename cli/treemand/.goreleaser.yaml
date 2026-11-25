@@ -17,7 +17,7 @@ project_name: treemand
 before:
   hooks:
     # The man page carries the version, so it is generated per release.
-    - go run -ldflags "-X github.com/aallbrig/treemand/cmd.Version={{ .Tag }} -X github.com/aallbrig/treemand/cmd.Commit={{ .FullCommit }} -X github.com/aallbrig/treemand/cmd.BuildDate={{ .Date }}" . gendocs --output-dir build/docs
+    - go run -ldflags "-X github.com/aallbrig/treemand/cli/treemand/cmd.Version={{ .Tag }} -X github.com/aallbrig/treemand/cli/treemand/cmd.Commit={{ .FullCommit }} -X github.com/aallbrig/treemand/cli/treemand/cmd.BuildDate={{ .Date }}" . gendocs --output-dir build/docs
 
 builds:
   # Archive binaries keep their platform in the name (install.sh and the tap expect it).
@@ -28,9 +28,9 @@ builds:
     env: &env [CGO_ENABLED=0]
     ldflags: &ldflags
       - -s -w
-      - -X github.com/aallbrig/treemand/cmd.Version={{ .Tag }}
-      - -X github.com/aallbrig/treemand/cmd.Commit={{ .FullCommit }}
-      - -X github.com/aallbrig/treemand/cmd.BuildDate={{ .Date }}
+      - -X github.com/aallbrig/treemand/cli/treemand/cmd.Version={{ .Tag }}
+      - -X github.com/aallbrig/treemand/cli/treemand/cmd.Commit={{ .FullCommit }}
+      - -X github.com/aallbrig/treemand/cli/treemand/cmd.BuildDate={{ .Date }}
   - id: windows
     binary: "treemand_{{ .Os }}_{{ .Arch }}"
     goos: [windows]

@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/aallbrig/treemand/fuzzy"
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/fuzzy"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // treeRows is the tree pane's row model: it flattens the command tree into

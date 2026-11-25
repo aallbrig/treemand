@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 func TestPending_followsDepthAndThresholdRules(t *testing.T) {

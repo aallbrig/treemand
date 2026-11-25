@@ -1,8 +1,8 @@
 package tui
 
 import (
-	"github.com/aallbrig/treemand/config"
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/config"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // TreeModel is the scrollable, filterable tree pane: the row model

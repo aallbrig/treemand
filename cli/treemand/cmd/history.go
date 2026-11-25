@@ -9,8 +9,8 @@ import (
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v3"
 
-	"github.com/aallbrig/treemand/config"
-	"github.com/aallbrig/treemand/history"
+	"github.com/aallbrig/treemand/cli/treemand/config"
+	"github.com/aallbrig/treemand/cli/treemand/history"
 )
 
 var historyCmd = &cobra.Command{

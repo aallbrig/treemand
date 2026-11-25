@@ -9,8 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/aallbrig/treemand/discovery"
-	"github.com/aallbrig/treemand/treeload"
+	"github.com/aallbrig/treemand/cli/treemand/discovery"
+	"github.com/aallbrig/treemand/cli/treemand/treeload"
 )
 
 // cfgStdin is --stdin: read the root's help text from stdin instead of

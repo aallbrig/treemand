@@ -13,8 +13,8 @@ import (
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
 
-	"github.com/aallbrig/treemand/models"
-	"github.com/aallbrig/treemand/models/schemacheck"
+	"github.com/aallbrig/treemand/cli/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models/schemacheck"
 )
 
 // publishedSchema is the copy the website serves at the schema's $id.

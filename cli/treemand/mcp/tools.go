@@ -7,8 +7,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/aallbrig/treemand/fuzzy"
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/fuzzy"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // Depth limits for the discover tool. Search uses searchDepth.

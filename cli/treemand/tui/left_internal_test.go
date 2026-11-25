@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // rowLabel names a row in one short token, for the Left characterization.

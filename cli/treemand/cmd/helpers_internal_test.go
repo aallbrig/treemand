@@ -3,12 +3,13 @@ package cmd
 import (
 	"bytes"
 	"context"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // syncBuffer is a bytes.Buffer safe to write from the spinner goroutine.
@@ -81,6 +82,31 @@ func TestVersionString_namesCommitAndBuildDate(t *testing.T) {
 	Version, Commit, BuildDate = "1.2.3", "abc1234", "2026-11-22"
 	if got, want := versionString(), "treemand 1.2.3 (abc1234) built 2026-11-22"; got != want {
 		t.Errorf("versionString() = %q, want %q", got, want)
+	}
+}
+
+func TestResolveVersion_fallsBackToTheModuleVersion(t *testing.T) {
+	info := func(v string) func() (*debug.BuildInfo, bool) {
+		return func() (*debug.BuildInfo, bool) {
+			return &debug.BuildInfo{Main: debug.Module{Version: v}}, true
+		}
+	}
+	none := func() (*debug.BuildInfo, bool) { return nil, false }
+	cases := []struct {
+		name, ldflag string
+		read         func() (*debug.BuildInfo, bool)
+		want         string
+	}{
+		{"ldflags win", "v1.2.3", info("v0.9.0"), "v1.2.3"},
+		{"go install from the proxy", "dev", info("v0.20.3"), "v0.20.3"},
+		{"local build", "dev", info("(devel)"), "dev"},
+		{"no build info", "dev", none, "dev"},
+		{"empty module version", "dev", info(""), "dev"},
+	}
+	for _, c := range cases {
+		if got := resolveVersion(c.ldflag, c.read); got != c.want {
+			t.Errorf("%s: resolveVersion(%q) = %q, want %q", c.name, c.ldflag, got, c.want)
+		}
 	}
 }
 

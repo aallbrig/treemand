@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aallbrig/treemand/history"
+	"github.com/aallbrig/treemand/cli/treemand/history"
 )
 
 // historyEnv isolates the cache and config so no real history is read.

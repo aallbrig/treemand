@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aallbrig/treemand/cmd"
-	"github.com/aallbrig/treemand/config"
-	"github.com/aallbrig/treemand/savedpresets"
+	"github.com/aallbrig/treemand/cli/treemand/cmd"
+	"github.com/aallbrig/treemand/cli/treemand/config"
+	"github.com/aallbrig/treemand/cli/treemand/savedpresets"
 )
 
 // presetsEnv isolates the config directory and returns the git store.

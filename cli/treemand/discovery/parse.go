@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // ParsedHelp holds structured results of parsing --help output.

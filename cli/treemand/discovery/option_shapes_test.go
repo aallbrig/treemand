@@ -3,7 +3,7 @@ package discovery_test
 import (
 	"testing"
 
-	"github.com/aallbrig/treemand/discovery"
+	"github.com/aallbrig/treemand/cli/treemand/discovery"
 )
 
 // Option shapes from real help (issue #161), copied from the corpus fixtures.

@@ -38,42 +38,42 @@ linters:
             - "**/cli/treemand/history/**"
             - "**/cli/treemand/savedpresets/**"
           deny:
-            - {pkg: github.com/aallbrig/treemand/discovery, desc: "leaf packages import nothing above them"}
-            - {pkg: github.com/aallbrig/treemand/fuzzy, desc: "leaf packages import nothing above them"}
-            - {pkg: github.com/aallbrig/treemand/render, desc: "leaf packages import nothing above them"}
-            - {pkg: github.com/aallbrig/treemand/presets, desc: "leaf packages import nothing above them"}
-            - {pkg: github.com/aallbrig/treemand/overrides, desc: "leaf packages import nothing above them"}
-            - {pkg: github.com/aallbrig/treemand/cache, desc: "leaf packages import nothing above them"}
-            - {pkg: github.com/aallbrig/treemand/mcp, desc: "leaf packages import nothing above them"}
+            - {pkg: github.com/aallbrig/treemand/cli/treemand/discovery, desc: "leaf packages import nothing above them"}
+            - {pkg: github.com/aallbrig/treemand/cli/treemand/fuzzy, desc: "leaf packages import nothing above them"}
+            - {pkg: github.com/aallbrig/treemand/cli/treemand/render, desc: "leaf packages import nothing above them"}
+            - {pkg: github.com/aallbrig/treemand/cli/treemand/presets, desc: "leaf packages import nothing above them"}
+            - {pkg: github.com/aallbrig/treemand/cli/treemand/overrides, desc: "leaf packages import nothing above them"}
+            - {pkg: github.com/aallbrig/treemand/cli/treemand/cache, desc: "leaf packages import nothing above them"}
+            - {pkg: github.com/aallbrig/treemand/cli/treemand/mcp, desc: "leaf packages import nothing above them"}
         discovery:
           files:
             - "**/cli/treemand/discovery/**"
           deny:
-            - {pkg: github.com/aallbrig/treemand/presets, desc: "discovery imports nothing above it; callers pass a preset's hints in"}
-            - {pkg: github.com/aallbrig/treemand/overrides, desc: "discovery imports nothing above it"}
-            - {pkg: github.com/aallbrig/treemand/cache, desc: "discovery imports nothing above it"}
-            - {pkg: github.com/aallbrig/treemand/mcp, desc: "discovery imports nothing above it"}
+            - {pkg: github.com/aallbrig/treemand/cli/treemand/presets, desc: "discovery imports nothing above it; callers pass a preset's hints in"}
+            - {pkg: github.com/aallbrig/treemand/cli/treemand/overrides, desc: "discovery imports nothing above it"}
+            - {pkg: github.com/aallbrig/treemand/cli/treemand/cache, desc: "discovery imports nothing above it"}
+            - {pkg: github.com/aallbrig/treemand/cli/treemand/mcp, desc: "discovery imports nothing above it"}
         middle:
           files:
             - "**/cli/treemand/fuzzy/**"
             - "**/cli/treemand/render/**"
           deny:
-            - {pkg: github.com/aallbrig/treemand/presets, desc: "fuzzy and render import nothing above them"}
-            - {pkg: github.com/aallbrig/treemand/overrides, desc: "fuzzy and render import nothing above them"}
-            - {pkg: github.com/aallbrig/treemand/cache, desc: "fuzzy and render import nothing above them"}
-            - {pkg: github.com/aallbrig/treemand/mcp, desc: "fuzzy and render import nothing above them"}
+            - {pkg: github.com/aallbrig/treemand/cli/treemand/presets, desc: "fuzzy and render import nothing above them"}
+            - {pkg: github.com/aallbrig/treemand/cli/treemand/overrides, desc: "fuzzy and render import nothing above them"}
+            - {pkg: github.com/aallbrig/treemand/cli/treemand/cache, desc: "fuzzy and render import nothing above them"}
+            - {pkg: github.com/aallbrig/treemand/cli/treemand/mcp, desc: "fuzzy and render import nothing above them"}
         stores:
           files:
             - "**/cli/treemand/presets/**"
             - "**/cli/treemand/overrides/**"
             - "**/cli/treemand/cache/**"
           deny:
-            - {pkg: github.com/aallbrig/treemand/mcp, desc: "presets, overrides and cache stay below the front ends"}
+            - {pkg: github.com/aallbrig/treemand/cli/treemand/mcp, desc: "presets, overrides and cache stay below the front ends"}
         tui:
           files:
             - "**/cli/treemand/tui/**"
           deny:
-            - {pkg: github.com/aallbrig/treemand/mcp, desc: "tui and mcp are separate front ends"}
+            - {pkg: github.com/aallbrig/treemand/cli/treemand/mcp, desc: "tui and mcp are separate front ends"}
         not-tui:
           files:
             - "$all"
@@ -81,14 +81,14 @@ linters:
             - "!**/cli/treemand/cmd/**"
             - "!**/cli/treemand/tools/**"
           deny:
-            - {pkg: github.com/aallbrig/treemand/tui, desc: "only cmd and the tools/ binaries import tui"}
+            - {pkg: github.com/aallbrig/treemand/cli/treemand/tui, desc: "only cmd and the tools/ binaries import tui"}
         not-cmd:
           files:
             - "$all"
             - "!**/cli/treemand/cmd/**"
             - "!**/cli/treemand/main.go"
           deny:
-            - {pkg: github.com/aallbrig/treemand/cmd, desc: "only main imports cmd"}
+            - {pkg: github.com/aallbrig/treemand/cli/treemand/cmd, desc: "only main imports cmd"}
     gocritic:
       enabled-checks:
         - ruleguard

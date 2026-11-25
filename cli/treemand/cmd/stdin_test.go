@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aallbrig/treemand/cmd"
+	"github.com/aallbrig/treemand/cli/treemand/cmd"
 )
 
 // runCmdStdin runs a fresh root command with stdin, returning stdout and stderr.

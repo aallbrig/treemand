@@ -30,7 +30,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/aallbrig/treemand/tui"
+	"github.com/aallbrig/treemand/cli/treemand/tui"
 )
 
 // SwitchRef names the Index-th switch with string-literal cases in Func.

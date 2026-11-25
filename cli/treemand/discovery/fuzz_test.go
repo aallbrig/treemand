@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aallbrig/treemand/discovery"
+	"github.com/aallbrig/treemand/cli/treemand/discovery"
 )
 
 // Seeds for the help-parser fuzzers: every committed fixture (real CLI help)

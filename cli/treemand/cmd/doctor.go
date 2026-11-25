@@ -14,9 +14,9 @@ import (
 	"github.com/spf13/cobra"
 	"go.yaml.in/yaml/v3"
 
-	"github.com/aallbrig/treemand/discovery"
-	"github.com/aallbrig/treemand/models"
-	"github.com/aallbrig/treemand/treeload"
+	"github.com/aallbrig/treemand/cli/treemand/discovery"
+	"github.com/aallbrig/treemand/cli/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/treeload"
 )
 
 var doctorCmd = &cobra.Command{

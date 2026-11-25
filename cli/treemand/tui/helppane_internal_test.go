@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // TestHelpPaneNodeLines pins the help pane lines for a node that reaches every

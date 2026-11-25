@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // CompletionsDiscoverer discovers subcommands by running the CLI's built-in

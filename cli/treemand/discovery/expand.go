@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // ExpandStubs discovers every stub node under root, one level at a time, for

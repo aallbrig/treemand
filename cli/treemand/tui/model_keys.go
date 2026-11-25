@@ -6,7 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/aallbrig/treemand/config"
+	"github.com/aallbrig/treemand/cli/treemand/config"
 )
 
 // actionFuncs runs each action of the key map (keymap.go).

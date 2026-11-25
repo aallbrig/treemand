@@ -3,7 +3,7 @@ package discovery_test
 import (
 	"testing"
 
-	"github.com/aallbrig/treemand/discovery"
+	"github.com/aallbrig/treemand/cli/treemand/discovery"
 )
 
 // Lists that are not commands (issue #154), copied from corpus fixtures.

@@ -3,7 +3,7 @@ package config_test
 import (
 	"testing"
 
-	"github.com/aallbrig/treemand/config"
+	"github.com/aallbrig/treemand/cli/treemand/config"
 )
 
 func TestKnownKeys(t *testing.T) {

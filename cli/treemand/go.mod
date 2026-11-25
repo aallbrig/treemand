@@ -1,4 +1,4 @@
-module github.com/aallbrig/treemand
+module github.com/aallbrig/treemand/cli/treemand
 
 go 1.26.10
 

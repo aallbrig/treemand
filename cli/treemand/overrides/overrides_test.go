@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // tree is mytool with remote (add, prune) and status; remote add has --tags.

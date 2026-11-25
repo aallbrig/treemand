@@ -37,7 +37,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // Override is one CLI's override file.

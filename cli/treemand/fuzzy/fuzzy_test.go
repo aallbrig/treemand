@@ -3,8 +3,8 @@ package fuzzy_test
 import (
 	"testing"
 
-	"github.com/aallbrig/treemand/fuzzy"
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/fuzzy"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 func TestMatch(t *testing.T) {

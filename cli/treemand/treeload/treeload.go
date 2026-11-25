@@ -15,11 +15,11 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/aallbrig/treemand/cache"
-	"github.com/aallbrig/treemand/discovery"
-	"github.com/aallbrig/treemand/models"
-	"github.com/aallbrig/treemand/overrides"
-	"github.com/aallbrig/treemand/presets"
+	"github.com/aallbrig/treemand/cli/treemand/cache"
+	"github.com/aallbrig/treemand/cli/treemand/discovery"
+	"github.com/aallbrig/treemand/cli/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/overrides"
+	"github.com/aallbrig/treemand/cli/treemand/presets"
 )
 
 // CachePolicy says whether a load reads and writes the cache.

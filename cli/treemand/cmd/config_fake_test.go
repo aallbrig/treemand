@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aallbrig/treemand/cmd"
+	"github.com/aallbrig/treemand/cli/treemand/cmd"
 )
 
 func TestConfigSet_writesTheKeyToTheConfigFile(t *testing.T) {

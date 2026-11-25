@@ -13,8 +13,8 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
-	"github.com/aallbrig/treemand/models"
-	"github.com/aallbrig/treemand/models/schemacheck"
+	"github.com/aallbrig/treemand/cli/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models/schemacheck"
 )
 
 // `treemand schema` prints the published JSON Schema, byte for byte.

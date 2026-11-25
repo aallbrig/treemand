@@ -3,8 +3,8 @@ package discovery_test
 import (
 	"testing"
 
-	"github.com/aallbrig/treemand/discovery"
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/discovery"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // node builds a node below path with the given children.

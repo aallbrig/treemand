@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // Pending reports whether n is a stub that a full discovery would have

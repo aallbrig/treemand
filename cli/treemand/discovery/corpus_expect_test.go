@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aallbrig/treemand/discovery"
+	"github.com/aallbrig/treemand/cli/treemand/discovery"
 )
 
 // corpusExpectation is what a corpus CLI really offers, independent of the

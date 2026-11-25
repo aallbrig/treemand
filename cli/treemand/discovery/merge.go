@@ -4,7 +4,7 @@ package discovery
 import (
 	"context"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // Merge combines results from multiple discoverers into a single tree.

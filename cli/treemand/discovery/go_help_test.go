@@ -3,7 +3,7 @@ package discovery_test
 import (
 	"testing"
 
-	"github.com/aallbrig/treemand/discovery"
+	"github.com/aallbrig/treemand/cli/treemand/discovery"
 )
 
 func flagTypes(p discovery.ParsedHelp) map[string]string {

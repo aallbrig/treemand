@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aallbrig/treemand/savedpresets"
+	"github.com/aallbrig/treemand/cli/treemand/savedpresets"
 )
 
 func TestPresets_saveFromTheDialog(t *testing.T) {

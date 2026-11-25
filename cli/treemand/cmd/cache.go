@@ -7,8 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/aallbrig/treemand/cache"
-	"github.com/aallbrig/treemand/config"
+	"github.com/aallbrig/treemand/cli/treemand/cache"
+	"github.com/aallbrig/treemand/cli/treemand/config"
 )
 
 var cacheCmd = &cobra.Command{

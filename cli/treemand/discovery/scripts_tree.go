@@ -3,7 +3,7 @@ package discovery
 import (
 	"regexp"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // scriptCommandNameRe is what a word must look like to be read as a

@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/aallbrig/treemand/tui"
+	"github.com/aallbrig/treemand/cli/treemand/tui"
 )
 
 var metricNames = []string{"conflicts", "unreachable_bindings", "undocumented_bindings.overlay",

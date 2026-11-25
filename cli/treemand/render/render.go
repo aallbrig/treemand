@@ -10,8 +10,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"go.yaml.in/yaml/v3"
 
-	"github.com/aallbrig/treemand/config"
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/config"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // Options controls tree rendering behavior.

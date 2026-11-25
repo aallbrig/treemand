@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aallbrig/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/models"
 )
 
 // rightDump presses Right once from every row of a freshly set-up model and

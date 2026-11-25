@@ -9,14 +9,29 @@ import (
 
 // Build-time variables injected via -ldflags:
 //
-//	-X github.com/aallbrig/treemand/cmd.Version=v1.2.3
-//	-X github.com/aallbrig/treemand/cmd.Commit=abc1234
-//	-X github.com/aallbrig/treemand/cmd.BuildDate=2025-01-01
+//	-X github.com/aallbrig/treemand/cli/treemand/cmd.Version=v1.2.3
+//	-X github.com/aallbrig/treemand/cli/treemand/cmd.Commit=abc1234
+//	-X github.com/aallbrig/treemand/cli/treemand/cmd.BuildDate=2025-01-01
+//
+// Execute replaces a "dev" Version with the module version when there is one.
 var (
 	Version   = "dev"
 	Commit    = ""
 	BuildDate = ""
 )
+
+// resolveVersion returns the ldflags version, or, for a binary built by
+// `go install github.com/aallbrig/treemand/cli/treemand@vX.Y.Z` (no ldflags),
+// the module version the Go toolchain records in the build info.
+func resolveVersion(ldflag string, read func() (*debug.BuildInfo, bool)) string {
+	if ldflag != "dev" {
+		return ldflag
+	}
+	if info, ok := read(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return info.Main.Version
+	}
+	return ldflag
+}
 
 // versionString returns the canonical version string shown by both
 // the `version` subcommand and the `--version` flag.

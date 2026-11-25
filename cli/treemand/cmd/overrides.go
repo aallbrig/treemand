@@ -3,9 +3,9 @@ package cmd
 import (
 	"github.com/rs/zerolog/log"
 
-	"github.com/aallbrig/treemand/config"
-	"github.com/aallbrig/treemand/models"
-	"github.com/aallbrig/treemand/overrides"
+	"github.com/aallbrig/treemand/cli/treemand/config"
+	"github.com/aallbrig/treemand/cli/treemand/models"
+	"github.com/aallbrig/treemand/cli/treemand/overrides"
 )
 
 // loadOverride reads the user's override file for cliName, or returns nil

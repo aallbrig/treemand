@@ -35,8 +35,9 @@ step "secrets (gitleaks on staged changes)"
 run task secrets
 
 go_files="$(printf '%s\n' "$staged" | grep -E '^cli/treemand/.*\.go$')"
-# lintrules holds only ruleguard rules (build tag ruleguard): no package to vet.
-go_pkgs="$(printf '%s\n' "$touched" | grep -E '^cli/treemand/.*\.go$' | grep -v '^cli/treemand/lintrules/' |
+# lintrules holds only ruleguard rules (build tag ruleguard) and web/wasm builds
+# only for js/wasm: neither has a package to vet on this host.
+go_pkgs="$(printf '%s\n' "$touched" | grep -E '^cli/treemand/.*\.go$' | grep -Ev '^cli/treemand/(lintrules|web/wasm)/' |
   sed 's|/[^/]*$||' | sort -u | while read -r d; do
     for f in "$d"/*.go; do [ -e "$f" ] && echo "./$d" && break; done
   done)"
