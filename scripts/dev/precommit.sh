@@ -35,7 +35,8 @@ step "secrets (gitleaks on staged changes)"
 run task secrets
 
 go_files="$(printf '%s\n' "$staged" | grep -E '^cli/treemand/.*\.go$')"
-go_pkgs="$(printf '%s\n' "$touched" | grep -E '^cli/treemand/.*\.go$' |
+# lintrules holds only ruleguard rules (build tag ruleguard): no package to vet.
+go_pkgs="$(printf '%s\n' "$touched" | grep -E '^cli/treemand/.*\.go$' | grep -v '^cli/treemand/lintrules/' |
   sed 's|/[^/]*$||' | sort -u | while read -r d; do
     for f in "$d"/*.go; do [ -e "$f" ] && echo "./$d" && break; done
   done)"

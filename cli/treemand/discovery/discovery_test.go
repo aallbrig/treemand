@@ -405,6 +405,7 @@ func TestHelpDiscoverer_hangingCLI_honoursContext(t *testing.T) {
 	defer cancel()
 	start := time.Now()
 	_, _ = discovery.NewHelpDiscoverer(1).Discover(ctx, "hangcli", nil)
+	//nolint:gocritic // timing: only a kill ends sleep 30, so a 10s bound proves the context is honoured
 	if elapsed := time.Since(start); elapsed > 10*time.Second {
 		t.Errorf("Discover took %v after a 1s context timeout", elapsed)
 	}
@@ -614,6 +615,7 @@ func TestHelpDiscoverer_capsHugeOutput(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Discover() error: %v", err)
 	}
+	//nolint:gocritic // timing: the flood is endless and the command timeout is 1m, so finishing in 30s proves the cap
 	if elapsed > 30*time.Second {
 		t.Errorf("Discover took %v on an endless flood, want well under the 1m command timeout", elapsed)
 	}
