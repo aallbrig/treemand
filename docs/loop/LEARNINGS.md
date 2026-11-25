@@ -22,13 +22,11 @@ into the `## Summary` section by the loop.
 - Cycle 43 (#51, v0.10.2): third-party actions are pinned by SHA (resolve with `gh api repos/<o>/<r>/commits/<tag>`, rewrite refs with Python, not BSD sed), workflows default to `contents: read`, and releases carry build provenance.
 - Cycle 44 (#49, v0.11.0): `treemand mcp` is a dependency-free stdio MCP server tested end to end against the fake CLIs; a timed-out discovery is returned labelled partial. Site headings that collide with page ids (`search`) need explicit `{#ids}`; run `task site:audit` after any docs change.
 - Cycle 45 (#65, v0.11.1): when the help really lists no options (apt), take a root's options from `man`, marked inherited. Test new discovery rules through `ChildrenAsStubs` + `CompletePending` as well as `--output=json`, and check a premise in a `debian:bookworm` container when the CLI is not on this host. The guard blocks any command containing sudo.
+- Cycle 46 (#85, v0.11.2): `--timeout=0` means no overall limit (each help command keeps its own) and a negative value is a usage error; `mcp` uses negative for no limit because its zero is the 30s default. After a `cd` into `cli/treemand`, pass `gh --body-file` an absolute path.
 
 ## Recent cycles
 
 <!-- Retro appends below: ### Cycle N — YYYY-MM-DD — outcome — #issue vX.Y.Z -->
-
-### Cycle 46 - 2026-11-22 - released - #85 v0.11.2
-`--timeout=0` now means no overall limit, which is safe because each help command keeps its own limit; a negative value is a usage error (exit 2). The `mcp` server needed a separate sentinel (negative = no limit) because its zero already meant the 30s default. `task ci` fails `site:audit` on the host's default node 20: source nvm and run `nvm use` first. After a `cd` into `cli/treemand`, pass `gh --body-file` an absolute path.
 
 ### Cycle 47 - 2026-11-22 - released - #82 v0.11.3
 clap's `name version` first line and its `Name <email>` author line no longer count as prose, so a command's description comes from the next prose line (fixed `rg` in the corpus too). The `parser` probe can't see this kind of fix because `described_pct` counts descriptions, not correct ones. Prove it by diffing every corpus fixture's root description against main. `git stash push -- <file>` on a committed change saves nothing, so compare against `git show origin/main:<file>` instead. The guard blocks Write outside the repo, so put PR bodies under the ignored `.loop/`.
@@ -105,3 +103,6 @@ A ruleguard rule (`cli/treemand/lintrules`, run by gocritic) flags unit tests th
 
 ### Cycle 76 - 2026-11-25 - merged, no release - #478
 `task ci` is now `ci:go` (Test & Lint job) + `ci:gates` (gates job) + `measure:gate` (measure job), so each check runs once in CI: the gates job dropped from 14m39s to 8m28s. Wiring tests that grep the `ci:` block of the Taskfile (`check_baselines_test.sh`, `scripts/dev/ci_jobs_test.sh`) must follow such a split, and a tool pin also changes `setup_test.sh`. `task ci` run from a background shell picks up node 20; put `~/.nvm/versions/node/v24*/bin` first on PATH. Untrusted issues: 0.
+
+### Cycle 77 - 2026-11-25 - released - #479 v0.19.5
+`discovery.NodeExpander` is now the only place a discovery result is merged into a tree (Fill or Refresh, the parent-repeat guard, inherited flags, the override as a hook because `discovery` sits below `overrides`). The pty session's screen holds every frame, so an e2e test of something that must never be shown is a negative check, and the positive check must match only the affected row: the help pane kept the override text and hid the bug on main. Ratcheted files (`help.go`) fail `measure:gate` even for a 4-line constant, so put new declarations in the new file. Untrusted issues: 0.
