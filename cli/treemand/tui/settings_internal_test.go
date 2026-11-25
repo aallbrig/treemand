@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -42,7 +43,8 @@ func TestSettings_layoutKeyAppliesLive(t *testing.T) {
 		t.Fatalf(", should open the settings screen:\n%s", view)
 	}
 	selectSetting(t, m, "tree_style")
-	if !strings.Contains(m.View(), "one of: default, columns, compact, graph") {
+	if v := m.View(); !strings.Contains(v, "one of: default, columns, compact, graph") ||
+		!strings.Contains(v, fmt.Sprintf("Settings 4/%d", len(config.KnownKeys))) {
 		t.Errorf("the detail line should list the allowed values:\n%s", m.View())
 	}
 	press(m, "enter", "ctrl+u")

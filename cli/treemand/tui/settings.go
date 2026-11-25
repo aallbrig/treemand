@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -126,8 +127,9 @@ func (m *Model) renderSettingsModal() string {
 	errStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(m.cfg.Colors.Invalid))
 
 	var sb strings.Builder
-	sb.WriteString(titleStyle.Render("Settings") + "  " +
-		hintStyle.Render(truncate(m.settings.Path, max(0, inner-10))) + "\n\n")
+	pos := fmt.Sprintf("%d/%d", m.st.cursor+1, len(m.st.list))
+	sb.WriteString(titleStyle.Render("Settings") + " " + pos + "  " +
+		hintStyle.Render(truncate(m.settings.Path, max(0, inner-12-len(pos)))) + "\n\n")
 	m.renderSettingRows(&sb, inner, selStyle)
 	if m.st.cursor < len(m.st.list) {
 		what, values := settingDetail(m.st.list[m.st.cursor])

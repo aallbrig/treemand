@@ -20,4 +20,4 @@
 [38;2;94;163;245m│[39m                                          [38;2;94;163;245m│[38;2;85;85;85m│[39mworking tree and from the index   [38;2;85;85;85m│
 [38;2;94;163;245m│[39m                                          [38;2;94;163;245m│[38;2;85;85;85m│[39m  bisect  Use binary search to    [38;2;85;85;85m│
 [38;2;94;163;245m╰──────────────────────────────────────────╯[38;2;85;85;85m╰──────────────────────────────────╯
-[1m[39mgit[0m              [2m[arrows] ↑↓:nav  Enter:pick  /:filter  H:help  ?:keys  q:quit[0m
+[1m[39mgit[0m  [2m[arrows] ↑↓:nav  Enter:pick  /:filter  H:help  ,:settings  ?:keys  q:quit[0m
