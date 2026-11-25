@@ -36,7 +36,7 @@ func (m *Model) lazyExpandIfStub() tea.Cmd {
 
 	m.statusMsg = "discovering " + stub.Name + "…"
 
-	exp := m.nodeExpander(m.cfg.StubThreshold)
+	exp := m.nodeExpander(m.expandEagerBelow())
 	return func() tea.Msg {
 		result, err := exp.Discover(context.Background(), args)
 		return LazyExpandMsg{Stub: stub, Discovered: result, Err: err}
@@ -60,7 +60,7 @@ func (m *Model) forceExpandSelected() tea.Cmd {
 
 	m.statusMsg = "discovering " + node.Name + "…"
 
-	exp := m.nodeExpander(m.cfg.StubThreshold)
+	exp := m.nodeExpander(m.expandEagerBelow())
 	return func() tea.Msg {
 		result, err := exp.Discover(context.Background(), args)
 		return LazyExpandMsg{Stub: node, Discovered: result, Err: err, Refresh: true}
@@ -74,6 +74,16 @@ func (m *Model) nodeExpander(eagerBelow int) *discovery.NodeExpander {
 	return discovery.NewNodeExpander(m.root.Name, discovery.ExpandOptions{
 		EagerBelow: eagerBelow, MaxDepth: -1, Override: m.override,
 	})
+}
+
+// expandEagerBelow is how many subcommands a node expanded on demand may list
+// and still have them discovered with it: the configured stub threshold, as
+// in a full discovery, where 0 or less means the default.
+func (m *Model) expandEagerBelow() int {
+	if m.cfg.StubThreshold <= 0 {
+		return discovery.DefaultStubThreshold
+	}
+	return m.cfg.StubThreshold
 }
 
 // applyExpansion merges an expand result into the tree and shows it.
