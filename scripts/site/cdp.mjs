@@ -55,7 +55,7 @@ export async function launchChrome(binary, profilePrefix = "cdp-", extraArgs = [
         const { resolve, reject } = pending.get(msg.id);
         pending.delete(msg.id);
         msg.error ? reject(new Error(msg.error.message)) : resolve(msg.result);
-      } else if (msg.method) listeners.forEach((l) => l(msg.method, msg.params));
+      } else if (msg.method) for (const l of listeners) l(msg.method, msg.params);
     });
     return {
       id: target.id,

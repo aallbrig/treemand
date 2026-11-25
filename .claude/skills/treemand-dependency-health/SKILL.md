@@ -20,7 +20,7 @@ The probe makes few network calls (go.dev once, the module proxy, PyPI once per 
 - **go_modules_behind** (ratchet): Dependabot (`.github/dependabot.yml`) groups Go module updates weekly. Merge its open PR (`gh pr list --author app/dependabot`) rather than filing; file only for a module Dependabot has not proposed, or when its PR fails CI (then the issue is the failure).
 - **go_modules_stale** (ratchet): no release in two years. Not a bug by itself: check whether the module is finished or abandoned (open issues, archived repo). Replace an abandoned one only if it carries risk (terminal, parsing or I/O code).
 - **go_toolchain_behind** (budget 0): bump `go` (and `toolchain`, if present) in `cli/treemand/go.mod` to the newest stable patch on its line, run `task ci`, and note it in the PR. Patch releases carry security fixes. Moving to a newer minor line is a separate, deliberate change.
-- **tools_behind** (ratchet): bump the pin where `details` names it (`file:line`; every pin of a tool together) and run the gate that tool backs (`task lint`, `task py:lint`, `task py:types`, `task infra:lint`, `task site:check`). New lint findings belong in the same PR. Tools pinned to `latest` are listed as unpinned and not counted.
+- **tools_behind** (ratchet): bump the pin where `details` names it (`file:line`; every pin of a tool together) and run the gate that tool backs (`task lint`, `task py:lint`, `task py:types`, `task js:lint`, `task infra:lint`, `task site:check`). New lint findings belong in the same PR. Tools pinned to `latest` are listed as unpinned and not counted.
 
 ## File
 

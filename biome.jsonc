@@ -1,0 +1,30 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.6.7/schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "includes": [
+      "www/treemand/assets/**/*.js",
+      "www/treemand/themes/**/assets/**/*.js",
+      "scripts/**/*.mjs",
+      "scripts/**/*.js",
+      // Copied from the Go toolchain by task web:wasm.
+      "!**/wasm_exec.js",
+      "!**/public",
+      "!**/node_modules",
+      // Inlined and allowed by its exact hash in the CSP (infra/site.yaml):
+      // a lint fix would change the hash and need an infra deploy.
+      "!www/treemand/themes/minimal/assets/head.js"
+    ]
+  },
+  "formatter": { "enabled": false },
+  "assist": { "enabled": false },
+  "linter": { "enabled": true },
+  "overrides": [
+    {
+      // The site's scripts load as classic scripts, not modules, so their
+      // "use strict" is not redundant.
+      "includes": ["www/treemand/**/*.js"],
+      "linter": { "rules": { "suspicious": { "noRedundantUseStrict": "off" } } }
+    }
+  ]
+}

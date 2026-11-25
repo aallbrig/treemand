@@ -171,12 +171,10 @@ async function checkAsset(page, path, kind, minWidth) {
     if (b.toString("latin1", 1, 4) !== "PNG" || w < minWidth) add(page, "-", kind, `${path} is not a PNG at least ${minWidth}px wide`);
   }
 }
-{
-  await checkAsset(BASE, "social-card.png", "social-card", 1200);
-  await checkAsset(BASE, "favicon-32.png", "favicon", 32);
-  await checkAsset(BASE, "apple-touch-icon.png", "favicon", 180);
-  await checkAsset(BASE, "icon.svg", "favicon", 0);
-}
+await checkAsset(BASE, "social-card.png", "social-card", 1200);
+await checkAsset(BASE, "favicon-32.png", "favicon", 32);
+await checkAsset(BASE, "apple-touch-icon.png", "favicon", 180);
+await checkAsset(BASE, "icon.svg", "favicon", 0);
 
 // ── Installation page behaviour: OS detection, override, copy buttons ──────
 async function installPageScenarios() {
@@ -460,7 +458,7 @@ for (const vp of VIEWPORTS) {
     const page_url = url;
     page.on((method, p) => {
       if (method === "Network.requestWillBeSent") urls.set(p.requestId, p.request.url);
-      if (method === "Runtime.exceptionThrown") problems.push(["console-error", p.exceptionDetails.text + " " + (p.exceptionDetails.exception?.description || "")]);
+      if (method === "Runtime.exceptionThrown") problems.push(["console-error", `${p.exceptionDetails.text} ${p.exceptionDetails.exception?.description || ""}`]);
       if (method === "Log.entryAdded" && p.entry.level === "error") {
         const u = p.entry.url || (p.entry.text.match(/https?:\/\/\S+/) || [])[0];
         report("console-error", `${p.entry.text} ${p.entry.url || ""}`, u);

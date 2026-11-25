@@ -79,6 +79,11 @@ tasks:
       - ruff check
       - ruff format --check
 
+  js:lint:
+    desc: "Lint the site's JavaScript and the scripts/ Node tools with Biome (pinned, via npx; file list in biome.jsonc): task js:lint [-- FILE...]"
+    cmds:
+      - sh scripts/dev/js_lint.sh {{.CLI_ARGS}}
+
   py:types:
     desc: Type-check the repo's Python with mypy --strict (file list in pyproject.toml)
     cmds:
@@ -296,7 +301,7 @@ tasks:
       - task: lint-fix
 
   precommit:
-    desc: Pre-commit gate, scoped to what is staged - gitleaks; gofmt, vet and golangci-lint on staged Go packages; shellcheck on staged shell; infra lint when infra/ is staged
+    desc: Pre-commit gate, scoped to what is staged - gitleaks; gofmt, vet and golangci-lint on staged Go packages; shellcheck on staged shell; Biome on staged JavaScript; infra lint when infra/ is staged
     cmds:
       - sh scripts/dev/precommit.sh
 
@@ -592,6 +597,7 @@ tasks:
       - task: test:effectiveness:test
       - task: py:lint
       - task: py:types
+      - task: js:lint
       - task: gates:test
       - task: gates:baselines:test
       - task: gates:baselines
