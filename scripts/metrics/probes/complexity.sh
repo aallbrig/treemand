@@ -34,7 +34,7 @@ def tsv(name):
     with open(os.path.join(work, name)) as f:
         return {p: int(n) for n, p in (l.rstrip("\n").split("\t") for l in f if l.strip())}
 with open(os.path.join(work, "cog.json")) as f:
-    all_funcs = json.loads(f.read() or "[]")
+    all_funcs = json.loads(f.read() or "null") or []  # gocognit prints null when no function scores
 funcs = [f for f in all_funcs if not f["Pos"]["Filename"].endswith("_test.go")]
 churn, loc = tsv("churn.tsv"), tsv("loc.tsv")
 with open(os.path.join(work, "nestif.json")) as f:

@@ -25,8 +25,18 @@ gate_on() { # $1: metric, $2: a value below the tree's, $3: a tag for the work f
 	printf '{"date": "2026-01-01T00:00:00Z", "host": "test", "load": 0.1, "metrics": {"%s": %s}, "sha": "0000000", "version": "test"}\n' "$1" "$2" >>"$work/h-$3/complexity.jsonl"
 	MEASURE_HISTORY="$work/h-$3" task measure:gate >"$work/out-$3" 2>&1
 }
-gate_on "file_lines.cli/treemand/tui/tree.go" 801 lines
-[ $? != 0 ] && grep -q "REGRESSION file_lines.cli/treemand/tui/tree.go" "$work/out-lines" && ok "measure:gate fails when a file over 800 lines grows" || bad "a grown long file passed: $(cat "$work/out-lines")"
+# The long file is a fixture: the real tree need not hold one (#483 split the last).
+mkdir -p "$work/long"
+{
+	printf 'package fx\n\nfunc one() int { return 1 }\n\n'
+	i=0
+	while [ "$i" -lt 896 ]; do
+		printf '// line %d\n' "$i"
+		i=$((i + 1))
+	done
+} >"$work/long/long.go"
+COMPLEXITY_ROOT="$work/long" gate_on "file_lines.$work/long/long.go" 801 lines
+[ $? != 0 ] && grep -q "REGRESSION file_lines.$work/long/long.go" "$work/out-lines" && ok "measure:gate fails when a file over 800 lines grows" || bad "a grown long file passed: $(cat "$work/out-lines")"
 gate_on dupl_clones -1 dupl
 [ $? != 0 ] && grep -q "REGRESSION dupl_clones" "$work/out-dupl" && ok "measure:gate fails on a new clone" || bad "a new clone passed: $(cat "$work/out-dupl")"
 gate_on nestif_over_3 -1 nest

@@ -29,7 +29,6 @@ func (t *treeRows) Top() {
 	t.scrollIntoView()
 }
 
-// Bottom jumps the cursor to the last row.
 // pageStep is how many rows a page key moves: a screenful less one, so the row
 // you were on stays in view as context.
 func (t *treeRows) pageStep() int {
@@ -54,6 +53,7 @@ func (t *treeRows) PageUp() {
 	t.scrollIntoView()
 }
 
+// Bottom jumps the cursor to the last row.
 func (t *treeRows) Bottom() {
 	if len(t.rows) > 0 {
 		t.cursor = len(t.rows) - 1
