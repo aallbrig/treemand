@@ -23,13 +23,11 @@ into the `## Summary` section by the loop.
 - Cycle 44 (#49, v0.11.0): `treemand mcp` is a dependency-free stdio MCP server tested end to end against the fake CLIs; a timed-out discovery is returned labelled partial. Site headings that collide with page ids (`search`) need explicit `{#ids}`; run `task site:audit` after any docs change.
 - Cycle 45 (#65, v0.11.1): when the help really lists no options (apt), take a root's options from `man`, marked inherited. Test new discovery rules through `ChildrenAsStubs` + `CompletePending` as well as `--output=json`, and check a premise in a `debian:bookworm` container when the CLI is not on this host. The guard blocks any command containing sudo.
 - Cycle 46 (#85, v0.11.2): `--timeout=0` means no overall limit (each help command keeps its own) and a negative value is a usage error; `mcp` uses negative for no limit because its zero is the 30s default. After a `cd` into `cli/treemand`, pass `gh --body-file` an absolute path.
+- Cycle 47 (#82, v0.11.3): clap's version and author lines are not prose, so a description comes from the next prose line. The `parser` probe counts descriptions, not correct ones, so prove a description fix by diffing every corpus root description against main. Put PR bodies under the ignored `.loop/`: the guard blocks Write outside the repo.
 
 ## Recent cycles
 
 <!-- Retro appends below: ### Cycle N — YYYY-MM-DD — outcome — #issue vX.Y.Z -->
-
-### Cycle 47 - 2026-11-22 - released - #82 v0.11.3
-clap's `name version` first line and its `Name <email>` author line no longer count as prose, so a command's description comes from the next prose line (fixed `rg` in the corpus too). The `parser` probe can't see this kind of fix because `described_pct` counts descriptions, not correct ones. Prove it by diffing every corpus fixture's root description against main. `git stash push -- <file>` on a committed change saves nothing, so compare against `git show origin/main:<file>` instead. The guard blocks Write outside the repo, so put PR bodies under the ignored `.loop/`.
 
 ### Cycle 48 - 2026-11-22 - merged, no release - #76
 presets coverage went from 76.9% to 100% (floor raised to 100). The stripe seed runs against the test binary re-executed as a fake CLI (`TestMain` + an env var), which works on every OS without shell scripts. `task coverage:update-floor` rewrites every package from local numbers, so keep only the issue's own line: the others (notably cmd) measure lower on CI. A test-only PR carries no release label, so `wait.sh` prints `none` and there is no tag to record.
@@ -106,3 +104,6 @@ A ruleguard rule (`cli/treemand/lintrules`, run by gocritic) flags unit tests th
 
 ### Cycle 77 - 2026-11-25 - released - #479 v0.19.5
 `discovery.NodeExpander` is now the only place a discovery result is merged into a tree (Fill or Refresh, the parent-repeat guard, inherited flags, the override as a hook because `discovery` sits below `overrides`). The pty session's screen holds every frame, so an e2e test of something that must never be shown is a negative check, and the positive check must match only the affected row: the help pane kept the override text and hid the bug on main. Ratcheted files (`help.go`) fail `measure:gate` even for a 4-line constant, so put new declarations in the new file. Untrusted issues: 0.
+
+### Cycle 78 - 2026-11-25 - released - #480 v0.20.0
+`treeload.Load` is now the one Tree load path for the CLI, TUI, MCP, doctor and `--stdin`; test it with `Loader.NewDiscoverers` and a temp cache dir. A hook that a result hands back (the TUI's `Save`) must not capture a handle that `Load` closes on return: open the cache when the hook runs. `task coverage:update-floor` raises every floor at once, so keep only the new package's line. Untrusted issues: 0.
