@@ -28,6 +28,7 @@ const (
 	actExecPreview
 	actRecents
 	actPresets
+	actSettings
 	actClear
 	actRemoveToken
 	actRediscover
@@ -177,6 +178,8 @@ var keymap = []Binding{
 	{Mode: ModeArrows, Keys: []string{"d"}, action: actDocs},
 	{Mode: ModeTree, Keys: []string{"ctrl+s"}, action: actCycleScheme,
 		Section: "View", Label: "Ctrl+S", Help: "Cycle navigation scheme (arrows → vim → WASD)"},
+	{Mode: ModeTree, Keys: []string{","}, action: actSettings, Hint: ",:settings",
+		Section: "View", Label: ",", Help: "Settings: edit the config file (the keys of treemand config)"},
 	{Mode: ModeTree, Keys: []string{"?"}, action: actKeys, Hint: "?:keys",
 		Section: "View", Label: "?", Help: "Show this help"},
 
@@ -214,7 +217,7 @@ var keymap = []Binding{
 // footerOrder is the footer's token order, by action, for each footer.
 var footerOrder = map[string][]action{
 	ModeTree: {actUp, actLeft, actPick, actExpandAll, actExpandSubtree, actToggleSections, actFlags,
-		actFilter, actToggleHelpPane, actExec, actBottom, actNextMatch, actKeys, actQuit},
+		actFilter, actToggleHelpPane, actExec, actBottom, actNextMatch, actSettings, actKeys, actQuit},
 	ModeHelpPane: {actScrollUp, actScrollPageUp, actScrollTop, actFocusNext},
 	ModePreview:  {actBack, actExecPreview, actFocusNext},
 	ModeFilter:   {actFilterKeep, actFilterClear},
@@ -223,7 +226,7 @@ var footerOrder = map[string][]action{
 // hintDropOrder lists the tree footer's tokens, by action, in the order they
 // are dropped when the footer is too narrow (least important first).
 var hintDropOrder = []action{actNextMatch, actBottom, actExec, actExpandSubtree, actExpandAll,
-	actToggleSections, actFlags, actLeft}
+	actToggleSections, actFlags, actLeft, actSettings}
 
 // hintDropPositions is hintDropOrder as positions in the tree footer.
 func hintDropPositions() []int {

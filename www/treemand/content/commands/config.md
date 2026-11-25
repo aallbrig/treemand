@@ -16,12 +16,19 @@ Manage treemand's optional YAML configuration file without opening it manually.
 treemand config view               # show merged config + file path
 treemand config validate           # check for errors or unknown keys
 treemand config validate --strict  # treat warnings as errors
-treemand config set <key> <value>  # write a value to the config file
+treemand config get <key>          # print a key's effective value
+treemand config set <key> <value>  # write a value, keeping the file's comments
 treemand config init               # create a commented default config
 treemand config init --force       # overwrite an existing config
 treemand config path               # print the config file path
 treemand config edit               # open config in $EDITOR
 ```
+
+In the TUI, `,` opens the same settings: every key with its value and
+where it comes from (default, file, env or flag). `Enter` edits a value,
+checked exactly as `treemand config set` checks it, and saves it to the same
+file. Theme and layout keys (`tree_style`, `icons`, `colors.*`) apply at
+once; the others apply on the next run.
 
 ## Config file locations
 

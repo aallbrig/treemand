@@ -18,10 +18,12 @@ func docTokens() map[string]bool {
 			set[tok] = true
 		}
 	}
-	// "/" is also the separator above, so a line that starts with it is the
-	// filter binding itself.
-	if regexp.MustCompile(`(?m)^\s+/\s`).MatchString(KeyOverlay()) {
-		set["/"] = true
+	// "/" and "," are also separators above, so a line that starts with one
+	// is that key's own binding (the filter, the settings screen).
+	for _, k := range []string{"/", ","} {
+		if regexp.MustCompile(`(?m)^\s+` + k + `\s`).MatchString(KeyOverlay()) {
+			set[k] = true
+		}
 	}
 	return set
 }

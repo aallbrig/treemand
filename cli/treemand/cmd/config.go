@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -28,6 +29,7 @@ If no config file exists, built-in defaults are used.
 Examples:
   treemand config view             # show merged config with file location
   treemand config validate         # check config for errors/warnings
+  treemand config get icons        # print a config value
   treemand config set icons nerd   # set a config value
   treemand config init             # create a default config file
   treemand config path             # print config file path
@@ -158,15 +160,58 @@ Examples:
 
 func runConfigSet(cmd *cobra.Command, args []string) error {
 	key, value := args[0], args[1]
+	settings := configSettings(cmd)
+	if err := settings.Set(key, value); err != nil {
+		return configKeyError(err, "Run 'treemand config set --help' for the accepted values.")
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "Set %s = %s in %s\n", key, value, settings.Path)
+	return nil
+}
 
-	// Validate key and value.
-	entry, known := config.LookupKey(key)
-	if !known {
-		msg := fmt.Sprintf("unknown config key %q", key)
-		if suggestion := config.SuggestKey(key); suggestion != "" {
-			msg += fmt.Sprintf(" (did you mean %q?)", suggestion)
+// ── config get ────────────────────────────────────────────────────────────────
+
+var configGetCmd = &cobra.Command{
+	Use:   "get <key>",
+	Short: "Print a configuration value",
+	Long: `Print the effective value of one config key: a flag's value when one is
+passed, else the environment's (TREEMAND_<KEY>), else the config file's, else
+the built-in default.
+
+Examples:
+  treemand config get icons
+  treemand config get colors.subcmd`,
+	Args: configGetArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		s, err := configSettings(cmd).Get(args[0])
+		if err != nil {
+			return configKeyError(err, "")
 		}
-		// List available keys.
+		fmt.Fprintln(cmd.OutOrStdout(), s.Value)
+		return nil
+	},
+}
+
+// configSettings is the config file this run reads, with the values its
+// flags set.
+func configSettings(cmd *cobra.Command) *config.Settings {
+	path := resolveConfigPath()
+	if path == "" {
+		path = config.DefaultConfigPath()
+	}
+	flags := map[string]string{}
+	for _, b := range configFlags {
+		if f := cmd.Flags().Lookup(b.flag); f != nil && f.Changed {
+			flags[b.key] = f.Value.String()
+		}
+	}
+	return &config.Settings{Path: path, Flags: flags}
+}
+
+// configKeyError turns a Settings error into the CLI's error: an unknown key
+// or an invalid value is a usage error (exit 2) with hint.
+func configKeyError(err error, hint string) error {
+	var unknown *config.UnknownKeyError
+	if errors.As(err, &unknown) {
 		w := &strings.Builder{}
 		w.WriteString("Available keys:\n")
 		tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
@@ -174,37 +219,13 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 			fmt.Fprintf(tw, "  %s\t%s\n", e.Key, e.Description)
 		}
 		tw.Flush()
-		return newUsageError(strings.TrimRight(w.String(), "\n"), "%s", msg)
+		return newUsageError(strings.TrimRight(w.String(), "\n"), "%s", err)
 	}
-
-	if err := config.ValidateValue(entry, value); err != nil {
-		return newUsageError("Run 'treemand config set --help' for the accepted values.", "%s", err)
+	var invalid *config.InvalidValueError
+	if errors.As(err, &invalid) {
+		return newUsageError(hint, "%s", err)
 	}
-
-	// Ensure config file exists.
-	cfgPath := resolveConfigPath()
-	if cfgPath == "" {
-		cfgPath = config.DefaultConfigPath()
-		if err := config.WriteDefaultConfig(cfgPath, false); err != nil {
-			// File might already exist; that's fine, we'll overwrite the key.
-			if !strings.Contains(err.Error(), "already exists") {
-				return err
-			}
-		}
-	}
-
-	// Use viper to set and write.
-	viper.Set(key, value)
-	viper.SetConfigFile(cfgPath)
-	if err := viper.WriteConfig(); err != nil {
-		// Try SafeWriteConfig if WriteConfig fails (file may not exist yet).
-		if err2 := viper.SafeWriteConfig(); err2 != nil {
-			return fmt.Errorf("write config: %w", err)
-		}
-	}
-
-	fmt.Fprintf(cmd.OutOrStdout(), "Set %s = %s in %s\n", key, value, cfgPath)
-	return nil
+	return err
 }
 
 // ── config init ───────────────────────────────────────────────────────────────
@@ -302,6 +323,7 @@ func init() {
 
 	configCmd.AddCommand(configViewCmd)
 	configCmd.AddCommand(configValidateCmd)
+	configCmd.AddCommand(configGetCmd)
 	configCmd.AddCommand(configSetCmd)
 	configCmd.AddCommand(configInitCmd)
 	configCmd.AddCommand(configPathCmd)

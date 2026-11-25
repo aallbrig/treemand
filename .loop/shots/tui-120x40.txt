@@ -36,4 +36,4 @@
 [38;2;94;163;245m│[39m                                                                [38;2;94;163;245m│[38;2;85;85;85m│[39mmandoc(1) and might display incorrectly.            [38;2;85;85;85m│
 [38;2;94;163;245m│[39m                                                                [38;2;94;163;245m│[38;2;85;85;85m│[39m  switch  Switch branches                           [38;2;85;85;85m│
 [38;2;94;163;245m╰────────────────────────────────────────────────────────────────╯[38;2;85;85;85m╰────────────────────────────────────────────────────╯
-[1m[39mgit[0m             [2m[arrows] ↑↓:nav  ←→:expand/collapse  Enter:pick  S:sections  f:flags  /:filter  H:help  ?:keys  q:quit[0m
+[1m[39mgit[0m [2m[arrows] ↑↓:nav  ←→:expand/collapse  Enter:pick  S:sections  f:flags  /:filter  H:help  ,:settings  ?:keys  q:quit[0m
