@@ -794,3 +794,19 @@ func TestParseHelpOutput_repeatedSelfInvocationIsNotAList(t *testing.T) {
 		t.Errorf("subcommands = %v, want none", p.Subcommands)
 	}
 }
+
+// A subcommand's man page (git bisect) synopsis runs the page's own command,
+// and its examples mention other commands: none of them is a child.
+func TestParseHelpOutput_subcommandPageExamplesAreNotChildren(t *testing.T) {
+	cases := map[string]string{
+		"man synopsis": "NAME\n       git-bisect - Find the change\n\nSYNOPSIS\n       git bisect start [<bad>]\n       git bisect reset [<commit>]\n\n" +
+			"EXAMPLES\n           git bisect reset\n\n       Use git rev-list and git pack-objects:\n\n           git rev-list HEAD\n           git pack-objects x\n",
+		"usage section": "Usage:\n  git bisect start [<bad>]\n\nExamples:\n  git rev-list HEAD\n  git pack-objects x\n  git log\n",
+		"usage line":    "usage: git bisect start [<bad>]\n   or: git bisect reset\n\nExamples:\n  git rev-list HEAD\n  git pack-objects x\n  git log\n",
+	}
+	for name, help := range cases {
+		if p := discovery.ParseHelpOutputFor(help, "git"); len(p.Subcommands) != 0 {
+			t.Errorf("%s: subcommands = %v, want none", name, p.Subcommands)
+		}
+	}
+}

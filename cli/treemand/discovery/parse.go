@@ -117,15 +117,23 @@ type helpParser struct {
 	// invoked are the commands that example rows run ("  brew install X"),
 	// in order; a fallback command list for help without one (#276).
 	invoked []string
+	// commandPage: the usage line runs "<self> <word>", so this is that
+	// command's own page and its example rows name no children (git bisect).
+	commandPage bool
+	header      string // the last flush-left line, lowercased, no colon
 }
 
 func (p *helpParser) line(l helpLine) {
+	if l.trimmed != "" && indentOf(l.raw) == 0 {
+		p.header = strings.TrimSuffix(l.lower, ":")
+	}
 	p.trackUsageBlock(l)
 	p.flushPendingFlag(l)
 	if p.sectionHeader(l) || p.choiceBlock(l) || p.commandGrid(l) || p.unknownHeader(l) {
 		return
 	}
 	p.maybeResetSection(l)
+	p.commandPage = p.commandPage || p.usageRunsCommand(l)
 	if w := p.selfInvocation(l); w != "" && !slices.Contains(p.invoked, w) {
 		p.invoked = append(p.invoked, w)
 	}
@@ -367,10 +375,32 @@ func (p *helpParser) selfInvocation(l helpLine) string {
 	default:
 		return ""
 	}
-	if !p.invokesSelf(l) {
+	if indentOf(l.raw) == 0 {
 		return ""
 	}
-	word, _, _ := strings.Cut(strings.TrimPrefix(l.trimmed, p.selfName+" "), " ")
+	return p.commandAfterSelf(l.trimmed)
+}
+
+// usageRunsCommand: a synopsis that runs "<self> <word>" ("usage: git bisect
+// start", or that row under a plain "Usage:" or man-page "SYNOPSIS" header)
+// names the command whose page this is. A root's synopsis runs no command word
+// ("git [-v]", "brew COMMAND"), and "Example usage:" is not a synopsis.
+func (p *helpParser) usageRunsCommand(l helpLine) bool {
+	if (p.header == "usage" || p.header == "synopsis") && indentOf(l.raw) > 0 && p.commandAfterSelf(l.trimmed) != "" {
+		return true
+	}
+	rest, ok := strings.CutPrefix(l.lower, "usage:")
+	return ok && p.commandAfterSelf(strings.TrimSpace(rest)) != ""
+}
+
+// commandAfterSelf returns the command word a line runs after the program's
+// own name ("git bisect start" runs "bisect"), or "".
+func (p *helpParser) commandAfterSelf(s string) string {
+	rest, ok := strings.CutPrefix(s, p.selfName+" ")
+	if !ok || p.selfName == "" {
+		return ""
+	}
+	word, _, _ := strings.Cut(rest, " ")
 	if !validCmdNameRe.MatchString(word) {
 		return ""
 	}
@@ -662,7 +692,7 @@ func (p *helpParser) finish() ParsedHelp {
 	r.Description = strings.Join(strings.Fields(r.Description), " ")
 	// Example rows are the command list only when there is no other and they
 	// run several commands: a subcommand's examples repeat its own name.
-	if len(r.Subcommands) == 0 && len(p.invoked) >= 3 {
+	if len(r.Subcommands) == 0 && len(p.invoked) >= 3 && !p.commandPage {
 		for _, w := range p.invoked {
 			p.addSub(w)
 		}
