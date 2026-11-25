@@ -37,10 +37,14 @@ echo "$*" >>"$d/gh.log"
 case "$1 $2" in
   "api user") echo loopbot ;;
   "run list") echo success ;;
+  "api --paginate")
+    case "$*" in
+      *"issues?"*loop:ready*) jq -c '[.]' "$d/ready.json" 2>/dev/null || echo '[[]]' ;;
+      *) echo '[[]]' ;;
+    esac ;;
   "issue list")
     case "$*" in
       *loop:in-progress*) cat "$d/in-progress" 2>/dev/null ;;
-      *loop:ready*) cat "$d/ready.json" 2>/dev/null || echo '[]' ;;
       *) echo '[]' ;;
     esac ;;
   "issue edit")
@@ -86,7 +90,7 @@ done
 EOF
 chmod +x "$tmp/bin/gh" "$tmp/bin/claude"
 ready() { # ready N... : the loop:ready queue, oldest first
-  printf '%s\n' "$@" | jq -R 'select(. != "") | {number: tonumber, title: "issue \(.)", author: {login: "maintainer"}, labels: [], createdAt: "2026-01-01T00:00:00Z"}' | jq -sc . >"$FAKE_DIR/ready.json"
+  printf '%s\n' "$@" | jq -R 'select(. != "") | {number: tonumber, title: "issue \(.)", user: {login: "maintainer"}, labels: [], created_at: "2026-01-01T00:00:00Z"}' | jq -sc . >"$FAKE_DIR/ready.json"
 }
 ready
 : >"$FAKE_DIR/in-progress"

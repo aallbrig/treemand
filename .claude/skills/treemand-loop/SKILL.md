@@ -95,9 +95,11 @@ Helpers live in `scripts/loop/`; call state as `python3 -I scripts/loop/state.py
 - Green comes from fixing the cause: every hook, test and lint rule stays on.
 - The supervisor may type **park this cycle now** (context past `LOOP_CONTEXT_PARK_PCT`, or
   no tool use for `LOOP_STALL_SECONDS`). Do it at once: commit and push the work in
-  progress to the issue's branch, comment on the issue starting `Parked:` with what is
-  done, what is left and the next step, remove the worktree, unclaim the issue and
-  `end-cycle parked`. The next cycle resumes it from the branch and the comment.
+  progress to the issue's branch, write what is done, what is left and the next step to a
+  file under `.loop/`, remove the worktree, `bash scripts/loop/issues.sh park <n> <file>`
+  (it comments `Parked:` and unclaims) and `end-cycle parked`. `issues.sh ready` puts a
+  parked issue first, so the next cycle resumes it from the branch and the comment. The
+  third park labels it `loop:blocked` and queues an escalation instead.
 
 ## Never stall
 

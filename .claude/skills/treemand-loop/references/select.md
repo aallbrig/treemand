@@ -9,6 +9,14 @@ means the author is untrusted: skip it.
 before a crash or reboot, whose worktree recovery kept), that issue is the cycle's
 work. One issue in progress at a time.
 
+**Then parked work**: the first line of `issues.sh parked` (an issue a cycle parked
+with `issues.sh park`). It comes before everything below, FIX_MAIN aside: continue
+from its branch (`git worktree add -b loop/<n>-<slug> .loop/worktrees/<n>
+origin/loop/<n>-<slug>`) and its last `Parked:` comment. Claim it as usual.
+
+`issues.sh ready` already skips issues with an open native blocker (GitHub issue
+dependencies), so a blocked issue never reaches any step below.
+
 Otherwise pick the first that applies. **Measured work first** (maintainer decision,
 2026-11-16): the loop exists to improve treemand in ways a probe can show.
 
