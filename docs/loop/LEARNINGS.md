@@ -110,3 +110,5 @@ The tree pane's keys now live in one table (`tui/keymap.go`) that dispatch, the 
 
 ### Cycle 66 - 2026-11-24 - merged, no release - #468
 `task measure:gate` is now the one list of ratchet probes: `task ci`, the CI measure job and the pre-push hook (every push, about 5 s) all run it, so the complexity ratchet fails locally before CI does (`task hooks` reinstalls the hook). The guard blocks Write to the session scratchpad, so put PR bodies under the gitignored `.loop/`. `/code-review low` returned nothing for the second cycle running; review by hand until it works.
+### Cycle 67 - 2026-11-24 - merged, no release - #469
+`task gates:baselines` (in `task ci`) compares the branch with its merge base: metric history append-only and no worse than main's last record, coverage floors never fall, rules.json never loosens, including a new glob that shadows a looser one. A `gates:loosen` label, read live with `gh`, accepts a deliberate loosening. Run against `origin/main~60` it found nothing, so it fires only on new loosening. Commit in the foreground: a backgrounded commit waits on the slow pre-commit hook and silently swallows edits made meanwhile.
