@@ -20,7 +20,8 @@ loc="$(tr '\n' '\0' <"$work/files.txt" | xargs -0 wc -l | awk '$2 != "total" {pr
 # score misses (#475). Thresholds sit below golangci-lint's defaults, which
 # find nothing in this tree, so a new clone or nest moves the number.
 GOFLAGS='' go run github.com/mibk/dupl@v1.0.0 -files -plumbing -t 50 <"$work/files.txt" >"$work/dupl.txt"
-mapfile -t files <"$work/files.txt"
+files=()
+while IFS= read -r f; do files+=("$f"); done <"$work/files.txt"
 GOFLAGS='' go run github.com/nakabonne/nestif/cmd/nestif@v0.3.1 --json --min 4 --top 1000000 "${files[@]}" >"$work/nestif.json"
 printf '%s\n' "$churn" >"$work/churn.tsv"
 printf '%s\n' "$loc" >"$work/loc.tsv"
