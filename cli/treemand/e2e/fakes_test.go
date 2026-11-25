@@ -25,6 +25,20 @@ sprout) printf 'Sprout things\n\nUsage:\n  fakegrow sprout [flags]\n\nFlags:\n  
 esac
 `,
 
+	// Its "ripen" command, once $FAKE_ARM exists, waits for $FAKE_GATE before
+	// answering, then adds --late-flag and touches $FAKE_DONE: a slow
+	// re-discovery whose result lands while the test holds a dialog open.
+	"fakelate": `case "$1" in
+ripen) if [ -n "$FAKE_ARM" ] && [ -e "$FAKE_ARM" ]; then
+    i=0; while [ ! -e "$FAKE_GATE" ] && [ $i -lt 200 ]; do sleep 0.05; i=$((i+1)); done
+    late=1
+  fi
+  printf 'Ripen things\n\nUsage:\n  fakelate ripen [flags]\n\nFlags:\n  -h, --help   help for ripen\n      --early-flag   there from the start\n'
+  [ -n "$late" ] && printf '      --late-flag    added after the wait\n' && touch "$FAKE_DONE";;
+*) printf 'fakelate waits on things\n\nUsage:\n  fakelate [command]\n\nAvailable Commands:\n  ripen       Ripen things\n\nFlags:\n  -h, --help   help for fakelate\n';;
+esac
+`,
+
 	// Logs every invocation to $FAKE_LOG, so cache tests can prove a run never
 	// touched the CLI. Three cobra-style commands, each with one subcommand.
 	"fakecache": `[ -n "$FAKE_LOG" ] && echo "$*" >>"$FAKE_LOG"

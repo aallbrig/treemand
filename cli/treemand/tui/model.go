@@ -143,23 +143,17 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.handleCrawlBatch(cb)
 	}
 
-	// Fuzzy finder takes keys; async results and resizes still reach the model.
-	if m.sm.active {
+	// An open dialog (or the fuzzy finder) owns the input: keys go to it and
+	// clicks behind it are ignored. Everything else (discovery results,
+	// resizes, timers) still reaches the model below, because Bubble Tea
+	// never redelivers a message that was dropped.
+	if dialog := m.activeDialog(); dialog != nil {
 		switch km := msg.(type) {
 		case tea.KeyMsg:
-			return m.updateSearchModal(km)
-		case LazyExpandMsg, tea.WindowSizeMsg:
-		default:
+			return dialog(km)
+		case tea.MouseMsg:
 			return m, nil
 		}
-	}
-
-	// An open dialog takes every key; other messages wait until it closes.
-	if dialog := m.activeDialog(); dialog != nil {
-		if km, ok := msg.(tea.KeyMsg); ok {
-			return dialog(km)
-		}
-		return m, nil
 	}
 
 	switch msg := msg.(type) {
@@ -204,6 +198,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // activeDialog returns the key handler of the open dialog, or nil.
 func (m *Model) activeDialog() func(tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch {
+	case m.sm.active:
+		return m.updateSearchModal
 	case m.kb.active:
 		return m.updateKeybindModal
 	case m.vm.active:
