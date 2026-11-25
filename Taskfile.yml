@@ -299,7 +299,6 @@ tasks:
       - task: fmt
       - task: vet
       - task: lint
-      - task: lint:layering:test
       - task: vuln
 
   fix:
@@ -617,6 +616,7 @@ tasks:
       - task: fmt:check
       - task: vet
       - task: lint
+      - task: lint:layering:test
       - task: vuln
       - task: test-race
       - task: fuzz:smoke
