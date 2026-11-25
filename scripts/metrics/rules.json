@@ -14,7 +14,10 @@
     "cognitive_avg":        {"ratchet": "lower", "tolerance": 0.02},
     "functions_over_15":    {"budget": {"max": 15}, "ratchet": "lower"},
     "functions_over_30":    {"budget": {"max": 0}, "ratchet": "lower"},
-    "files_over_800_lines": {"budget": {"max": 0}, "ratchet": "lower"}
+    "files_over_800_lines": {"budget": {"max": 0}, "ratchet": "lower"},
+    "file_lines.*":         {"ratchet": "lower"},
+    "dupl_clones":          {"ratchet": "lower"},
+    "nestif_over_3":        {"ratchet": "lower"}
   },
   "perf": {
     "cold_s.*": {"budget": {"max": 5},   "ratchet": "lower", "tolerance": 0.3,  "min_delta": 1.0, "host_bound": true, "timing": true},
