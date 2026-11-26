@@ -479,3 +479,26 @@ func TestJSON_exampleRowsNameCommands(t *testing.T) {
 		t.Errorf("children = %+v, want exactly 4", root.Children)
 	}
 }
+
+// bsdtar prints its modes as "-x Word" pairs on one row and one-word
+// descriptions after a gap (#277): every mode is a flag, and none of the
+// words is taken as a value.
+func TestJSON_flagPairRowAndOneWordDescriptions(t *testing.T) {
+	r := run(t, limit, nil, "--no-cache", "--output=json", "fakebsdtar")
+	if r.exit != 0 {
+		t.Fatalf("exit %d, stderr: %s", r.exit, r.stderr)
+	}
+	root := parseJSON(t, r.stdout)
+	want := map[string]bool{"-c": true, "-r": true, "-t": true, "-u": true, "-x": true, "-v": true, "-w": true}
+	for _, f := range root.Flags {
+		if want[f.Name] {
+			if f.ValueType != "bool" {
+				t.Errorf("%s value type = %q, want bool", f.Name, f.ValueType)
+			}
+			delete(want, f.Name)
+		}
+	}
+	if len(want) != 0 {
+		t.Errorf("missing flags %v; got %+v", want, root.Flags)
+	}
+}

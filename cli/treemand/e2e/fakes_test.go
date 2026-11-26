@@ -221,6 +221,11 @@ search|install|update|doctor) printf 'Do %s things\n\nExamples:\n  fakebrew %s o
 esac
 `,
 
+	// bsdtar style (#277): several "-x Word" mode pairs on one row, and
+	// one-word descriptions after a gap of spaces.
+	"fakebsdtar": `printf 'fakebsdtar: manipulate archive files\nFirst option must be a mode specifier:\n  -c Create  -r Add/Replace  -t List  -u Update  -x Extract\nCommon Options:\n  -v    Verbose\n  -w    Interactive\n'
+`,
+
 	// A CLI with one subcommand of each kind treemand doctor reports: a good
 	// one, one without flags, one whose help never comes back in time, and
 	// one that answers every help form with an error.
