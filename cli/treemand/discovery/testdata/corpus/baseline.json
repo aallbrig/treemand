@@ -361,7 +361,7 @@
   },
   "tar@bsd": {
     "subcommands": 0,
-    "flags": 12,
+    "flags": 16,
     "has_description": true,
     "description_is_synopsis": false
   },

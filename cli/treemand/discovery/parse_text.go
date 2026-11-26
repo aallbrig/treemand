@@ -83,7 +83,7 @@ var (
 	)
 	// short-only flag: -v or -v <value>
 	shortOnlyFlagRe = regexp.MustCompile(
-		`^\s{2,8}(-[A-Za-z0-9])(?:\s+(?:<([^>]+)>|([A-Za-z][A-Za-z0-9_-]*)))?(?:\s{2,}(.*))?$`,
+		`^\s{2,8}(-[A-Za-z0-9])(?:[ \t](?:<([^>]+)>|([A-Za-z][A-Za-z0-9_-]*)))?(?:\s{2,}(.*))?$`,
 	)
 	// manpageHeaderRe matches lines like "GIT-CLONE(1)   Git Manual   GIT-CLONE(1)".
 	// These appear at the top of man-formatted --help output and should never be

@@ -65,7 +65,7 @@
   "brew": {"subcommands_include": ["install", "search", "update", "doctor"], "description_exclude": "brew search"},
   "xcrun": {"max_subcommands": 0, "flags_include": ["--sdk", "--find", "--show-sdk-path", "--toolchain"], "description_include": "Find and execute the named command line tool"},
   "networksetup": {"subcommands_include": ["-listallnetworkservices", "-getinfo", "-setdnsservers"], "description_exclude": "-listnetworkserviceorder", "gaps": [183]},
-  "tar@bsd": {"max_subcommands": 0, "flags_include": ["-x", "-t", "--exclude", "--format"], "description_include": "manipulate archive files", "gaps": [277]},
+  "tar@bsd": {"max_subcommands": 0, "flags_include": ["-x", "-t", "--exclude", "--format"], "description_include": "manipulate archive files"},
   "ls@bsd": {"max_subcommands": 0, "flags_include": ["-a", "-l", "--color", "-D"], "description_exclude": "unrecognized option", "gaps": [275]},
   "sed@bsd": {"max_subcommands": 0, "flags_include": ["-E", "-i", "-e", "-f"], "description_exclude": "illegal option"},
   "find@bsd": {"max_subcommands": 0, "flags_include": ["-H", "-L", "-f", "-x"], "description_exclude": "illegal option"}

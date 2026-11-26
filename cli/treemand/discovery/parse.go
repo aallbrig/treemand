@@ -129,7 +129,7 @@ func (p *helpParser) line(l helpLine) {
 	}
 	p.trackUsageBlock(l)
 	p.flushPendingFlag(l)
-	if p.sectionHeader(l) || p.choiceBlock(l) || p.commandGrid(l) || p.unknownHeader(l) {
+	if p.sectionHeader(l) || p.choiceBlock(l) || p.commandGrid(l) || p.unknownHeader(l) || p.flagPairRow(l) {
 		return
 	}
 	p.maybeResetSection(l)

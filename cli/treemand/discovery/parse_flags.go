@@ -51,6 +51,27 @@ func parseFlag(line string) (models.Flag, bool) {
 	return parseSingleDashOption(line)
 }
 
+// flagPairRowRe matches a row that lists several short flags, each with a
+// one-word description, separated by gaps of two or more spaces, as bsdtar
+// prints its modes (#277): "  -c Create  -r Add/Replace  -t List". The word
+// must read as a description (capitalised, then lowercase), so a row of
+// value placeholders ("-f FILE  -o OUT") never matches.
+var (
+	flagPairRowRe = regexp.MustCompile(`^\s{1,8}-[A-Za-z0-9] [A-Z][a-z]\S*(?: {2,}-[A-Za-z0-9] [A-Z][a-z]\S*)+\s*$`)
+	flagPairRe    = regexp.MustCompile(`-([A-Za-z0-9]) (\S+)`)
+)
+
+// flagPairRow adds one boolean flag per pair of a flag pair row.
+func (p *helpParser) flagPairRow(l helpLine) bool {
+	if !flagPairRowRe.MatchString(l.raw) {
+		return false
+	}
+	for _, m := range flagPairRe.FindAllStringSubmatch(l.raw, -1) {
+		p.addFlag(models.Flag{Name: "-" + m[1], ShortName: m[1], ValueType: "bool", Description: m[2]})
+	}
+	return true
+}
+
 // singleDashRe matches single-dash options (#156), as Go's flag package
 // ("  -cpuprofile string" with the description on the next line, "  -d<TAB>…"),
 // "go help <cmd>" ("<TAB>-C dir", #66) and mitchellh/cli ("  -chdir=DIR    Switch …")
