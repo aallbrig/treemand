@@ -86,10 +86,12 @@ tasks:
       - gitleaks git --config .gitleaks.toml --redact --no-banner --log-level warn .
 
   py:lint:
-    desc: Lint and format-check the repo's Python (ruff, rules and file list in pyproject.toml)
+    desc: Lint and format-check the repo's Python (ruff, rules and file list in pyproject.toml), and keep Python out of shell scripts where ruff cannot see it
     cmds:
       - ruff check
       - ruff format --check
+      - python3 -I scripts/check_inline_python_test.py
+      - python3 -I scripts/check_inline_python.py
 
   js:lint:
     desc: "Lint the site's JavaScript and the scripts/ Node tools with Biome (pinned, via npx; file list in biome.jsonc): task js:lint [-- FILE...]"

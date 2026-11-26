@@ -47,7 +47,7 @@ rm -rf "$site_out"
 (cd www/treemand && hugo --minify --baseURL "/" --destination "$site_out" >/dev/null)
 
 port="${VISUAL_PORT:-18080}"
-python3 -m http.server "$port" --directory "$site_out" >/dev/null 2>&1 &
+python3 -I -m http.server "$port" --directory "$site_out" >/dev/null 2>&1 &
 server_pid=$!
 sleep 1
 
