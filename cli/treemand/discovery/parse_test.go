@@ -1,6 +1,7 @@
 package discovery_test
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -763,6 +764,49 @@ func TestParseHelpOutput_flagLineEndingInSectionKeywordIsAFlag(t *testing.T) {
 	for _, want := range []string{"--help", "--verbose", "--quiet", "--no-cache", "--config", "--last"} {
 		if !got[want] {
 			t.Errorf("flag %s was lost (parsed: %v)", want, p.Flags)
+		}
+	}
+}
+
+// brew lists its commands only as example invocations under its own headers
+// (#276): "  brew <command> …" rows name commands, and none is a description.
+const mockBrewHelp = "Example usage:\n  brew search TEXT|/REGEX/\n  brew info [FORMULA|CASK...]\n" +
+	"  brew install FORMULA|CASK...\n  brew update\n\n" +
+	"Troubleshooting:\n  brew config\n  brew doctor\n  brew install --verbose --debug FORMULA|CASK\n\n" +
+	"Further help:\n  brew commands\n  man brew\n  https://docs.brew.sh\n"
+
+func TestParseHelpOutput_selfInvocationRowsNameCommands(t *testing.T) {
+	p := discovery.ParseHelpOutputFor(mockBrewHelp, "brew")
+	want := []string{"search", "info", "install", "update", "config", "doctor", "commands"}
+	if !slices.Equal(p.Subcommands, want) {
+		t.Errorf("subcommands = %v, want %v", p.Subcommands, want)
+	}
+	if p.Description != "" {
+		t.Errorf("description = %q, want empty", p.Description)
+	}
+}
+
+// A subcommand's examples invoke that subcommand again and again: one repeated
+// word is the page's own command, not a list of children.
+func TestParseHelpOutput_repeatedSelfInvocationIsNotAList(t *testing.T) {
+	help := "Install a formula.\n\nExamples:\n  brew install wget\n  brew install --cask firefox\n  brew install jq\n"
+	if p := discovery.ParseHelpOutputFor(help, "brew"); len(p.Subcommands) != 0 {
+		t.Errorf("subcommands = %v, want none", p.Subcommands)
+	}
+}
+
+// A subcommand's man page (git bisect) synopsis runs the page's own command,
+// and its examples mention other commands: none of them is a child.
+func TestParseHelpOutput_subcommandPageExamplesAreNotChildren(t *testing.T) {
+	cases := map[string]string{
+		"man synopsis": "NAME\n       git-bisect - Find the change\n\nSYNOPSIS\n       git bisect start [<bad>]\n       git bisect reset [<commit>]\n\n" +
+			"EXAMPLES\n           git bisect reset\n\n       Use git rev-list and git pack-objects:\n\n           git rev-list HEAD\n           git pack-objects x\n",
+		"usage section": "Usage:\n  git bisect start [<bad>]\n\nExamples:\n  git rev-list HEAD\n  git pack-objects x\n  git log\n",
+		"usage line":    "usage: git bisect start [<bad>]\n   or: git bisect reset\n\nExamples:\n  git rev-list HEAD\n  git pack-objects x\n  git log\n",
+	}
+	for name, help := range cases {
+		if p := discovery.ParseHelpOutputFor(help, "git"); len(p.Subcommands) != 0 {
+			t.Errorf("%s: subcommands = %v, want none", name, p.Subcommands)
 		}
 	}
 }

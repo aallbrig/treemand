@@ -452,3 +452,30 @@ func TestGoStyle_subcommandFlagsComeFromTheHelpCommand(t *testing.T) {
 		}
 	}
 }
+
+// Homebrew lists its commands only as example rows (#276): they become the
+// tree, a usage row is not the description, and no command gains phantom
+// children from its own examples.
+func TestJSON_exampleRowsNameCommands(t *testing.T) {
+	r := run(t, limit, nil, "--no-cache", "--output=json", "fakebrew")
+	if r.exit != 0 {
+		t.Fatalf("exit %d, stderr: %s", r.exit, r.stderr)
+	}
+	root := parseJSON(t, r.stdout)
+	if root.Description != "" {
+		t.Errorf("root description = %q, want empty", root.Description)
+	}
+	for _, name := range []string{"search", "install", "update", "doctor"} {
+		c, ok := root.child(name)
+		if !ok {
+			t.Errorf("missing command %s; children %+v", name, root.Children)
+			continue
+		}
+		if len(c.Children) != 0 {
+			t.Errorf("%s has phantom children %+v", name, c.Children)
+		}
+	}
+	if len(root.Children) != 4 {
+		t.Errorf("children = %+v, want exactly 4", root.Children)
+	}
+}

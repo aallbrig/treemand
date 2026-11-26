@@ -212,6 +212,15 @@ esac
 esac
 `,
 
+	// Homebrew style (#276): no command list, only example invocations under
+	// "Example usage:" and "Troubleshooting:". Each command's own examples
+	// repeat its name, which must not read as children.
+	"fakebrew": `case "$1" in
+search|install|update|doctor) printf 'Do %s things\n\nExamples:\n  fakebrew %s one\n  fakebrew %s two\n  fakebrew %s three\n' "$1" "$1" "$1" "$1";;
+*) printf 'Example usage:\n  fakebrew search TEXT|/REGEX/\n  fakebrew install FORMULA|CASK...\n  fakebrew update\n\nTroubleshooting:\n  fakebrew doctor\n\nFurther help:\n  man fakebrew\n';;
+esac
+`,
+
 	// A CLI with one subcommand of each kind treemand doctor reports: a good
 	// one, one without flags, one whose help never comes back in time, and
 	// one that answers every help form with an error.
