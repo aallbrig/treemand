@@ -33,36 +33,11 @@ snapshot() {
 }
 snapshot >"$work/before"
 
-cat >"$work/compare.py" <<'PY'
-import json, sys
-def load(p):
-    out = {}
-    def walk(n, path):
-        q = path + [n["name"]]
-        out[" ".join(q)] = (n.get("description", ""), {f["name"] for f in n.get("flags") or []})
-        for c in n.get("children") or []:
-            walk(c, q)
-    walk(json.load(open(p)), [])
-    return out
-a, b = load(sys.argv[1]), load(sys.argv[2])
-lost_nodes = sorted(set(a) - set(b))
-new_nodes = sorted(set(b) - set(a))
-lost_flags = [(k, f) for k in a for f in a[k][1] - b.get(k, ("", set()))[1]]
-new_flags = [(k, f) for k in b for f in b[k][1] - a.get(k, ("", set()))[1]]
-desc = [(k, a[k][0], b[k][0]) for k in a if k in b and a[k][0] != b[k][0]]
-print(f"nodes {len(a)}->{len(b)}  lost nodes {len(lost_nodes)}  lost flags {len(lost_flags)}  "
-      f"gained flags {len(new_flags)}  changed descriptions {len(desc)}")
-for k in lost_nodes[:5]: print(f"    - node {k}")
-for k, f in lost_flags[:5]: print(f"    - flag {k}: {f}")
-for k, f in new_flags[:5]: print(f"    + flag {k}: {f}")
-for k, o, n in desc[:5]: print(f"    ~ desc {k}: {o[:50]!r} -> {n[:50]!r}")
-PY
-
 for cli in "$@"; do
   (cd "$cwd" && TREEMAND_CACHE_DIR="$work/cache-old" "$work/old" --no-cache --output=json --timeout=120 "$cli" >"$work/old.json" 2>/dev/null) || true
   (cd "$cwd" && TREEMAND_CACHE_DIR="$work/cache-new" "$work/new" --no-cache --output=json --timeout=120 "$cli" >"$work/new.json" 2>/dev/null) || true
   printf '%-12s ' "$cli"
-  python3 -I "$work/compare.py" "$work/old.json" "$work/new.json" || echo "could not compare (discovery failed?)"
+  python3 -I "$repo/scripts/compare_trees.py" "$work/old.json" "$work/new.json" || echo "could not compare (discovery failed?)"
 done
 
 snapshot >"$work/after"

@@ -30,19 +30,6 @@ for spec in "${SPECS[@]}"; do
   "$TM" "$name" --no-cache --depth "$depth" --timeout 900 $extra --output json >"$OUT/$name.json"
   # Precompute for the browser: minify and cap help text (the finder only
   # reads the first 2000 chars; the help pane shows the first screenful).
-  python3 - "$OUT/$name.json" <<'PY'
-import json, sys
-p = sys.argv[1]
-d = json.load(open(p))
-def trim(n):
-    if n.get("help_text"):
-        n["help_text"] = n["help_text"][:1500]
-    if n.get("discovery_err") and n.get("description"):
-        n.pop("discovery_err")  # non-fatal noise (e.g. "Unknown help topic")
-    for c in n.get("children", []):
-        trim(c)
-trim(d)
-json.dump(d, open(p, "w"), separators=(",", ":"), ensure_ascii=False)
-PY
+  python3 -I "$ROOT/scripts/trim_web_tree.py" "$OUT/$name.json"
   du -h "$OUT/$name.json" | awk '{print "  " $1}'
 done
