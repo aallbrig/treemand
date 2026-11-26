@@ -52,31 +52,4 @@ EOF
 json="$work/out.json"
 SITE_DIR="$site" sh "$root/scripts/metrics/probes/site-health.sh" >"$json" 2>"$work/err" || { cat "$work/err" >&2; exit 1; }
 
-python3 -I - "$json" <<'PY'
-import json
-import sys
-
-with open(sys.argv[1]) as f:
-    got = json.load(f)
-want = {
-    "pages": 3,
-    "http_errors": 1,
-    "console_errors": 1,
-    "js_exceptions": 1,
-    "broken_internal_links": 2,
-    "broken_external_links": 1,
-    "mixed_content": 1,
-}
-fail = False
-for k, v in want.items():
-    ok = got["metrics"].get(k + ".local") == v
-    fail = fail or not ok
-    print(f"  {'ok  ' if ok else 'FAIL'} {k}.local = {got['metrics'].get(k + '.local')} (want {v})")
-assert got["probe"] == "site-health"
-home = next(d for d in got["details"] if d.get("page") == "/")
-hrefs = sorted(b["href"] for b in home["broken_links"])
-ok = hrefs[:2] == ["/good/#nope", "/missing/"]
-fail = fail or not ok
-print(f"  {'ok  ' if ok else 'FAIL'} broken links named on the linking page: {hrefs}")
-sys.exit(1 if fail else 0)
-PY
+python3 -I "$root/scripts/metrics/site_health_test_verify.py" "$json"

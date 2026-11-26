@@ -38,14 +38,7 @@ git push -q origin main v0.9.4
 # that the fake gh says PR <number> merged.
 pr() {
   git commit -q --allow-empty -m "Merge pull request #$1"
-  python3 -I - "$PULLS/$(git rev-parse HEAD).json" "$@" <<'PY'
-import json, sys
-out, number, labels, title, body = sys.argv[1:]
-names = [n for n in labels.split(",") if n]
-pull = {"number": int(number), "title": title, "body": body, "merged_at": "2026-11-22T10:00:00Z",
-        "labels": [{"name": n} for n in names]}
-open(out, "w").write(json.dumps([pull]))
-PY
+  python3 -I "$here/notes_test_pull.py" "$PULLS/$(git rev-parse HEAD).json" "$@"
 }
 notes() { python3 -I "$here/notes.py" "$@"; }
 
