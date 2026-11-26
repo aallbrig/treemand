@@ -6,8 +6,8 @@ With no FILE, checks every *.sh under scripts/ that git tracks. Python in a
 shell script belongs in a typed module run as `python3 -I <file>`; what stays
 inline is a `python3 -I -c '...'` one-liner whose quote closes on the same
 line. Reported, one per line as FILE:LINE: why:
-  - a heredoc fed to Python (`<<'PY'`)
-  - Python read from stdin (`python3 -`)
+  - a heredoc fed to Python (`<<'PY'`, or any heredoc on a python3 line)
+  - Python read from stdin (`python3 -`, or `python3 -I` with no program)
   - python3 run without -I (the script's directory and cwd would be importable)
   - a `-c` program that spans lines
 """
@@ -36,7 +36,7 @@ def call_problem(rest: str) -> str | None:
     after = rest[2:].lstrip()
     while FLAG.match(after):
         after = after[2:].lstrip()
-    if after == "-" or after.startswith("- "):
+    if not after or after == "-" or after.startswith("- ") or after[0] in "|&;<>)":
         return "Python read from stdin"
     if after.startswith("-c "):
         program = after[3:].lstrip()
@@ -51,7 +51,7 @@ def problems(path: Path) -> list[str]:
     for n, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
         if line.lstrip().startswith("#"):
             continue
-        if HEREDOC.search(line):
+        if HEREDOC.search(line) or any("<<" in m.group("rest") for m in CALL.finditer(line)):
             found.append(f"{path}:{n}: a heredoc fed to Python")
             continue
         for m in CALL.finditer(line):

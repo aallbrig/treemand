@@ -23,6 +23,9 @@ CAUGHT = {
     "python3 -I -c 'import json": "a -c program that spans lines",
     'x | python3 -I -u -c "import sys': "a -c program that spans lines",
     "python3 -I - a b": "Python read from stdin",
+    "python3 -I <<EOF": "a heredoc fed to Python",
+    "cat prog | python3 -I": "Python read from stdin",
+    "python3 -I -u < prog.py": "Python read from stdin",
 }
 ALLOWED = [
     "python3 -I -c 'print(1)' arg",
@@ -32,6 +35,7 @@ ALLOWED = [
     "command -v python3 >/dev/null",
     "python@3.12) n=python3 ;;",
     "# python3 - <<'PY' in a comment",
+    "python3 -I -c 'import json, sys; json.loads(sys.stdin.read())' <\"$io/json.out\"",
 ]
 
 
