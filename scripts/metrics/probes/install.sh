@@ -92,38 +92,4 @@ else
   done
 fi
 
-python3 -I - "$rows" "$skips" "$latest" "$previous" <<'PY'
-import json
-import sys
-
-rows_file, skips_file, latest, previous = sys.argv[1:5]
-cols = ["env", "path", "status", "exit", "version", "want", "renders",
-        "quarantine", "quarantine_runs", "path_hint", "signature", "note"]
-details: list[dict[str, str]] = []
-metrics: dict[str, int] = {"paths_ok": 0, "paths_failed": 0}
-skipped: dict[str, str] = {}
-with open(rows_file) as f:
-    for line in f:
-        parts = line.rstrip("\n").split("\t")
-        if len(parts) != len(cols):
-            continue
-        row = dict(zip(cols, parts, strict=True))
-        name = f"{row.pop('env')}.{row.pop('path')}"
-        if row["status"] == "skip":
-            skipped[name] = row["note"]
-            continue
-        ok = row["status"] == "ok"
-        metrics["paths_ok" if ok else "paths_failed"] += 1
-        metrics[f"ok.{name}"] = int(ok)
-        details.append({"path": name, **row})
-with open(skips_file) as f:
-    for line in f:
-        name, _, why = line.rstrip("\n").partition("\t")
-        skipped[name] = why
-print(json.dumps({
-    "probe": "install",
-    "metrics": metrics,
-    "skipped": skipped,
-    "details": [{"latest": latest, "previous": previous}, *details],
-}))
-PY
+python3 -I scripts/metrics/install_report.py "$rows" "$skips" "$latest" "$previous"

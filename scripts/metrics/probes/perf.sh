@@ -19,12 +19,7 @@ tui_clis="${TUI_CLIS:-docker gh kubectl aws}"
 # CI runner (gh 3.8 vs 5.4 s for the same commit, #230).
 repeat="${PERF_REPEAT:-1}"
 med() { sort -g | awk '{ v[NR] = $1 } END { print v[int((NR + 1) / 2)] }'; }
-count_nodes() {
-  python3 -I -c 'import json,sys
-def n(x): return 1 + sum(n(c) for c in x.get("children") or [])
-try: print(n(json.load(open(sys.argv[1]))))
-except Exception: print(0)' "$1"
-}
+count_nodes() { python3 -I "$repo/scripts/metrics/perf_report.py" nodes "$1"; }
 work="$(mktemp -d)"
 mkdir -p "$work/cwd"
 trap 'rm -rf "$work"' EXIT
@@ -76,25 +71,4 @@ if ! diff -q "$work/before" "$work/after" >/dev/null || [ -n "$(ls -A "$work/cwd
   exit 1
 fi
 
-python3 -I - "$rows" "$skipped" <<'PY'
-import json, os, sys
-metrics, details = {}, []
-skipped = {cli: "not installed" for cli in sys.argv[2].split()}
-for line in sys.argv[1].splitlines():
-    if not line.strip():
-        continue
-    cli, cold, cpu, rss, warm, nodes, tti, calls, spread = line.split()
-    metrics[f"help_calls.{cli}"] = int(calls)
-    metrics[f"cold_s.{cli}"] = float(cold)
-    metrics[f"warm_s.{cli}"] = float(warm)
-    metrics[f"cpu_s.{cli}"] = round(float(cpu), 2)
-    metrics[f"rss_mb.{cli}"] = round(int(rss) / 1024, 1)
-    metrics[f"nodes.{cli}"] = int(nodes)
-    if tti != "-":
-        metrics[f"tti_s.{cli}"] = float(tti)
-    details.append({"cli": cli, "cold_s": float(cold), "cpu_s": round(float(cpu), 2),
-                    "cpu_per_wall": round(float(cpu) / max(float(cold), 0.01), 1),
-                    "cold_runs": [float(x) for x in spread.strip(",").split(",") if x]})
-print(json.dumps({"probe": "perf", "metrics": metrics, "skipped": skipped,
-                  "details": [{"loadavg": " ".join(f"{x:.2f}" for x in os.getloadavg())}, {"per_cli": details}]}))
-PY
+python3 -I "$repo/scripts/metrics/perf_report.py" report "$rows" "$skipped"

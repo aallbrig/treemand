@@ -170,32 +170,4 @@ for sh in bash zsh fish; do
   check "completion_$sh" "$(ev "comp$sh" "completion $sh")" comp_ok "$sh"
 done
 
-python3 -I - "$work" "$undescribed" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-work, undescribed = Path(sys.argv[1]), int(sys.argv[2])
-
-
-def rows(name: str) -> list[list[str]]:
-    text = (work / name).read_text()
-    return [line.split("\t") for line in text.splitlines() if line]
-
-
-checks = [{"check": n, "pass": p == "1", "evidence": e} for n, p, e in rows("checks.tsv")]
-metrics: dict[str, int] = {f"check.{c['check']}": int(c["pass"]) for c in checks}
-metrics["failing_checks"] = sum(not c["pass"] for c in checks)
-metrics["passing_checks"] = sum(c["pass"] for c in checks)
-metrics["undescribed_subcommands"] = undescribed
-print(json.dumps({
-    "probe": "cli-ux",
-    "metrics": metrics,
-    "skipped": dict(rows("skipped.tsv")),
-    "details": [
-        {"failing": [c for c in checks if not c["pass"]]},
-        {"subcommands": [{"path": p, "described": d == "1"} for p, d in rows("subcommands.tsv")]},
-        {"checks": checks},
-    ],
-}))
-PY
+python3 -I "$root/scripts/metrics/cli_ux_report.py" "$work" "$undescribed"
