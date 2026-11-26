@@ -41,14 +41,10 @@ m demo --gate >/dev/null; [ $? = 0 ] && ok "--gate passes without regressions" |
 probe 2 80
 out="$(m demo)"; has "$out" "IMPROVED   cold_s.big" && ok "improvement reported" || bad "improvement: $out"
 has "$out" "BUDGET     score = 80" && has "$out" "REGRESSION score" && ok "higher-is-better ratchet and min budget" || bad "higher ratchet: $out"
-m demo --findings | python3 -c 'import json,sys; d=json.load(sys.stdin); assert {f["kind"] for f in d["findings"]} >= {"budget","regression","improved"}' \
+m demo --findings | python3 -I -c 'import json,sys; d=json.load(sys.stdin); assert {f["kind"] for f in d["findings"]} >= {"budget","regression","improved"}' \
   && ok "--findings emits JSON verdicts" || bad "--findings JSON"
 
-python3 - "$MEASURE_HISTORY/demo.jsonl" <<'PY'
-import json,sys
-p=sys.argv[1]; r=json.loads(open(p).read().splitlines()[0]); r["host"]="other-host"
-open(p,"w").write(json.dumps(r)+"\n")
-PY
+python3 -I scripts/metrics/measure_test_rehost.py "$MEASURE_HISTORY/demo.jsonl"
 probe 9 95
 out="$(m demo)"; ! has "$out" "REGRESSION cold_s.big" && ok "host-bound metrics only compare against the same host" || bad "host_bound: $out"
 

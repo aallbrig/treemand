@@ -28,75 +28,10 @@ check() { # check <json-file> <what> <python expression over d (the JSON)>
   fi
 }
 
-python3 -I - "$tmp" <<'PY'
-import json, os, sys
-tmp = sys.argv[1]
-
-def rel(tag, published, counts, draft=False, pre=False):
-    return {"tag_name": tag, "published_at": published, "draft": draft, "prerelease": pre,
-            "assets": [{"name": f"a{i}.tar.gz", "download_count": c} for i, c in enumerate(counts)]}
-
-def issue(n, assoc, kind="User", pr=False):
-    i = {"number": n, "author_association": assoc, "user": {"login": f"person{n}", "type": kind}}
-    if pr:
-        i["pull_request"] = {}
-    return i
-
-issues = [issue(1, "OWNER"), issue(2, "NONE"), issue(3, "CONTRIBUTOR"), issue(4, "NONE", kind="Bot"),
-          issue(5, "NONE", pr=True), issue(6, "COLLABORATOR")]
-repo = {"full_name": "acme/tool", "stargazers_count": 12, "forks_count": 3, "subscribers_count": 2}
-healthy = {
-    "repos/acme/tool": repo,
-    "repos/acme/tool/releases": [
-        rel("v1.3.0-rc1", "2026-03-09T00:00:00Z", [50], pre=True),
-        rel("v1.2.0", "2026-03-08T00:00:00Z", [4, 6]) | {"assets": [
-            {"name": "a0.tar.gz", "download_count": 4}, {"name": "a1.zip", "download_count": 6},
-            {"name": "checksums.txt", "download_count": 9}, {"name": "checksums.txt.sigstore.json", "download_count": 9}]},
-        rel("v1.3.0", "2026-03-11T00:00:00Z", [99], draft=True),
-        rel("v1.1.0", "2026-02-01T00:00:00Z", [30, 10]),
-    ],
-    "repos/acme/tool/issues?state=open": issues,
-    "repos/acme/tool/traffic/views": {"count": 40, "uniques": 9},
-    "repos/acme/tool/traffic/clones": {"count": 300, "uniques": 70},
-    "repos/acme/tool/traffic/popular/referrers": [{"referrer": "news.example", "count": 7, "uniques": 5},
-                                                  {"referrer": "github.com", "count": 3, "uniques": 2}],
-    "repos/acme/homebrew-tap/traffic/clones": {"count": 25, "uniques": 11},
-}
-broken = dict(healthy)
-broken["repos/acme/tool/releases"] = [rel("v1.2.0", "2026-03-02T00:00:00Z", [0, 0]), rel("v1.1.0", "2026-02-01T00:00:00Z", [5])]
-for k in ("views", "clones", "popular/referrers"):
-    broken[f"repos/acme/tool/traffic/{k}"] = {"__error": "gh: Must have push access to repository (HTTP 403)"}
-json.dump(healthy, open(f"{tmp}/healthy.json", "w"))
-json.dump(broken, open(f"{tmp}/broken.json", "w"))
-os.makedirs(f"{tmp}/proxy/github.com/acme/tool/@v")
-json.dump({"Version": "v1.2.0"}, open(f"{tmp}/proxy/github.com/acme/tool/@latest", "w"))
-os.makedirs(f"{tmp}/brew/formula")
-with open(f"{tmp}/history.jsonl", "w") as f:
-    for date, stars in (("2026-03-01T00:00:00Z", 8), ("2026-03-02T12:00:00Z", 10), ("2026-03-08T00:00:00Z", 11)):
-        f.write(json.dumps({"date": date, "host": "github-api", "metrics": {"stars": stars, "downloads_total": 20}}) + "\n")
-PY
+python3 -I "$here/adoption_signals_test_world.py" "$tmp"
 
 mkdir -p "$tmp/bin"
-cat >"$tmp/bin/gh" <<'PY'
-#!/usr/bin/env python3
-# Fake gh: `gh api -X GET <path>` answered from $GH_WORLD; lists are paginated by per_page/page.
-import json, os, sys
-from urllib.parse import parse_qs, urlencode
-path = sys.argv[-1]
-base, _, query = path.partition("?")
-q = {k: v[0] for k, v in parse_qs(query).items()}
-per, page = int(q.pop("per_page", 30)), int(q.pop("page", 1))
-key = base + ("?" + urlencode(q) if q else "")
-world = json.load(open(os.environ["GH_WORLD"]))
-if key not in world:
-    sys.exit(f"gh: Not Found (HTTP 404) {key}")
-body = world[key]
-if isinstance(body, dict) and "__error" in body:
-    sys.exit(body["__error"])
-if isinstance(body, list):
-    body = body[(page - 1) * per : page * per]
-print(json.dumps(body))
-PY
+cp "$here/adoption_signals_test_fake_gh.py" "$tmp/bin/gh"
 chmod +x "$tmp/bin/gh"
 PATH="$tmp/bin:$PATH"
 

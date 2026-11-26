@@ -10,12 +10,8 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT INT TERM
 fail=0
 
-# get <json-file> <python expression over o> -> prints its value (or "absent")
-get() { python3 -I -c 'import json,sys
-o=json.load(open(sys.argv[1]))
-d=o["details"]
-try: print(eval(sys.argv[2]))
-except (KeyError, IndexError, StopIteration, ValueError): print("absent")' "$1" "$2"; }
+# get <json-file> <python expression over o, d its details> -> prints its value (or "absent")
+get() { python3 -I "$here/json_get.py" "$1" "$2"; }
 expect() { # expect <json-file> <expression> <value> <what>
   got="$(get "$1" "$2")"
   if [ "$got" = "$3" ]; then echo "ok    $4"; else echo "FAIL  $4: $2 = $got, want $3"; fail=1; fi

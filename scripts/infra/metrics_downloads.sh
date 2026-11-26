@@ -5,6 +5,7 @@
 # downloads per version and platform, then install-script, latest.txt and page
 # fetches. Needs credentials that can query Athena and read the log bucket.
 set -euo pipefail
+here="$(cd "$(dirname "$0")" && pwd)"
 export AWS_REGION=us-east-1 AWS_DEFAULT_REGION=us-east-1
 days="${1:-30}"
 case "$days" in *[!0-9]* | '') echo "days must be a number" >&2; exit 2 ;; esac
@@ -28,9 +29,7 @@ query() { # query <sql> -> tab-separated rows, header first
   done
   aws athena get-query-results --query-execution-id "$id" \
     --query 'ResultSet.Rows[].Data[].VarCharValue' --output json |
-    python3 -c 'import json,sys
-cols=int(sys.argv[1]); v=json.load(sys.stdin)
-for i in range(0,len(v),cols): print("\t".join(x or "" for x in v[i:i+cols]))' "$2"
+    python3 -I "$here/athena_rows.py" "$2"
 }
 
 window="log_date >= current_date - interval '$days' day AND sc_status IN (200, 206, 304)"

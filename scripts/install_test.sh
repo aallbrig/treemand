@@ -51,7 +51,7 @@ make_release "$site/v9.9.9" v9.9.9
 printf 'v1.0.0\n' >"$site/latest.txt"
 
 port="${INSTALL_TEST_PORT:-18282}"
-python3 -m http.server "$port" --bind 127.0.0.1 --directory "$site" >"$work/server.log" 2>&1 &
+python3 -I -m http.server "$port" --bind 127.0.0.1 --directory "$site" >"$work/server.log" 2>&1 &
 server_pid=$!
 for _ in $(seq 1 50); do curl -sf "http://127.0.0.1:$port/latest.txt" >/dev/null && break; sleep 0.1; done
 base="http://127.0.0.1:$port"
@@ -98,7 +98,7 @@ printf 'tampered' >>"$work/tamper/v1.0.0/treemand_darwin_amd64.tar.gz"
 printf 'tampered' >>"$work/tamper/v1.0.0/treemand_linux_arm64.tar.gz"
 printf 'tampered' >>"$work/tamper/v1.0.0/treemand_darwin_arm64.tar.gz"
 tport=$((port + 1))
-python3 -m http.server "$tport" --bind 127.0.0.1 --directory "$work/tamper" >/dev/null 2>&1 &
+python3 -I -m http.server "$tport" --bind 127.0.0.1 --directory "$work/tamper" >/dev/null 2>&1 &
 tpid=$!
 for _ in $(seq 1 50); do curl -sf "http://127.0.0.1:$tport/latest.txt" >/dev/null && break; sleep 0.1; done
 h="$work/h3"; mkdir -p "$h"
@@ -112,7 +112,7 @@ check "nothing was installed after a mismatch" test ! -e "$h/.local/bin/treemand
 rm -rf "$work/nosum" && cp -r "$site" "$work/nosum"
 : >"$work/nosum/v1.0.0/checksums.txt"
 nport=$((port + 2))
-python3 -m http.server "$nport" --bind 127.0.0.1 --directory "$work/nosum" >/dev/null 2>&1 &
+python3 -I -m http.server "$nport" --bind 127.0.0.1 --directory "$work/nosum" >/dev/null 2>&1 &
 npid=$!
 for _ in $(seq 1 50); do curl -sf "http://127.0.0.1:$nport/latest.txt" >/dev/null && break; sleep 0.1; done
 h="$work/h4"; mkdir -p "$h"
